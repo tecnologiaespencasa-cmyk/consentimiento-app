@@ -1,35 +1,45 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "../../../lib/prisma";
+import { uploadToSharePoint } from "../../../lib/uploadToSharePoint";
 
 export async function POST(request: Request) {
   try {
+    console.log("API consentimiento llamado");
+
     const formData = await request.formData();
 
     const cedula = formData.get("cedula") as string;
     const especialista = formData.get("especialista") as string;
-    const archivoUrl = formData.get("archivoUrl") as string;
+    const fechaHora = formData.get("fechaHora") as string;
+    const archivo = formData.get("archivo") as File;
 
-    if (!cedula || !especialista || !archivoUrl) {
+    if (!archivo) {
       return NextResponse.json(
-        { error: "Datos incompletos" },
+        { error: "Archivo requerido" },
         { status: 400 }
       );
     }
 
+    // 1️⃣ Subir archivo a SharePoint
+    const archivoUrl = await uploadToSharePoint(archivo, cedula);
+
+    // 2️⃣ Guardar en base de datos
     await prisma.consentimiento.create({
       data: {
-        cedula: cedula,
-        especialista: especialista,
-        fechaHora: new Date(),
-        archivoUrl: archivoUrl,
+        cedula,
+        especialista,
+        fechaHora: new Date(fechaHora),
+        archivoUrl,
       },
     });
 
+    console.log("Registro completo guardado");
+
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("Error guardando consentimiento:", error);
+    console.error("ERROR API:", error);
     return NextResponse.json(
-      { error: "Error interno del servidor" },
+      { error: "Error guardando consentimiento" },
       { status: 500 }
     );
   }
