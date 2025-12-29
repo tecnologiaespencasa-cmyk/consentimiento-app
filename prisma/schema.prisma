@@ -1,0 +1,17 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Consentimiento {
+  id           String   @id @default(uuid())
+  cedula       String
+  especialista String
+  fechaHora    DateTime
+  archivoUrl   String
+  createdAt    DateTime @default(now())
+}
