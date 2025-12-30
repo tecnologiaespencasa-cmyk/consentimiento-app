@@ -3,134 +3,171 @@
 import { useState } from "react";
 
 export default function ConsentimientoPage() {
-  const [loading, setLoading] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setLoading(true);
     setMensaje(null);
-
-    const formData = new FormData(e.currentTarget);
+    setCargando(true);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
 
     try {
-      const res = await fetch("/api/consentimiento", {
+      const response = await fetch("/api/consentimiento", {
         method: "POST",
         body: formData,
       });
 
-      if (!res.ok) throw new Error();
-
-      setMensaje("✅ Consentimiento guardado correctamente");
-      e.currentTarget.reset();
-    } catch {
-      setMensaje("❌ Error al guardar el consentimiento");
+      if (response.ok) {
+        setMensaje("✅ Consentimiento guardado correctamente");
+        form.reset();
+      } else {
+        setMensaje("❌ Error al guardar el consentimiento");
+      }
+    } catch (error) {
+      console.error(error);
+      setMensaje("❌ Error de conexión con el servidor");
     } finally {
-      setLoading(false);
+      setCargando(false);
     }
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center">
-      {/* HEADER */}
-      <header className="w-full bg-white shadow-md py-4 flex justify-center">
-        <img
-          src="https://media.licdn.com/dms/image/v2/D5616AQG6F-vet15myg/profile-displaybackgroundimage-shrink_200_800/profile-displaybackgroundimage-shrink_200_800/0/1665575367807?e=2147483647&v=beta&t=Kc2dOqB7r17StLmF3_Vf2el9jFGNErLVwSQem-Fz1rY"
-          alt="Logo"
-          className="h-16 object-contain"
-        />
-      </header>
+    <main
+      style={{
+        minHeight: "100vh",
+        background: "#f4f6f8",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          background: "#ffffff",
+          padding: 30,
+          borderRadius: 10,
+          width: "100%",
+          maxWidth: 480,
+          boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+        }}
+      >
+        {/* LOGO */}
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <img
+            src="https://media.licdn.com/dms/image/v2/D5616AQG6F-vet15myg/profile-displaybackgroundimage-shrink_200_800/profile-displaybackgroundimage-shrink_200_800/0/1665575367807?e=2147483647&v=beta&t=Kc2dOqB7r17StLmF3_Vf2el9jFGNErLVwSQem-Fz1rY"
+            alt="Logo"
+            style={{ maxWidth: "100%", height: "auto" }}
+          />
+        </div>
 
-      {/* CARD */}
-      <main className="w-full max-w-xl mt-10 bg-white rounded-xl shadow-lg p-8">
-        <h1 className="text-2xl font-semibold text-gray-800 mb-6 text-center">
-          Registro de Consentimiento Informado
+        <h1 style={{ textAlign: "center", marginBottom: 24 }}>
+          Consentimiento Informado
         </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
+        <form onSubmit={handleSubmit}>
+          {/* Cédula */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", marginBottom: 6 }}>
               Cédula del paciente
             </label>
             <input
+              type="text"
               name="cedula"
               required
-              className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600"
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 6,
+                border: "1px solid #ccc",
+              }}
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
+          {/* Especialista */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", marginBottom: 6 }}>
               Nombre del especialista
             </label>
             <input
+              type="text"
               name="especialista"
               required
-              className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600"
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 6,
+                border: "1px solid #ccc",
+              }}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Fecha
-              </label>
-              <input
-                type="date"
-                name="fecha"
-                required
-                className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700">
-                Hora
-              </label>
-              <input
-                type="time"
-                name="hora"
-                required
-                className="mt-1 w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600"
-              />
-            </div>
+          {/* Fecha y hora */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{ display: "block", marginBottom: 6 }}>
+              Fecha y hora
+            </label>
+            <input
+              type="datetime-local"
+              name="fechaHora"
+              required
+              style={{
+                width: "100%",
+                padding: 10,
+                borderRadius: 6,
+                border: "1px solid #ccc",
+              }}
+            />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
+          {/* Archivo */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ display: "block", marginBottom: 6 }}>
               Adjuntar consentimiento (PDF o imagen)
             </label>
             <input
               type="file"
               name="archivo"
-              accept="application/pdf,image/*"
+              accept=".pdf,image/*"
               required
-              className="mt-1 block w-full text-sm text-gray-600
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-md file:border-0
-                file:bg-blue-600 file:text-white
-                hover:file:bg-blue-700"
             />
           </div>
 
+          {/* Botón */}
           <button
             type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-3 rounded-md font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+            disabled={cargando}
+            style={{
+              width: "100%",
+              padding: 12,
+              borderRadius: 6,
+              border: "none",
+              background: cargando ? "#999" : "#2563eb",
+              color: "#fff",
+              fontSize: 16,
+              cursor: cargando ? "not-allowed" : "pointer",
+            }}
           >
-            {loading ? "Guardando..." : "Guardar consentimiento"}
+            {cargando ? "Guardando..." : "Enviar"}
           </button>
 
+          {/* Mensaje */}
           {mensaje && (
-            <p className="text-center font-medium text-gray-700">{mensaje}</p>
+            <p
+              style={{
+                marginTop: 16,
+                fontWeight: "bold",
+                textAlign: "center",
+              }}
+            >
+              {mensaje}
+            </p>
           )}
         </form>
-      </main>
-
-      {/* FOOTER */}
-      <footer className="mt-10 text-sm text-gray-500">
-        © {new Date().getFullYear()} · Consentimientos Informados
-      </footer>
-    </div>
+      </div>
+    </main>
   );
 }
