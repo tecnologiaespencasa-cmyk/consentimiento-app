@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import styles from "./Consentimiento.module.css";
 
 export default function ConsentimientoPage() {
   const [mensaje, setMensaje] = useState<string | null>(null);
@@ -21,78 +22,87 @@ export default function ConsentimientoPage() {
 
      if (response.ok) {
       setMensaje("✅ Consentimiento guardado correctamente");
-      form.reset(); // ✅ ahora nunca será null
+      form.reset();
     } else {
-      setMensaje("❌ Error al guardar el consentimiento");
+      setMensaje("❌ Error al guardar el consentimiento. Comprueba tu conexión a internet o intenta mas tarde");
        }
    } catch (error) {
     console.error(error);
-    setMensaje("❌ Error de conexión con el servidor");
+    setMensaje("❌ Error de conexión con el servidor. Comprueba tu conexión a internet o intenta mas tarde");
   } finally {
     setCargando(false);
   }
 };
 
-
   return (
-    <main style={{ maxWidth: 500, margin: "40px auto" }}>
-      <h1>Consentimiento Informado</h1>
+    <main className={styles.page}>
+      <div className={styles.card}>
+        {/* Logo */}
+        <div className={styles.logo}>
+          <img
+            src="https://bukwebapp-enterprise-colombia.s3.amazonaws.com/0720f0bf-67ea-4055-87c0-0c415b591db4/generals/logo_login/logo_login.png"
+            alt="Logo"
+          />
+        </div>
+      <h1 className={styles.title}  >Consentimiento Informado</h1>
 
       <form onSubmit={handleSubmit}>
         {/* Cédula */}
-        <div style={{ marginBottom: 12 }}>
+        <div className={styles.field}>
           <label>Cédula del paciente</label>
           <input
             type="text"
             name="cedula"
             required
-            style={{ width: "100%" }}
+            className={styles.input}
           />
         </div>
 
         {/* Especialista */}
-        <div style={{ marginBottom: 12 }}>
+        <div className={styles.field}>
           <label>Nombre del especialista</label>
           <input
             type="text"
             name="especialista"
             required
-            style={{ width: "100%" }}
+            className={styles.input}
           />
         </div>
 
         {/* Fecha y hora */}
-        <div style={{ marginBottom: 12 }}>
+        <div className={styles.field}>
           <label>Fecha y hora</label>
           <input
             type="datetime-local"
             name="fechaHora"
             required
-            style={{ width: "100%" }}
+            className={styles.field}
           />
         </div>
 
         {/* Archivo */}
-        <div style={{ marginBottom: 12 }}>
+        <div className={styles.field}>
           <label>Adjuntar consentimiento (PDF o imagen)</label>
           <input
             type="file"
             name="archivo"
             accept=".pdf,image/*"
             required
+            className={styles.fileInput}
           />
         </div>
 
         {/* Botón */}
-        <button type="submit" disabled={cargando}>
-          {cargando ? "Guardando..." : "Enviar"}
+        <button type="submit" disabled={cargando} className={styles.button}>
+          {cargando ? "Guardando..." : "Enviar consentimiento"}
         </button>
 
         {/* Mensaje */}
         {mensaje && (
-          <p style={{ marginTop: 16, fontWeight: "bold" }}>{mensaje}</p>
+          <p className={styles.message}>{mensaje}</p>
         )}
       </form>
+      </div>
     </main>
      );
 }
