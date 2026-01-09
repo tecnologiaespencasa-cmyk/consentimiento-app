@@ -16,7 +16,7 @@ export default function ConsentimientoPage() {
     const formData = new FormData(form);
 
     try {
-      const response = await fetch("/api/consentimiento", {
+      const response = await fetch("/api/consentimientos", {
         method: "POST",
         body: formData,
       });

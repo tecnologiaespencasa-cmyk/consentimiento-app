@@ -7,11 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique
+  passwordHash String
+  nombre       String
+  rol          Rol
+  activo       Boolean  @default(true)
+
+  consentimientos Consentimiento[]
+}
+
+enum Rol {
+  ESPECIALISTA
+  ADMINISTRATIVO
+  TECNICO
+}
+
 model Consentimiento {
   id           String   @id @default(uuid())
   cedula       String
-  especialista String
   fechaHora    DateTime
   archivoUrl   String
+
+  usuarioId    String
+  usuario      User     @relation(fields: [usuarioId], references: [id])
+
   createdAt    DateTime @default(now())
 }
