@@ -20,9 +20,10 @@
 }
 
 .logo {
-  text-align: center;
-  margin-bottom: 10px;
-  margin-left: 65;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
 }
 
 .logo img {
@@ -33,7 +34,7 @@
 .title {
   font-family: "Montserrat", "Open Sans", Arial, Helvetica, sans-serif;
   font-weight: 700;
-  color: #d60f0f;
+  color: #e80214;
   text-align: center;
   margin-bottom: 24px;
 }
@@ -69,18 +70,39 @@
 
 .button {
   width: 100%;
-  padding: 12px;
-  border-radius: 6px;
+  background: linear-gradient(135deg, #e80214 0%, #e80214 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
   border: none;
-  background: #ff0000;
-  color: #fff;
-  font-size: 16px;
   cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  position: relative;
+  font-size: 1rem;
+}
+
+.button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e80214 0%, #941d1d 100%);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.5);
 }
 
 .button:disabled {
   background: #999;
   cursor: not-allowed;
+}
+
+.buttonContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .message {

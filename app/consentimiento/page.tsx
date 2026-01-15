@@ -41,8 +41,10 @@ export default function ConsentimientoPage() {
         {/* Logo */}
         <div className={styles.logo}>
           <img
-            src="https://bukwebapp-enterprise-colombia.s3.amazonaws.com/0720f0bf-67ea-4055-87c0-0c415b591db4/generals/logo_login/logo_login.png"
+            src="/login/logo.png"
             alt="Logo"
+            width={240}
+            height={240}
           />
         </div>
         <h1 className={styles.title}  >Consentimiento Informado</h1>
@@ -54,17 +56,6 @@ export default function ConsentimientoPage() {
             <input
               type="text"
               name="cedula"
-              required
-              className={styles.input}
-            />
-          </div>
-
-          {/* Especialista */}
-          <div className={styles.field}>
-            <label>Nombre del especialista</label>
-            <input
-              type="text"
-              name="especialista"
               required
               className={styles.input}
             />
