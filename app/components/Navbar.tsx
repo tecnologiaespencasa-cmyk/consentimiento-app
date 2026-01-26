@@ -14,9 +14,18 @@ import {
   FaTimes,
   FaUserMd,
   FaHospital,
-  FaBell,
   FaChevronDown
 } from "react-icons/fa"
+
+function nombreCorto(nombres?: string, primerApellido?: string) {
+  const n = (nombres ?? "").trim()
+  const a1 = (primerApellido ?? "").trim()
+  if (!n && !a1) return "Usuario"
+
+  // SOLO primer nombre + primer apellido
+  const primerNombre = n.split(/\s+/)[0]
+  return `${primerNombre} ${a1}`.trim()
+}
 
 export default function Navbar() {
   const pathname = usePathname()
@@ -51,7 +60,11 @@ export default function Navbar() {
   // No mostrar navbar si no hay sesión
   if (!session?.user) return null
 
-  const { nombre, rol } = session.user
+  // ✅ Campos nuevos en sesión
+  const { nombres, primerApellido, rol, username } = session.user as any
+
+  // Nombre corto (Pedro Perez)
+  const displayName = nombreCorto(nombres, primerApellido) || username || "Usuario"
 
   // Función para verificar si el enlace está activo
   const isActive = (path: string) => pathname === path
@@ -185,7 +198,7 @@ export default function Navbar() {
                     <p className={`text-sm font-medium truncate max-w-[150px] ${
                       isScrolled ? 'text-gray-800' : 'text-white'
                     }`}>
-                      {nombre || "Usuario"}
+                      {displayName}
                     </p>
                     <p className={`text-xs truncate max-w-[150px] ${
                       isScrolled ? 'text-gray-600' : 'text-red-200'
@@ -203,7 +216,7 @@ export default function Navbar() {
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-50">
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-800 truncate">
-                        {nombre || "Usuario"}
+                        {displayName}
                       </p>
                     </div>
                     <Link 
@@ -302,7 +315,7 @@ export default function Navbar() {
                     </div>
                     <div>
                       <p className="font-medium text-gray-800 truncate">
-                        {nombre || "Usuario"}
+                        {displayName}
                       </p>
                       <p className="text-xs text-gray-600">
                         {rol || "Rol"}

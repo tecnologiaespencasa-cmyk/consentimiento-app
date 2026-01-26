@@ -1,78 +1,76 @@
-import type { NextAuthOptions } from "next-auth"
-import NextAuth from "next-auth"
-import CredentialsProvider from "next-auth/providers/credentials"
-import * as bcrypt from "bcrypt"
-import { prisma } from "@/lib/prisma"
+import type { NextAuthOptions } from "next-auth";
+import NextAuth from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import * as bcrypt from "bcrypt";
+import { prisma } from "@/lib/prisma";
 
 export const authOptions: NextAuthOptions = {
-    callbacks: {
-        async jwt({ token, user }) {
-            if (user) {
-                token.id = user.id
-                token.username = user.username
-                token.nombre = user.nombre
-                token.rol = user.rol
-            }
-            return token
-        },
-        async session({ session, token }) {
-            if (session.user) {
-                session.user.id = token.id as string
-                session.user.username = token.username as string
-                session.user.nombre = token.nombre as string
-                session.user.rol = token.rol as
-                    | "ADMINISTRATIVO"
-                    | "TECNICO"
-                    | "ESPECIALISTA"
-            }
-            return session
-        }
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = (user as any).id;
+        token.username = (user as any).username;
+        token.rol = (user as any).rol;
+
+        token.nombres = (user as any).nombres;
+        token.primerApellido = (user as any).primerApellido;
+        token.segundoApellido = (user as any).segundoApellido ?? null;
+        token.email = (user as any).email ?? null;
+        token.telefono = (user as any).telefono ?? null;
+      }
+      return token;
     },
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.username = token.username as string;
+        session.user.rol = token.rol as any;
 
-    providers: [
-        CredentialsProvider({
-            name: "Credenciales",
-            credentials: {
-                username: { label: "Usuario", type: "text" },
-                password: { label: "Contraseña", type: "password" }
-            },
-            async authorize(credentials) {
-                if (!credentials?.username || !credentials?.password) {
-                    return null
-                }
-
-                const user = await prisma.user.findUnique({
-                    where: { username: credentials.username }
-                })
-
-                if (!user || !user.activo) return null
-
-                const passwordValida = await bcrypt.compare(
-                    credentials.password,
-                    user.passwordHash
-                )
-
-                if (!passwordValida) return null
-
-                return {
-                    id: user.id,
-                    username: user.username,
-                    nombre: user.nombre,
-                    rol: user.rol
-                }
-            }
-        })
-    ],
-
-    session: {
-        strategy: "jwt"
+        session.user.nombres = token.nombres as string;
+        session.user.primerApellido = token.primerApellido as string;
+        session.user.segundoApellido = (token.segundoApellido as string | null) ?? null;
+        session.user.email = (token.email as string | null) ?? null;
+        session.user.telefono = (token.telefono as string | null) ?? null;
+      }
+      return session;
     },
+  },
 
-    pages: {
-        signIn: "/login"
-    }
-}
+  providers: [
+    CredentialsProvider({
+      name: "Credenciales",
+      credentials: {
+        username: { label: "Usuario", type: "text" },
+        password: { label: "Contraseña", type: "password" },
+      },
+      async authorize(credentials) {
+        if (!credentials?.username || !credentials?.password) return null;
 
-const handler = NextAuth(authOptions)
+        const username = credentials.username.toLowerCase().trim();
+        const user = await prisma.user.findUnique({ where: { username } });
+        if (!user || !user.activo) return null;
 
-export { handler as GET, handler as POST }
+        const ok = await bcrypt.compare(credentials.password, user.passwordHash);
+        if (!ok) return null;
+
+        return {
+          id: user.id,
+          username: user.username,
+          rol: user.rol,
+
+          nombres: user.nombres,
+          primerApellido: user.primerApellido,
+          segundoApellido: user.segundoApellido,
+          email: user.email,
+          telefono: user.telefono,
+        } as any;
+      },
+    }),
+  ],
+
+  session: { strategy: "jwt" },
+  pages: { signIn: "/login" },
+};
+
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };

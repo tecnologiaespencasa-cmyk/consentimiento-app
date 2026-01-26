@@ -8,30 +8,31 @@ datasource db {
 }
 
 model User {
-  id           String   @id @default(uuid())
-  username     String   @unique
-  passwordHash String
-  nombre       String
-  rol          Rol
-  activo       Boolean  @default(true)
-
+  id              String           @id @default(uuid())
+  username        String           @unique
+  passwordHash    String
+  rol             Rol
+  activo          Boolean          @default(true)
+  email           String?          @unique
+  nombres         String
+  primerApellido  String
+  segundoApellido String?
+  telefono        String?
   consentimientos Consentimiento[]
+}
+
+model Consentimiento {
+  id         String   @id @default(uuid())
+  cedula     String
+  fechaHora  DateTime
+  archivoUrl String
+  createdAt  DateTime @default(now())
+  usuarioId  String
+  usuario    User     @relation(fields: [usuarioId], references: [id])
 }
 
 enum Rol {
   ESPECIALISTA
   ADMINISTRATIVO
   TECNICO
-}
-
-model Consentimiento {
-  id           String   @id @default(uuid())
-  cedula       String
-  fechaHora    DateTime
-  archivoUrl   String
-
-  usuarioId    String
-  usuario      User     @relation(fields: [usuarioId], references: [id])
-
-  createdAt    DateTime @default(now())
 }
