@@ -1,10 +1,13 @@
 import { getGraphToken } from "./graphAuth"
-import { Buffer } from "buffer"
 
 type UploadBytesInput = {
-  bytes: Uint8Array | Buffer
+  bytes: Uint8Array | ArrayBuffer
   fileName: string
   contentType?: string
+}
+
+function toUint8Array(bytes: Uint8Array | ArrayBuffer) {
+  return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
 }
 
 export async function uploadToSharePoint(
@@ -13,27 +16,33 @@ export async function uploadToSharePoint(
 ): Promise<string> {
   const token = await getGraphToken()
 
-  let buffer: Buffer
+  let bodyBytes: Uint8Array
   let finalFileName: string
   let contentType = "application/octet-stream"
 
-  // ✅ Caso 1: te mandan File (compatibilidad por si aún hay pantallas antiguas)
+  // ✅ Caso 1: llega File (compatibilidad)
   if (typeof (fileOrBytes as File)?.arrayBuffer === "function") {
     const file = fileOrBytes as File
-    const arrayBuffer = await file.arrayBuffer()
-    buffer = Buffer.from(arrayBuffer)
+    const ab = await file.arrayBuffer()
+    bodyBytes = new Uint8Array(ab)
+
+    // Si no quieres que cambie el nombre, puedes usar solo file.name
     finalFileName = `${cedula}_${Date.now()}_${file.name}`
     contentType = file.type || contentType
   } else {
-    // ✅ Caso 2: te mandan bytes (lo recomendado para Vercel)
+    // ✅ Caso 2: llega bytes (recomendado)
     const input = fileOrBytes as UploadBytesInput
-    const b = input.bytes
-    buffer = Buffer.isBuffer(b) ? b : Buffer.from(b)
+    bodyBytes = toUint8Array(input.bytes)
     finalFileName = `${cedula}_${Date.now()}_${input.fileName}`
     contentType = input.contentType || contentType
   }
 
-  const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${process.env.SHAREPOINT_SITE_ID}/drive/root:/${process.env.SHAREPOINT_LIBRARY}/${finalFileName}:/content`
+  // ⚠️ Ajusta estos envs a los que ya usas en tu proyecto
+  const siteId = process.env.SHAREPOINT_SITE_ID!
+  const library = process.env.SHAREPOINT_LIBRARY! // ej: "Consentimientos"
+  // library puede ser ruta completa dentro del drive/root
+
+  const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${library}/${finalFileName}:/content`
 
   const response = await fetch(uploadUrl, {
     method: "PUT",
@@ -41,14 +50,14 @@ export async function uploadToSharePoint(
       Authorization: `Bearer ${token}`,
       "Content-Type": contentType,
     },
-    body: buffer,
+    body: bodyBytes, // ✅ Uint8Array es BodyInit
   })
 
   if (!response.ok) {
     const error = await response.text().catch(() => "")
-    throw new Error(`Error subiendo archivo: ${error}`)
+    throw new Error(`Error subiendo archivo: ${response.status} ${error}`)
   }
 
-  const data = await response.json()
-  return data.webUrl
+  const data: any = await response.json()
+  return data.webUrl || ""
 }
