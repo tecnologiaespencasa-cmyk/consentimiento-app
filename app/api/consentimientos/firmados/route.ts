@@ -10,7 +10,7 @@ import path from "path";
 import fs from "fs/promises";
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
-
+import { Buffer } from "buffer"
 /**
  * Helpers
  */
@@ -362,9 +362,15 @@ export async function POST(req: Request) {
     const finalPdfBytes = await pdfDoc.save();
 
     const fileName = `${formatoId}-${cedula}-${now.toISOString().slice(0, 10)}.pdf`;
-    const pdfFile = new File([finalPdfBytes], fileName, { type: "application/pdf" });
+    const archivoUrl = await uploadToSharePoint(
+      {
+        bytes: finalPdfBytes,
+        fileName,
+        contentType: "application/pdf",
+      },
+      cedula
+    )
 
-    const archivoUrl = await uploadToSharePoint(pdfFile, cedula);
 
     await prisma.consentimiento.create({
       data: {
