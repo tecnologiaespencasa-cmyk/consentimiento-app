@@ -6,8 +6,17 @@ type UploadBytesInput = {
   contentType?: string
 }
 
-function toUint8Array(bytes: Uint8Array | ArrayBuffer) {
-  return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+function toArrayBufferStrict(bytes: Uint8Array | ArrayBuffer): ArrayBuffer {
+  // ✅ Queremos un ArrayBuffer "real" y nuevo (no ArrayBufferLike)
+  if (bytes instanceof ArrayBuffer) {
+    // hacemos copia para evitar tipado ArrayBufferLike raro en algunos builds
+    return bytes.slice(0)
+  }
+
+  // bytes es Uint8Array → copiamos a un nuevo Uint8Array para garantizar ArrayBuffer
+  const copy = new Uint8Array(bytes.byteLength)
+  copy.set(bytes)
+  return copy.buffer
 }
 
 export async function uploadToSharePoint(
@@ -16,7 +25,7 @@ export async function uploadToSharePoint(
 ): Promise<string> {
   const token = await getGraphToken()
 
-  let bodyBytes: Uint8Array
+  let bodyArrayBuffer: ArrayBuffer
   let finalFileName: string
   let contentType = "application/octet-stream"
 
@@ -24,23 +33,21 @@ export async function uploadToSharePoint(
   if (typeof (fileOrBytes as File)?.arrayBuffer === "function") {
     const file = fileOrBytes as File
     const ab = await file.arrayBuffer()
-    bodyBytes = new Uint8Array(ab)
+    bodyArrayBuffer = toArrayBufferStrict(ab)
 
-    // Si no quieres que cambie el nombre, puedes usar solo file.name
     finalFileName = `${cedula}_${Date.now()}_${file.name}`
     contentType = file.type || contentType
   } else {
     // ✅ Caso 2: llega bytes (recomendado)
     const input = fileOrBytes as UploadBytesInput
-    bodyBytes = toUint8Array(input.bytes)
+    bodyArrayBuffer = toArrayBufferStrict(input.bytes)
+
     finalFileName = `${cedula}_${Date.now()}_${input.fileName}`
     contentType = input.contentType || contentType
   }
 
-  // ⚠️ Ajusta estos envs a los que ya usas en tu proyecto
   const siteId = process.env.SHAREPOINT_SITE_ID!
-  const library = process.env.SHAREPOINT_LIBRARY! // ej: "Consentimientos"
-  // library puede ser ruta completa dentro del drive/root
+  const library = process.env.SHAREPOINT_LIBRARY!
 
   const uploadUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root:/${library}/${finalFileName}:/content`
 
@@ -50,7 +57,8 @@ export async function uploadToSharePoint(
       Authorization: `Bearer ${token}`,
       "Content-Type": contentType,
     },
-    body: bodyBytes, // ✅ Uint8Array es BodyInit
+    // ✅ ArrayBuffer compila en cualquier tipado de fetch
+    body: bodyArrayBuffer as any,
   })
 
   if (!response.ok) {

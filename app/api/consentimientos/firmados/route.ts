@@ -364,14 +364,12 @@ export async function POST(req: Request) {
     const fileName = `${formatoId}-${cedula}-${now.toISOString().slice(0, 10)}.pdf`;
     const archivoUrl = await uploadToSharePoint(
       {
-        bytes: finalPdfBytes,              // Uint8Array de pdf-lib
-        fileName,                          // nombre final
+        bytes: finalPdfBytes,
+        fileName,
         contentType: "application/pdf",
       },
       cedula
     )
-
-
 
     await prisma.consentimiento.create({
       data: {
