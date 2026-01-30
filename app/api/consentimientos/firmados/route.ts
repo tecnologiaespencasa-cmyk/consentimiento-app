@@ -11,6 +11,7 @@ import fs from "fs/promises";
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { Buffer } from "buffer"
+
 /**
  * Helpers
  */
@@ -59,6 +60,13 @@ const TEMPLATE_MAP: Record<
       firmaPaciente: { x: number; y: number; w: number; h: number };
       cedulaPaciente: { x: number; y: number };
       firmaEspecialista: { x: number; y: number; w: number; h: number };
+      
+      // NUEVO: coordenadas para sección NO CONSENTIMIENTO
+      noConsentimiento?: {
+        firmaPaciente: { x: number; y: number; w: number; h: number };
+        cedulaPaciente: { x: number; y: number };
+        firmaEspecialista: { x: number; y: number; w: number; h: number };
+      };
     };
   }
 > = {
@@ -91,20 +99,28 @@ const TEMPLATE_MAP: Record<
 
       /**
        * Línea: "Yo, ________, con numero de documento de identidad, ________"
-       * Esa línea existe en la plantilla. :contentReference[oaicite:2]{index=2}
+       * Esa línea existe en la plantilla.
        */
-      yoPacienteNombre: { x: 60, y: 748.5 },
-      yoPacienteDocumento: { x: 350, y: 748.5 },
+      yoPacienteNombre: { x: 60, y: 749 },
+      yoPacienteDocumento: { x: 350, y: 749 },
     },
 
     page2: {
       /**
-       * Las firmas en tu PDF quedaron muy abajo. Subimos y corregimos X.
-       * Si después de probar queda 1-2 cm corrido, ajusta Y en +-20.
+       * Sección SI CONSENTIMIENTO
        */
       firmaPaciente: { x: 195, y: 670, w: 190, h: 55 },
       cedulaPaciente: { x: 445, y: 690 },
       firmaEspecialista: { x: 390, y: 630, w: 190, h: 55 },
+      
+      /**
+       * Sección NO CONSENTIMIENTO
+       */
+      noConsentimiento: {
+        firmaPaciente: { x: 195, y: 510, w: 190, h: 55 },
+        cedulaPaciente: { x: 445, y: 535 },
+        firmaEspecialista: { x: 390, y: 465, w: 190, h: 55 },
+      },
     },
   },
 
@@ -135,6 +151,7 @@ const TEMPLATE_MAP: Record<
       firmaPaciente: { x: 240, y: 560, w: 190, h: 55 },
       cedulaPaciente: { x: 450, y: 585 },
       firmaEspecialista: { x: 410, y: 520, w: 190, h: 55 },
+      // NUEVO: Para otros formatos, puedes agregar noConsentimiento si es necesario
     },
   },
 
@@ -248,6 +265,10 @@ export async function POST(req: Request) {
     const firmaPacientePngBase64 = String(formData.get("firmaPacientePngBase64") || "");
     const firmaEspecialistaPngBase64 = String(formData.get("firmaEspecialistaPngBase64") || "");
 
+    // NUEVO: Obtener estado de aceptación
+    const aceptadoRaw = String(formData.get("aceptado") || "true");
+    const aceptado = aceptadoRaw === "true";
+
     if (!TEMPLATE_MAP[formatoId]) {
       return NextResponse.json({ error: "Formato no soportado" }, { status: 400 });
     }
@@ -271,12 +292,12 @@ export async function POST(req: Request) {
     const anio = String(now.getFullYear());
     const hora = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 
-    // Especialista desde sesión (ajústalo si en tu BD tienes apellidos separados)
+    // Especialista desde sesión
     const espNombres = (session.user.nombres ?? "").toString().trim();
     const espPrimerApellido = (session.user.primerApellido ?? "").toString().trim();
     const espSegundoApellido = (session.user.segundoApellido ?? "").toString().trim();
 
-    // NUEVO: para la frase "Yo, ____" usamos el nombre completo del paciente
+    // Para la frase "Yo, ____" usamos el nombre completo del paciente
     const pacienteNombreCompleto = `${pacientePrimerApellido} ${pacienteSegundoApellido} ${pacienteNombres}`.trim();
 
     const templateCfg = TEMPLATE_MAP[formatoId];
@@ -289,7 +310,7 @@ export async function POST(req: Request) {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontSize = 10;
 
-    // ===== Page 1 =====
+    // ===== Page 1 (SIN CAMBIOS) =====
     const p1 = pages[0];
 
     p1.drawText(dia, { x: templateCfg.page1.dia.x, y: templateCfg.page1.dia.y, size: fontSize, font, color: rgb(0, 0, 0) });
@@ -310,8 +331,7 @@ export async function POST(req: Request) {
     p1.drawText(espSegundoApellido, { x: templateCfg.page1.espSegundoApellido.x, y: templateCfg.page1.espSegundoApellido.y, size: fontSize, font });
     p1.drawText(espNombres, { x: templateCfg.page1.espNombres.x, y: templateCfg.page1.espNombres.y, size: fontSize, font });
 
-    // NUEVO: "Yo, ____" + documento
-    // (Esta línea existe en el PDF y debe tomar datos del paciente) :contentReference[oaicite:3]{index=3}
+    // "Yo, ____" + documento
     p1.drawText(pacienteNombreCompleto, {
       x: templateCfg.page1.yoPacienteNombre.x,
       y: templateCfg.page1.yoPacienteNombre.y,
@@ -328,7 +348,7 @@ export async function POST(req: Request) {
       color: rgb(0, 0, 0),
     });
 
-    // ===== Page 2 =====
+    // ===== Page 2 (CON LÓGICA DE ACEPTACIÓN) =====
     const p2 = pages[1] ?? pages[0];
 
     const firmaPacienteBytes = dataUrlToUint8Array(firmaPacientePngBase64);
@@ -337,31 +357,85 @@ export async function POST(req: Request) {
     const firmaPacienteImg = await pdfDoc.embedPng(firmaPacienteBytes);
     const firmaEspecialistaImg = await pdfDoc.embedPng(firmaEspecialistaBytes);
 
-    p2.drawImage(firmaPacienteImg, {
-      x: templateCfg.page2.firmaPaciente.x,
-      y: templateCfg.page2.firmaPaciente.y,
-      width: templateCfg.page2.firmaPaciente.w,
-      height: templateCfg.page2.firmaPaciente.h,
-    });
+    // NUEVA LÓGICA: Elegir coordenadas según aceptación
+    if (aceptado) {
+      // CONSENTIMIENTO ACEPTADO - usar coordenadas normales
+      p2.drawImage(firmaPacienteImg, {
+        x: templateCfg.page2.firmaPaciente.x,
+        y: templateCfg.page2.firmaPaciente.y,
+        width: templateCfg.page2.firmaPaciente.w,
+        height: templateCfg.page2.firmaPaciente.h,
+      });
 
-    p2.drawText(cedula, {
-      x: templateCfg.page2.cedulaPaciente.x,
-      y: templateCfg.page2.cedulaPaciente.y,
-      size: fontSize,
-      font,
-      color: rgb(0, 0, 0),
-    });
+      p2.drawText(cedula, {
+        x: templateCfg.page2.cedulaPaciente.x,
+        y: templateCfg.page2.cedulaPaciente.y,
+        size: fontSize,
+        font,
+        color: rgb(0, 0, 0),
+      });
 
-    p2.drawImage(firmaEspecialistaImg, {
-      x: templateCfg.page2.firmaEspecialista.x,
-      y: templateCfg.page2.firmaEspecialista.y,
-      width: templateCfg.page2.firmaEspecialista.w,
-      height: templateCfg.page2.firmaEspecialista.h,
-    });
+      p2.drawImage(firmaEspecialistaImg, {
+        x: templateCfg.page2.firmaEspecialista.x,
+        y: templateCfg.page2.firmaEspecialista.y,
+        width: templateCfg.page2.firmaEspecialista.w,
+        height: templateCfg.page2.firmaEspecialista.h,
+      });
+    } else {
+      // NO CONSENTIMIENTO - usar coordenadas de rechazo si existen
+      if (templateCfg.page2.noConsentimiento) {
+        // Para FO-HCR-13 y otros formatos con sección de rechazo
+        p2.drawImage(firmaPacienteImg, {
+          x: templateCfg.page2.noConsentimiento.firmaPaciente.x,
+          y: templateCfg.page2.noConsentimiento.firmaPaciente.y,
+          width: templateCfg.page2.noConsentimiento.firmaPaciente.w,
+          height: templateCfg.page2.noConsentimiento.firmaPaciente.h,
+        });
+
+        p2.drawText(cedula, {
+          x: templateCfg.page2.noConsentimiento.cedulaPaciente.x,
+          y: templateCfg.page2.noConsentimiento.cedulaPaciente.y,
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
+
+        p2.drawImage(firmaEspecialistaImg, {
+          x: templateCfg.page2.noConsentimiento.firmaEspecialista.x,
+          y: templateCfg.page2.noConsentimiento.firmaEspecialista.y,
+          width: templateCfg.page2.noConsentimiento.firmaEspecialista.w,
+          height: templateCfg.page2.noConsentimiento.firmaEspecialista.h,
+        });
+      } else {
+        // Para formatos sin sección específica de rechazo, usar coordenadas normales
+        p2.drawImage(firmaPacienteImg, {
+          x: templateCfg.page2.firmaPaciente.x,
+          y: templateCfg.page2.firmaPaciente.y,
+          width: templateCfg.page2.firmaPaciente.w,
+          height: templateCfg.page2.firmaPaciente.h,
+        });
+
+        p2.drawText(cedula, {
+          x: templateCfg.page2.cedulaPaciente.x,
+          y: templateCfg.page2.cedulaPaciente.y,
+          size: fontSize,
+          font,
+          color: rgb(0, 0, 0),
+        });
+
+        p2.drawImage(firmaEspecialistaImg, {
+          x: templateCfg.page2.firmaEspecialista.x,
+          y: templateCfg.page2.firmaEspecialista.y,
+          width: templateCfg.page2.firmaEspecialista.w,
+          height: templateCfg.page2.firmaEspecialista.h,
+        });
+      }
+    }
 
     const finalPdfBytes = await pdfDoc.save();
 
-    const fileName = `${formatoId}-${cedula}-${now.toISOString().slice(0, 10)}.pdf`;
+    const estadoTexto = aceptado ? "aceptado" : "rechazado";
+    const fileName = `${formatoId}-${cedula}-${now.toISOString().slice(0, 10)}-${estadoTexto}.pdf`;
     const archivoUrl = await uploadToSharePoint(
       {
         bytes: finalPdfBytes,
@@ -371,16 +445,23 @@ export async function POST(req: Request) {
       cedula
     )
 
+    // NUEVO: Guardar estado de aceptación en la base de datos
     await prisma.consentimiento.create({
       data: {
         cedula,
         fechaHora: now,
         archivoUrl,
         usuarioId: session.user.id,
+        aceptado: aceptado, // NUEVO campo
       },
     });
 
-    return NextResponse.json({ ok: true, archivoUrl });
+    return NextResponse.json({ 
+      ok: true, 
+      archivoUrl, 
+      aceptado,
+      mensaje: aceptado ? "Consentimiento aceptado" : "Consentimiento rechazado"
+    });
   } catch (error) {
     console.error("Error guardando consentimiento firmado:", error);
     return NextResponse.json({ error: "Error guardando consentimiento firmado" }, { status: 500 });

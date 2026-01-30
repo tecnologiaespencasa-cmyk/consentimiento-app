@@ -177,12 +177,12 @@ export default function CrearUsuarioForm() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <FaEnvelope className="inline-block mr-2 text-red-500" />
-              Correo (opcional)
+              Correo
             </label>
             <div className="relative">
               <input
                 name="email"
-                placeholder="ej: juan@correo.com"
+                placeholder="ej: pedro@gmail.com"
                 value={formData.email}
                 onChange={handleChange}
                 type="email"

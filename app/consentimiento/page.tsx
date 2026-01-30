@@ -9,7 +9,7 @@ type Formato = {
   id: string;
   nombre: string;
   descripcionCorta: string;
-  pdfPath: string; // ruta pública a plantilla original
+  pdfPath: string;
 };
 
 type Me = {
@@ -79,7 +79,6 @@ function SignaturePad({
     setup();
 
     return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [label]);
 
   const clear = () => {
@@ -155,19 +154,19 @@ function SignaturePad({
 
 export default function ConsentimientoPage() {
   const [modo, setModo] = useState<Modo>(null);
-
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [archivoNombre, setArchivoNombre] = useState<string | null>(null);
-
   const [me, setMe] = useState<Me | null>(null);
   const [fechaAuto, setFechaAuto] = useState<string>(() => formatLocalDatetime(new Date()));
-
   const [firmaPaciente, setFirmaPaciente] = useState<string | null>(null);
   const [firmaEspecialista, setFirmaEspecialista] = useState<string | null>(null);
-
-  // Modal visor PDF
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
+  const [formatoSeleccionado, setFormatoSeleccionado] = useState<Formato | null>(null);
+
+  // NUEVOS ESTADOS para aceptación
+  const [mostrarModalAceptacion, setMostrarModalAceptacion] = useState(false);
+  const [datosTemporales, setDatosTemporales] = useState<FormData | null>(null);
 
   const formatos: Formato[] = useMemo(
     () => [
@@ -204,8 +203,6 @@ export default function ConsentimientoPage() {
     ],
     []
   );
-
-  const [formatoSeleccionado, setFormatoSeleccionado] = useState<Formato | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -272,7 +269,7 @@ export default function ConsentimientoPage() {
     }
 
     if (!firmaEspecialista) {
-      setMensaje("❌ Falta la firma del especialista");
+      setMensaje("❌ Falta la firma del personal de la salud");
       setCargando(false);
       return;
     }
@@ -285,25 +282,51 @@ export default function ConsentimientoPage() {
     formData.append("firmaPacientePngBase64", firmaPaciente);
     formData.append("firmaEspecialistaPngBase64", firmaEspecialista);
 
+    // NUEVO: Guardar datos temporalmente y mostrar modal de aceptación
+    setDatosTemporales(formData);
+    setMostrarModalAceptacion(true);
+    setCargando(false);
+  };
+
+  // NUEVA FUNCIÓN: Enviar consentimiento con estado de aceptación
+  const enviarConsentimientoFinal = async (aceptado: boolean) => {
+    if (!datosTemporales) return;
+
+    setCargando(true);
+    setMensaje(null);
+    setMostrarModalAceptacion(false);
+
+    // Agregar el estado de aceptación al FormData
+    datosTemporales.append("aceptado", aceptado ? "true" : "false");
+
     try {
       const response = await fetch("/api/consentimientos/firmados", {
         method: "POST",
-        body: formData,
+        body: datosTemporales,
       });
 
       if (response.ok) {
-        setMensaje("✅ Consentimiento firmado y guardado correctamente");
-        form.reset();
+        const data = await response.json();
+        const mensaje = aceptado 
+          ? "✅ Consentimiento ACEPTADO y guardado correctamente" 
+          : "✅ Consentimiento RECHAZADO y registrado correctamente";
+        setMensaje(mensaje);
+        
+        // Resetear formulario
+        const form = document.querySelector("form");
+        if (form) form.reset();
+        
         setFormatoSeleccionado(null);
         setFirmaPaciente(null);
         setFirmaEspecialista(null);
+        setDatosTemporales(null);
       } else {
         const txt = await response.text().catch(() => "");
-        setMensaje(`❌ Error al guardar el consentimiento firmado. ${txt ? `(${txt})` : ""}`.trim());
+        setMensaje(`❌ Error al guardar el consentimiento. ${txt ? `(${txt})` : ""}`.trim());
       }
     } catch (error) {
       console.error(error);
-      setMensaje("❌ Error de conexión con el servidor. Comprueba tu conexión a internet o intenta mas tarde");
+      setMensaje("❌ Error de conexión con el servidor");
     } finally {
       setCargando(false);
     }
@@ -314,10 +337,68 @@ export default function ConsentimientoPage() {
     setFirmaPaciente(null);
     setFirmaEspecialista(null);
     setPdfModalOpen(false);
+    setDatosTemporales(null);
   };
 
   return (
     <main className={styles.page}>
+      {/* NUEVO: MODAL DE ACEPTACIÓN DEL CONSENTIMIENTO */}
+      {mostrarModalAceptacion && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h2 className={styles.modalTitle}>Confirmación del Consentimiento</h2>
+            <p className={styles.modalText}>
+              Por favor, confirme si el paciente <strong>ACEPTA</strong> o <strong>NO ACEPTA</strong> 
+              el procedimiento descrito en el consentimiento informado.
+            </p>
+            
+            <div className={styles.modalButtons}>
+              <button 
+                type="button"
+                className={styles.primaryButton}
+                onClick={() => enviarConsentimientoFinal(true)}
+                disabled={cargando}
+                style={{ 
+                  backgroundColor: '#059669', 
+                  borderColor: '#059669'
+                }}
+              >
+                ✅ SÍ, ACEPTO EL CONSENTIMIENTO
+              </button>
+              
+              <button 
+                type="button"
+                className={styles.primaryButton}
+                onClick={() => enviarConsentimientoFinal(false)}
+                disabled={cargando}
+                style={{ 
+                  backgroundColor: '#dc2626', 
+                  borderColor: '#dc2626'
+                }}
+              >
+                ❌ NO ACEPTO EL CONSENTIMIENTO
+              </button>
+              
+              <button 
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => {
+                  setMostrarModalAceptacion(false);
+                  setDatosTemporales(null);
+                }}
+                disabled={cargando}
+              >
+                Cancelar y volver
+              </button>
+            </div>
+            
+            <p className={styles.miniHint} style={{ marginTop: '1rem', textAlign: 'center' }}>
+              <strong>Nota:</strong> Las firmas se colocarán en la sección correspondiente del PDF.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* MODAL INICIAL */}
       {modo === null && (
         <div className={styles.modalOverlay}>
@@ -570,8 +651,8 @@ export default function ConsentimientoPage() {
                 <div className={styles.section}>
                   <h3 className={styles.sectionTitle}>Firmas</h3>
 
-                  <SignaturePad label="Firma del paciente" value={firmaPaciente} onChange={setFirmaPaciente} />
-                  <SignaturePad label="Firma del especialista" value={firmaEspecialista} onChange={setFirmaEspecialista} />
+                  <SignaturePad label="Firma del paciente o acudiente" value={firmaPaciente} onChange={setFirmaPaciente} />
+                  <SignaturePad label="Firma del personal de la salud" value={firmaEspecialista} onChange={setFirmaEspecialista} />
                 </div>
 
                 <div className={styles.actionsRow}>
@@ -585,7 +666,7 @@ export default function ConsentimientoPage() {
                   </button>
 
                   <button type="submit" disabled={cargando} className={styles.primaryButton}>
-                    {cargando ? "Guardando..." : "Guardar consentimiento"}
+                    {cargando ? "Procesando..." : "Continuar a confirmación"}
                   </button>
                 </div>
 

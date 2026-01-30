@@ -19,7 +19,6 @@ export default async function TodosLosConsentimientosPage() {
     include: {
       usuario: {
         select: {
-          // ✅ NUEVOS CAMPOS
           nombres: true,
           primerApellido: true,
           segundoApellido: true,
@@ -35,8 +34,29 @@ export default async function TodosLosConsentimientosPage() {
     },
   })
 
+  // Mapear los datos
+  const consentimientosMapeados = consentimientos.map((c) => ({
+    id: c.id,
+    cedula: c.cedula,
+    fechaHora: c.fechaHora,
+    archivoUrl: c.archivoUrl,
+    usuarioId: c.usuarioId,
+    usuario: {
+      nombre: `${c.usuario.nombres} ${c.usuario.primerApellido} ${c.usuario.segundoApellido || ""}`.trim(),
+      username: c.usuario.username,
+      rol: c.usuario.rol,
+    },
+    nombreCompleto: `${c.usuario.nombres} ${c.usuario.primerApellido} ${c.usuario.segundoApellido || ""}`.trim(),
+    aceptado: c.aceptado // ✅ Usando el campo existente del modelo
+  }))
+
   // Estadísticas
   const totalConsentimientos = consentimientos.length
+  
+  // ✅ Estadísticas usando el campo `aceptado`
+  const aceptados = consentimientos.filter(c => c.aceptado === true).length
+  const rechazados = consentimientos.filter(c => c.aceptado === false).length
+  
   const usuariosUnicos = new Set(consentimientos.map((c) => c.usuarioId)).size
   const hoy = new Date()
   hoy.setHours(0, 0, 0, 0)
@@ -64,20 +84,30 @@ export default async function TodosLosConsentimientosPage() {
             </div>
 
             <div className="mt-4 md:mt-0">
-              <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-4">
                 <div className="text-center">
                   <p className="text-2xl font-bold">{totalConsentimientos}</p>
                   <p className="text-sm text-red-200">Total</p>
                 </div>
                 <div className="h-12 w-px bg-white/30"></div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold">{usuariosUnicos}</p>
-                  <p className="text-sm text-red-200">Usuarios</p>
+                  <p className="text-2xl font-bold">{aceptados}</p>
+                  <p className="text-sm text-green-200">Aceptados</p>
+                </div>
+                <div className="h-12 w-px bg-white/30"></div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{rechazados}</p>
+                  <p className="text-sm text-red-200">Rechazados</p>
                 </div>
                 <div className="h-12 w-px bg-white/30"></div>
                 <div className="text-center">
                   <p className="text-2xl font-bold">{consentimientosHoy}</p>
-                  <p className="text-sm text-red-200">Hoy</p>
+                  <p className="text-sm text-yellow-200">Hoy</p>
+                </div>
+                <div className="h-12 w-px bg-white/30"></div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold">{usuariosUnicos}</p>
+                  <p className="text-sm text-red-200">Usuarios</p>
                 </div>
               </div>
             </div>
@@ -88,7 +118,7 @@ export default async function TodosLosConsentimientosPage() {
       {/* Contenido principal */}
       <div className="container mx-auto px-4 py-8">
         {/* Componente de filtros */}
-        <ConsentimientosFiltros consentimientos={consentimientos as any} rol={rol} />
+        <ConsentimientosFiltros consentimientos={consentimientosMapeados as any} rol={rol} />
 
         {/* Sección de información administrativa */}
         <div className="mt-8 bg-white rounded-2xl shadow-lg p-6">
@@ -117,9 +147,9 @@ export default async function TodosLosConsentimientosPage() {
             </div>
 
             <div className="p-4 bg-purple-50 rounded-lg">
-              <h3 className="font-semibold text-purple-800 mb-2">Confidencialidad</h3>
+              <h3 className="font-semibold text-purple-800 mb-2">Nuevas Funciones</h3>
               <p className="text-purple-700 text-sm">
-                Toda la información aquí mostrada es confidencial y protegida por ley.
+                Ahora puedes buscar por nombre completo y filtrar por estado (Aceptado/Rechazado).
               </p>
             </div>
           </div>

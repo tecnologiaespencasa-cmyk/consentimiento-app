@@ -26,6 +26,7 @@ model Consentimiento {
   cedula     String
   fechaHora  DateTime
   archivoUrl String
+  aceptado   Boolean  @default(true) // NUEVO CAMPO: true = aceptado, false = rechazado
   createdAt  DateTime @default(now())
   usuarioId  String
   usuario    User     @relation(fields: [usuarioId], references: [id])

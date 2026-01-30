@@ -9,7 +9,10 @@ import {
   FaEye, 
   FaUser, 
   FaUserTag,
-  FaFilePdf 
+  FaFilePdf,
+  FaCheckCircle,
+  FaTimesCircle,
+  FaClock
 } from "react-icons/fa"
 
 interface Usuario {
@@ -25,6 +28,8 @@ interface Consentimiento {
   archivoUrl: string
   usuarioId: string
   usuario: Usuario
+  aceptado: boolean // ✅ Usando el campo existente
+  nombreCompleto?: string
 }
 
 interface ConsentimientosFiltrosProps {
@@ -37,6 +42,7 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
   const [filtroUsuario, setFiltroUsuario] = useState("todos")
   const [filtroRol, setFiltroRol] = useState("todos")
   const [filtroFecha, setFiltroFecha] = useState<"todos" | "hoy" | "semana" | "mes">("todos")
+  const [filtroEstado, setFiltroEstado] = useState<"todos" | "aceptado" | "rechazado">("todos") // ✅ Solo aceptado/rechazado
   const [orden, setOrden] = useState<"desc" | "asc">("desc")
 
   // Obtener usuarios únicos para filtro
@@ -61,13 +67,17 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
   const consentimientosFiltrados = useMemo(() => {
     let resultado = [...consentimientos]
 
-    // Filtrar por búsqueda (cédula o nombre de usuario)
+    // Filtrar por búsqueda (cédula, nombre de usuario o nombre completo)
     if (busqueda) {
-      resultado = resultado.filter(c => 
-        c.cedula.toLowerCase().includes(busqueda.toLowerCase()) ||
-        c.usuario.nombre.toLowerCase().includes(busqueda.toLowerCase()) ||
-        c.usuario.username.toLowerCase().includes(busqueda.toLowerCase())
-      )
+      resultado = resultado.filter(c => {
+        const busquedaLower = busqueda.toLowerCase()
+        return (
+          c.cedula.toLowerCase().includes(busquedaLower) ||
+          c.usuario.nombre.toLowerCase().includes(busquedaLower) ||
+          c.usuario.username.toLowerCase().includes(busquedaLower) ||
+          (c.nombreCompleto && c.nombreCompleto.toLowerCase().includes(busquedaLower))
+        )
+      })
     }
 
     // Filtrar por usuario
@@ -78,6 +88,15 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
     // Filtrar por rol
     if (filtroRol !== "todos") {
       resultado = resultado.filter(c => c.usuario.rol === filtroRol)
+    }
+
+    // ✅ Filtrar por estado (aceptado/rechazado)
+    if (filtroEstado !== "todos") {
+      if (filtroEstado === "aceptado") {
+        resultado = resultado.filter(c => c.aceptado === true)
+      } else if (filtroEstado === "rechazado") {
+        resultado = resultado.filter(c => c.aceptado === false)
+      }
     }
 
     // Filtrar por fecha
@@ -123,17 +142,37 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
     })
 
     return resultado
-  }, [consentimientos, busqueda, filtroUsuario, filtroRol, filtroFecha, orden])
+  }, [consentimientos, busqueda, filtroUsuario, filtroRol, filtroFecha, filtroEstado, orden])
 
   const limpiarFiltros = () => {
     setBusqueda("")
     setFiltroUsuario("todos")
     setFiltroRol("todos")
     setFiltroFecha("todos")
+    setFiltroEstado("todos")
     setOrden("desc")
   }
 
-  const tieneFiltrosActivos = busqueda || filtroUsuario !== "todos" || filtroRol !== "todos" || filtroFecha !== "todos"
+  const tieneFiltrosActivos = busqueda || filtroUsuario !== "todos" || filtroRol !== "todos" || filtroFecha !== "todos" || filtroEstado !== "todos"
+
+  // Función para renderizar el estado basado en el campo `aceptado`
+  const renderEstado = (aceptado: boolean) => {
+    if (aceptado) {
+      return (
+        <span className="flex items-center px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+          <FaCheckCircle className="mr-1.5" />
+          Aceptado
+        </span>
+      )
+    } else {
+      return (
+        <span className="flex items-center px-3 py-1 bg-red-100 text-red-800 rounded-full text-sm font-medium">
+          <FaTimesCircle className="mr-1.5" />
+          Rechazado
+        </span>
+      )
+    }
+  }
 
   return (
     <>
@@ -145,7 +184,7 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
             <div className="relative flex-1">
               <input
                 type="text"
-                placeholder="Buscar por cédula, nombre o usuario..."
+                placeholder="Buscar por cédula, nombre de usuario o nombre completo..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 className="pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent w-full"
@@ -211,6 +250,19 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
               </select>
             </div>
 
+            {/* ✅ Filtro por estado */}
+            <div className="flex items-center space-x-2">
+              <select
+                value={filtroEstado}
+                onChange={(e) => setFiltroEstado(e.target.value as any)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+              >
+                <option value="todos">Todos los estados</option>
+                <option value="aceptado">Aceptados</option>
+                <option value="rechazado">Rechazados</option>
+              </select>
+            </div>
+
             {/* Orden */}
             <div className="flex items-center space-x-2">
               <select
@@ -233,6 +285,7 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
                 {filtroUsuario !== "todos" && ` • Usuario: ${usuariosUnicos.find(u => consentimientos.find(c => c.usuario.username === u.username)?.usuarioId === filtroUsuario)?.nombre}`}
                 {filtroRol !== "todos" && ` • Rol: ${filtroRol}`}
                 {filtroFecha !== "todos" && ` • Fecha: ${filtroFecha === "hoy" ? "Hoy" : filtroFecha === "semana" ? "Última semana" : "Último mes"}`}
+                {filtroEstado !== "todos" && ` • Estado: ${filtroEstado === "aceptado" ? "Aceptados" : "Rechazados"}`}
               </p>
             </div>
           )}
@@ -274,7 +327,7 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
                   <FaIdCard className="mr-2 text-red-500" />
                   Cédula
                 </div>
-                <div className="col-span-12 md:col-span-3 flex items-center">
+                <div className="col-span-12 md:col-span-2 flex items-center">
                   <FaCalendarAlt className="mr-2 text-red-500" />
                   Fecha y Hora
                 </div>
@@ -286,7 +339,10 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
                   <FaUserTag className="mr-2 text-red-500" />
                   Rol
                 </div>
-                <div className="col-span-12 md:col-span-2 text-center">
+                <div className="col-span-12 md:col-span-2 flex items-center">
+                  Estado
+                </div>
+                <div className="col-span-12 md:col-span-1 text-center">
                   Acciones
                 </div>
               </div>
@@ -311,7 +367,7 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
                     </div>
 
                     {/* Fecha y Hora */}
-                    <div className="col-span-12 md:col-span-3">
+                    <div className="col-span-12 md:col-span-2">
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center mr-3">
                           <FaCalendarAlt className="text-green-600" />
@@ -362,8 +418,15 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
                       </div>
                     </div>
 
-                    {/* Acciones */}
+                    {/* ✅ Estado */}
                     <div className="col-span-12 md:col-span-2">
+                      <div className="flex items-center">
+                        {renderEstado(c.aceptado)}
+                      </div>
+                    </div>
+
+                    {/* Acciones */}
+                    <div className="col-span-12 md:col-span-1">
                       <div className="flex justify-center space-x-2">
                         <a
                           href={c.archivoUrl}
@@ -374,16 +437,6 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
                         >
                           <FaEye className="mr-1" />
                           <span className="hidden md:inline">Ver</span>
-                        </a>
-                        
-                        <a
-                          href={c.archivoUrl}
-                          download
-                          className="flex items-center px-3 py-2 bg-blue-100 text-blue-600 rounded-lg hover:bg-blue-200 transition-colors"
-                          title="Descargar documento"
-                        >
-                          <FaDownload className="mr-1" />
-                          <span className="hidden md:inline">Descargar</span>
                         </a>
                       </div>
                     </div>
