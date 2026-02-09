@@ -325,6 +325,15 @@ export default function Navbar() {
                 </div>
 
                 <Link 
+                  href="/perfil"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center px-4 py-3 text-gray-700 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors"
+                >
+                  <FaUserMd className="mr-3 text-gray-400" />
+                  Mi Perfil
+                </Link>
+
+                <Link 
                   href="/api/auth/signout"
                   onClick={() => setIsOpen(false)}
                   className="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"

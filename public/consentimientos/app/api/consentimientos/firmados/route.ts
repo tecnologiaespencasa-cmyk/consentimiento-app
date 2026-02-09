@@ -1,4 +1,3 @@
-// app/api/consentimientos/firmados/route.ts
 export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
@@ -25,35 +24,11 @@ function dataUrlToUint8Array(dataUrl: string) {
 }
 
 /**
- * (Opcional) Modo debug: dibuja una rejilla de coordenadas por página
- * Activa desde frontend con: formData.append("debugGrid","true")
- */
-function drawDebugGrid(page: any, font: any) {
-  const { width, height } = page.getSize();
-  const step = 50;
-
-  for (let x = 0; x <= width; x += step) {
-    page.drawText(String(x), { x: x + 2, y: height - 12, size: 8, font, color: rgb(0, 0, 0) });
-  }
-  for (let y = 0; y <= height; y += step) {
-    page.drawText(String(y), { x: 2, y: y + 2, size: 8, font, color: rgb(0, 0, 0) });
-  }
-}
-
-/**
  * Coordenadas por formato (en puntos PDF)
  * (0,0) está abajo-izquierda; subir = aumentar Y.
  */
 type TemplateCfg = {
   templatePublicPath: string;
-  /**
-   * Índices de página (0-based) dentro del PDF.
-   * Por defecto:
-   * - infoPageIndex = 0 (donde va fecha/paciente/especialista)
-   * - signaturePageIndex = 1 (donde van firmas)
-   */
-  infoPageIndex?: number;
-  signaturePageIndex?: number;
   page1: {
     dia: { x: number; y: number };
     mes: { x: number; y: number };
@@ -80,12 +55,8 @@ type TemplateCfg = {
     espSegundoApellido: { x: number; y: number };
     espNombres: { x: number; y: number };
 
-    // Nota: no todos los formatos tienen esta línea en la primera hoja.
-    yoPacienteNombre?: { x: number; y: number };
-    yoPacienteDocumento?: { x: number; y: number };
-
-    // FO-HCR-01 agrega diagnóstico en página 1.
-    diagnostico?: { x: number; y: number };
+    yoPacienteNombre: { x: number; y: number };
+    yoPacienteDocumento: { x: number; y: number };
   };
   page2: {
     firmaPaciente: { x: number; y: number; w: number; h: number };
@@ -98,43 +69,6 @@ type TemplateCfg = {
       firmaEspecialista: { x: number; y: number; w: number; h: number };
     };
   };
-
-  /**
-   * Opcional: marcar con una "X" el procedimiento seleccionado.
-   * Clave = valor que llega desde el frontend.
-   */
-  procedimientos?: Record<string, { pageIndex: number; x: number; y: number }>;
-
-  /**
-   * Opcional: si el "Yo, ____" está en la página de firmas (ej. FO-HCR-01).
-   */
-  yoEnPaginaFirmas?: {
-    yoPacienteNombre: { x: number; y: number };
-    yoPacienteDocumento: { x: number; y: number };
-  };
-
-  // ===========================
-  // FO-HCR-18 (Terapias) - NUEVO
-  // ===========================
-
-  // X por tipo de terapia (página 1)
-  terapiasMarks?: Record<string, { pageIndex: number; x: number; y: number }>;
-
-  // X por procedimientos múltiples (keys tipo "fisica.evaluacion", etc.)
-  procedimientosMulti?: Record<string, { pageIndex: number; x: number; y: number }>;
-
-  // Otro procedimiento por terapia: check + texto
-  otrosProcedimientos?: Record<
-    string,
-    {
-      pageIndex: number;
-      check: { x: number; y: number };
-      text: { x: number; y: number; size?: number; maxWidth?: number };
-    }
-  >;
-
-  // Entendimiento 1/3/5
-  entendimientoPos?: { pageIndex: number; x: number; y: number; size?: number };
 };
 
 const TEMPLATE_MAP: Record<string, TemplateCfg> = {
@@ -260,169 +194,6 @@ const TEMPLATE_MAP: Record<string, TemplateCfg> = {
       },
     },
   },
-
-  /**
-   * ✅ FO-HCR-01 (Consentimiento Informado Procedimientos de Enfermería)
-   * - 3 hojas (firmas en la hoja 3)
-   * - Requiere diagnóstico y procedimiento; el procedimiento marca una "X" en la tabla.
-   */
-  "FO-HCR-01": {
-    templatePublicPath: "consentimientos/FO-HCR-01.pdf",
-    infoPageIndex: 0,
-    signaturePageIndex: 2,
-    page1: {
-      // Fecha de diligenciamiento
-      dia: { x: 217, y: 688 },
-      mes: { x: 291, y: 688 },
-      anio: { x: 360, y: 688 },
-
-      // Paciente (fila de datos)
-      pacientePrimerApellido: { x: 132, y: 667 },
-      pacienteSegundoApellido: { x: 217, y: 667 },
-      pacienteNombres: { x: 295, y: 667 },
-      pacienteEdad: { x: 386, y: 667 },
-      pacienteDocumento: { x: 416, y: 667 },
-      pacienteTelefono: { x: 490, y: 667 },
-
-      // Personal de salud (fila de datos)
-      espPrimerApellido: { x: 197, y: 630 },
-      espSegundoApellido: { x: 328, y: 630 },
-      espNombres: { x: 453, y: 630 },
-
-      // FO-HCR-01: diagnóstico en hoja 1
-      diagnostico: { x: 90, y: 552 },
-    },
-    procedimientos: {
-      "Cateterismo Venoso Periférico": { pageIndex: 0, x: 564, y: 426 },
-      "Paso de sonda vesical Nasogástrica y/o orogástrica": { pageIndex: 0, x: 564, y: 282 },
-      Curaciones: { pageIndex: 0, x: 564, y: 136 },
-      "Administración y aplicación de medicamentos": { pageIndex: 1, x: 564, y: 496 },
-      "Retiro de puntos": { pageIndex: 1, x: 564, y: 338 },
-      "Toma de un electrocardiograma (EKG": { pageIndex: 1, x: 564, y: 190 },
-      "Retiro de Catéter PICC en Domicilio": { pageIndex: 1, x: 564, y: 92 },
-    },
-    page2: {
-      // ACEPTA (hoja 3)
-      firmaPaciente: { x: 180, y: 326, w: 205, h: 38 },
-      cedulaPaciente: { x: 438, y: 342 },
-      firmaEspecialista: { x: 398, y: 287, w: 205, h: 38 },
-      // NO ACEPTA (hoja 3)
-      noConsentimiento: {
-        firmaPaciente: { x: 177, y: 196, w: 230, h: 42 },
-        cedulaPaciente: { x: 438, y: 216 },
-        firmaEspecialista: { x: 391, y: 149, w: 230, h: 42 },
-      },
-    },
-  },
-
-  /**
-   * ✅ FO-HCR-18 (CONSENTIMIENTO INTEGRADO PARA TERAPIAS) — 5 hojas
-   * NOTA: estas coordenadas son BASE (ajústalas con debugGrid=true).
-   * - infoPageIndex = 0 (página 1)
-   * - signaturePageIndex = 4 (página 5)
-   */
-  "FO-HCR-18": {
-    templatePublicPath: "consentimientos/FO-HCR-18.pdf",
-    infoPageIndex: 0,
-    signaturePageIndex: 4,
-
-    // PÁGINA 1 (landscape)
-    page1: {
-      // Fecha diligenciamiento
-      dia: { x: 206, y: 507 },
-      mes: { x: 275, y: 507 },
-      anio: { x: 345, y: 507 },
-
-      // Tabla paciente
-      pacientePrimerApellido: { x: 107, y: 486 },
-      pacienteSegundoApellido: { x: 206, y: 486 },
-      pacienteNombres: { x: 317, y: 486 },
-      pacienteEdad: { x: 467, y: 486 },
-      pacienteDocumento: { x: 536, y: 486 },
-      pacienteTelefono: { x: 650, y: 486 },
-
-      // Tabla personal de salud
-      espPrimerApellido: { x: 213, y: 450 },
-      espSegundoApellido: { x: 401, y: 450 },
-      espNombres: { x: 580, y: 450 },
-
-      // Línea Yo, ____ con documento ___
-      yoPacienteNombre: { x: 65, y: 403 },
-      yoPacienteDocumento: { x: 380, y: 403 },
-    },
-
-    // PÁGINA 5 (firmas)
-    page2: {
-      // ACEPTA
-      firmaPaciente: { x: 225, y: 410, w: 260, h: 55 },
-      cedulaPaciente: { x: 565, y: 440 },
-      firmaEspecialista: { x: 565, y: 370, w: 210, h: 55 },
-
-      // NO ACEPTA
-      noConsentimiento: {
-        firmaPaciente: { x: 216, y: 230, w: 260, h: 55 },
-        cedulaPaciente: { x: 563, y: 247 },
-        firmaEspecialista: { x: 502, y: 165, w: 260, h: 55 },
-      },
-    },
-
-    // X en selección de terapia (página 1)
-    terapiasMarks: {
-      fisica: { pageIndex: 0, x: 273, y: 392 },
-      fonoaudiologia: { pageIndex: 0, x: 449, y: 392 },
-      respiratoria: { pageIndex: 0, x: 559, y: 392 },
-      ocupacional: { pageIndex: 0, x: 671, y: 392 },
-    },
-
-    // X en procedimientos múltiples (BASE: AJUSTAR)
-    procedimientosMulti: {
-      // Fisioterapia (págs 1–2)
-      "fisica.evaluacion": { pageIndex: 0, x: 703, y: 143 },
-      "fisica.medios_fisicos": { pageIndex: 0, x: 703, y: 117 },
-      "fisica.ejercicios_cardiovasculares": { pageIndex: 0, x: 703, y: 91 },
-
-      "fisica.propiocepcion": { pageIndex: 1, x: 703, y: 498 },
-      "fisica.fuerza": { pageIndex: 1, x: 703, y: 477 },
-      "fisica.equilibrio": { pageIndex: 1, x: 703, y: 459 },
-      "fisica.flexibilidad": { pageIndex: 1, x: 703, y: 443 },
-
-      // Fonoaudiología (pág 2)
-      "fonoaudiologia.evaluacion": { pageIndex: 1, x: 703, y: 347 },
-      "fonoaudiologia.trastornos_comunicacion": { pageIndex: 1, x: 703, y: 307 },
-      "fonoaudiologia.trastornos_habla": { pageIndex: 1, x: 703, y: 275 },
-      "fonoaudiologia.dificultades_lenguaje": { pageIndex: 1, x: 703, y: 251 },
-      "fonoaudiologia.problemas_voz": { pageIndex: 1, x: 703, y: 226 },
-      "fonoaudiologia.trastornos_deglucion": { pageIndex: 1, x: 703, y: 201 },
-
-      // Respiratoria (págs 2–3)
-      "respiratoria.aspiracion_secreciones": { pageIndex: 1, x: 703, y: 110 },
-      "respiratoria.nebulizacion_inhalatoria": { pageIndex: 2, x: 703, y: 477 },
-      "respiratoria.higiene_bronquial": { pageIndex: 2, x: 703, y: 406 },
-      "respiratoria.rehabilitacion_pulmonar": { pageIndex: 2, x: 703, y: 354 },
-      "respiratoria.cuidados_traqueostomia": { pageIndex: 2, x: 703, y: 310 },
-      "respiratoria.manejo_traqueostomia": { pageIndex: 2, x: 703, y: 250 },
-      "respiratoria.educacion_apoyo": { pageIndex: 2, x: 703, y: 180 },
-
-      // Ocupacional (pág 4)
-      "ocupacional.evaluacion": { pageIndex: 3, x: 703, y: 486 },
-      "ocupacional.motricidad_fina": { pageIndex: 3, x: 703, y: 454 },
-      "ocupacional.motricidad_gruesa": { pageIndex: 3, x: 703, y: 422 },
-      "ocupacional.avd": { pageIndex: 3, x: 703, y: 386 },
-      "ocupacional.sensoriales": { pageIndex: 3, x: 703, y: 353 },
-      "ocupacional.rehabilitacion_funcional": { pageIndex: 3, x: 703, y: 329 },
-    },
-
-    // Otro procedimiento (check + texto) (BASE: AJUSTAR)
-    otrosProcedimientos: {
-      fisica: { pageIndex: 1, check: { x: 703, y: 425 }, text: { x: 150, y: 423, size: 9, maxWidth: 640 } },
-      //fonoaudiologia: { pageIndex: 1, check: { x: 703, y: 150 }, text: { x: 150, y: 150, size: 9, maxWidth: 640 } },
-      respiratoria: { pageIndex: 2, check: { x: 703, y: 141 }, text: { x: 150, y: 141, size: 9, maxWidth: 640 } },
-      ocupacional: { pageIndex: 3, check: { x: 703, y: 299 }, text: { x: 150, y: 299, size: 9, maxWidth: 640 } },
-    },
-
-    // Entendimiento (pág 4: “Coloque aquí su calificación en:”)
-    entendimientoPos: { pageIndex: 3, x: 210, y: 201, size: 12 },
-  },
 };
 
 export async function POST(req: Request) {
@@ -456,19 +227,6 @@ export async function POST(req: Request) {
     const aceptadoRaw = String(formData.get("aceptado") || "true");
     const aceptado = aceptadoRaw === "true";
 
-    // Campos especiales (FO-HCR-01)
-    const diagnostico = String(formData.get("diagnostico") || "").trim();
-    const procedimiento = String(formData.get("procedimiento") || "").trim();
-
-    // Campos especiales (FO-HCR-18)
-    const terapiasJson = String(formData.get("terapiasJson") || "");
-    const procedimientosJson = String(formData.get("procedimientosJson") || "");
-    const otrosJson = String(formData.get("otrosJson") || "");
-    const entendimientoRaw = String(formData.get("entendimiento") || "");
-
-    // Debug
-    const debugGrid = String(formData.get("debugGrid") || "") === "true";
-
     if (!TEMPLATE_MAP[formatoId]) {
       return NextResponse.json({ error: "Formato no soportado" }, { status: 400 });
     }
@@ -484,18 +242,6 @@ export async function POST(req: Request) {
       !firmaEspecialistaPngBase64
     ) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
-    }
-
-    if (formatoId === "FO-HCR-01") {
-      if (!diagnostico || !procedimiento) {
-        return NextResponse.json({ error: "Faltan diagnóstico o procedimiento" }, { status: 400 });
-      }
-    }
-
-    if (formatoId === "FO-HCR-18") {
-      if (!terapiasJson || !procedimientosJson || !otrosJson || !entendimientoRaw) {
-        return NextResponse.json({ error: "Faltan campos FO-HCR-18 (terapias/procedimientos/otros/entendimiento)" }, { status: 400 });
-      }
     }
 
     const now = new Date();
@@ -522,11 +268,8 @@ export async function POST(req: Request) {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const fontSize = 10;
 
-    // ===== Page 1 (info) =====
-    const infoIdx = templateCfg.infoPageIndex ?? 0;
-    const sigIdx = templateCfg.signaturePageIndex ?? 1;
-
-    const p1 = pages[infoIdx] ?? pages[0];
+    // ===== Page 1 =====
+    const p1 = pages[0];
 
     p1.drawText(dia, { x: templateCfg.page1.dia.x, y: templateCfg.page1.dia.y, size: fontSize, font, color: rgb(0, 0, 0) });
     p1.drawText(mes, { x: templateCfg.page1.mes.x, y: templateCfg.page1.mes.y, size: fontSize, font, color: rgb(0, 0, 0) });
@@ -586,150 +329,25 @@ export async function POST(req: Request) {
     p1.drawText(espSegundoApellido, { x: templateCfg.page1.espSegundoApellido.x, y: templateCfg.page1.espSegundoApellido.y, size: fontSize, font });
     p1.drawText(espNombres, { x: templateCfg.page1.espNombres.x, y: templateCfg.page1.espNombres.y, size: fontSize, font });
 
-    // "Yo, ____" + documento (si está en la hoja 1)
-    if (templateCfg.page1.yoPacienteNombre && templateCfg.page1.yoPacienteDocumento) {
-      p1.drawText(pacienteNombreCompleto, {
-        x: templateCfg.page1.yoPacienteNombre.x,
-        y: templateCfg.page1.yoPacienteNombre.y,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
+    // "Yo, ____" + documento
+    p1.drawText(pacienteNombreCompleto, {
+      x: templateCfg.page1.yoPacienteNombre.x,
+      y: templateCfg.page1.yoPacienteNombre.y,
+      size: fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
 
-      p1.drawText(cedula, {
-        x: templateCfg.page1.yoPacienteDocumento.x,
-        y: templateCfg.page1.yoPacienteDocumento.y,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
-    }
+    p1.drawText(cedula, {
+      x: templateCfg.page1.yoPacienteDocumento.x,
+      y: templateCfg.page1.yoPacienteDocumento.y,
+      size: fontSize,
+      font,
+      color: rgb(0, 0, 0),
+    });
 
-    // Diagnóstico (si aplica)
-    if (templateCfg.page1.diagnostico && diagnostico) {
-      p1.drawText(diagnostico, {
-        x: templateCfg.page1.diagnostico.x,
-        y: templateCfg.page1.diagnostico.y,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
-    }
-
-    // Marcar procedimiento con X (si aplica)
-    if (templateCfg.procedimientos && procedimiento && templateCfg.procedimientos[procedimiento]) {
-      const mark = templateCfg.procedimientos[procedimiento];
-      const page = pages[mark.pageIndex] ?? pages[0];
-      page.drawText("X", {
-        x: mark.x,
-        y: mark.y,
-        size: 12,
-        font,
-        color: rgb(0, 0, 0),
-      });
-    }
-
-    // ===========================
-    // FO-HCR-18: terapias / procedimientos / otros / entendimiento
-    // ===========================
-    if (formatoId === "FO-HCR-18") {
-      let terapias: Record<string, boolean> = {};
-      let procedimientosMulti: Record<string, Record<string, boolean>> = {};
-      let otros: Record<string, { activo: boolean; descripcion: string }> = {};
-      const entendimiento = Number(entendimientoRaw || "0");
-
-      try {
-        terapias = terapiasJson ? JSON.parse(terapiasJson) : {};
-        procedimientosMulti = procedimientosJson ? JSON.parse(procedimientosJson) : {};
-        otros = otrosJson ? JSON.parse(otrosJson) : {};
-      } catch {
-        return NextResponse.json({ error: "JSON inválido en campos FO-HCR-18" }, { status: 400 });
-      }
-
-      // 1) Marcar terapias con X
-      if (templateCfg.terapiasMarks) {
-        for (const [k, v] of Object.entries(terapias)) {
-          if (!v) continue;
-          const m = templateCfg.terapiasMarks[k];
-          if (!m) continue;
-          const page = pages[m.pageIndex] ?? pages[0];
-          page.drawText("X", { x: m.x, y: m.y, size: 12, font, color: rgb(0, 0, 0) });
-        }
-      }
-
-      // 2) Marcar procedimientos múltiples con X
-      if (templateCfg.procedimientosMulti) {
-        for (const [terapiaKey, procs] of Object.entries(procedimientosMulti)) {
-          for (const [procKey, checked] of Object.entries(procs || {})) {
-            if (!checked) continue;
-            const mapKey = `${terapiaKey}.${procKey}`;
-            const m = templateCfg.procedimientosMulti[mapKey];
-            if (!m) continue;
-            const page = pages[m.pageIndex] ?? pages[0];
-            page.drawText("X", { x: m.x, y: m.y, size: 12, font, color: rgb(0, 0, 0) });
-          }
-        }
-      }
-
-      // 3) Otro procedimiento (X + texto)
-      if (templateCfg.otrosProcedimientos) {
-        for (const [terapiaKey, info] of Object.entries(otros)) {
-          if (!info?.activo) continue;
-          const m = templateCfg.otrosProcedimientos[terapiaKey];
-          if (!m) continue;
-
-          const page = pages[m.pageIndex] ?? pages[0];
-          page.drawText("X", { x: m.check.x, y: m.check.y, size: 12, font, color: rgb(0, 0, 0) });
-
-          const text = String(info.descripcion || "").trim();
-          if (text) {
-            page.drawText(text, {
-              x: m.text.x,
-              y: m.text.y,
-              size: m.text.size ?? 9,
-              font,
-              color: rgb(0, 0, 0),
-              maxWidth: m.text.maxWidth ?? 600,
-            });
-          }
-        }
-      }
-
-      // 4) Entendimiento (1/3/5) -> se imprime como número en el campo
-      if (templateCfg.entendimientoPos && (entendimiento === 1 || entendimiento === 3 || entendimiento === 5)) {
-        const m = templateCfg.entendimientoPos;
-        const page = pages[m.pageIndex] ?? pages[0];
-        page.drawText(String(entendimiento), {
-          x: m.x,
-          y: m.y,
-          size: m.size ?? 12,
-          font,
-          color: rgb(0, 0, 0),
-        });
-      }
-    }
-
-    // ===== Página de firmas (LÓGICA ACEPTACIÓN) =====
-    const p2 = pages[sigIdx] ?? pages[1] ?? pages[0];
-
-    // "Yo, ____" en la hoja de firmas (si aplica)
-    if (templateCfg.yoEnPaginaFirmas) {
-      p2.drawText(pacienteNombreCompleto, {
-        x: templateCfg.yoEnPaginaFirmas.yoPacienteNombre.x,
-        y: templateCfg.yoEnPaginaFirmas.yoPacienteNombre.y,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
-
-      p2.drawText(cedula, {
-        x: templateCfg.yoEnPaginaFirmas.yoPacienteDocumento.x,
-        y: templateCfg.yoEnPaginaFirmas.yoPacienteDocumento.y,
-        size: fontSize,
-        font,
-        color: rgb(0, 0, 0),
-      });
-    }
+    // ===== Page 2 (LÓGICA ACEPTACIÓN) =====
+    const p2 = pages[1] ?? pages[0];
 
     const firmaPacienteBytes = dataUrlToUint8Array(firmaPacientePngBase64);
     const firmaEspecialistaBytes = dataUrlToUint8Array(firmaEspecialistaPngBase64);
@@ -808,11 +426,6 @@ export async function POST(req: Request) {
           height: templateCfg.page2.firmaEspecialista.h,
         });
       }
-    }
-
-    // Debug grid (si se pidió)
-    if (debugGrid) {
-      for (const pg of pages) drawDebugGrid(pg, font);
     }
 
     const finalPdfBytes = await pdfDoc.save();

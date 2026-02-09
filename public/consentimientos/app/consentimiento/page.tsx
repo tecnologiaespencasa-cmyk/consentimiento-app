@@ -12,16 +12,6 @@ type Formato = {
   pdfPath: string;
 };
 
-const PROCEDIMIENTOS_ENFERMERIA = [
-  "Cateterismo Venoso Periférico",
-  "Paso de sonda vesical Nasogástrica y/o orogástrica",
-  "Curaciones",
-  "Administración y aplicación de medicamentos",
-  "Retiro de puntos",
-  "Toma de un electrocardiograma (EKG)",
-  "Retiro de Catéter PICC en Domicilio",
-] as const;
-
 type Me = {
   id: string;
   username: string;
@@ -173,66 +163,6 @@ export default function ConsentimientoPage() {
   const [firmaEspecialista, setFirmaEspecialista] = useState<string | null>(null);
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [formatoSeleccionado, setFormatoSeleccionado] = useState<Formato | null>(null);
-  const esFO18 = formatoSeleccionado?.id === "FO-HCR-18";
-
-  type TerapiaKey = "fisica" | "fonoaudiologia" | "respiratoria" | "ocupacional";
-
-  const [terapias18, setTerapias18] = useState<Record<TerapiaKey, boolean>>({
-    fisica: false,
-    fonoaudiologia: false,
-    respiratoria: false,
-    ocupacional: false,
-  });
-
-  // Procedimientos (checkbox múltiples) por terapia
-  const [proc18, setProc18] = useState<Record<TerapiaKey, Record<string, boolean>>>({
-    fisica: {
-      evaluacion: false,
-      medios_fisicos: false,
-      ejercicios_cardiovasculares: false,
-      propiocepcion: false,
-      fuerza: false,
-      equilibrio: false,
-      flexibilidad: false,
-    },
-    fonoaudiologia: {
-      evaluacion: false,
-      trastornos_comunicacion: false,
-      trastornos_habla: false,
-      dificultades_lenguaje: false,
-      problemas_voz: false,
-      trastornos_deglucion: false,
-    },
-    respiratoria: {
-      aspiracion_secreciones: false,
-      nebulizacion_inhalatoria: false,
-      higiene_bronquial: false,
-      rehabilitacion_pulmonar: false,
-      cuidados_traqueostomia: false,
-      manejo_traqueostomia: false,
-      educacion_apoyo: false,
-    },
-    ocupacional: {
-      evaluacion: false,
-      motricidad_fina: false,
-      motricidad_gruesa: false,
-      avd: false,
-      sensoriales: false,
-      rehabilitacion_funcional: false,
-    },
-  });
-
-  // “Otro procedimiento” por terapia
-  const [otroProc18, setOtroProc18] = useState<Record<TerapiaKey, { activo: boolean; descripcion: string }>>({
-    fisica: { activo: false, descripcion: "" },
-    fonoaudiologia: { activo: false, descripcion: "" },
-    respiratoria: { activo: false, descripcion: "" },
-    ocupacional: { activo: false, descripcion: "" },
-  });
-
-  // Escala 1/3/5
-  const [entendimiento18, setEntendimiento18] = useState<1 | 3 | 5 | null>(null);
-
 
   // NUEVOS ESTADOS para aceptación
   const [mostrarModalAceptacion, setMostrarModalAceptacion] = useState(false);
@@ -241,28 +171,22 @@ export default function ConsentimientoPage() {
   const formatos: Formato[] = useMemo(
     () => [
       {
-        id: "FO-HCR-01",
-        nombre: "Procedimientos de Enfermería (FO-HCR-01)",
-        descripcionCorta: "Consentimiento Informado Procedimientos de Enfermería",
-        pdfPath: "/consentimientos/FO-HCR-01.pdf",
-      },
-      {
         id: "FO-HCR-13",
         nombre: "Telemedicina (FO-HCR-13)",
         descripcionCorta: "Consentimiento informado atención modalidad telemedicina",
         pdfPath: "/consentimientos/FO-HCR-13.pdf",
       },
       {
-        id: "FO-HCR-18",
-        nombre: "Terapias (FO-HCR-18)",
-        descripcionCorta: "Consentimiento informado integrado para terapias",
-        pdfPath: "/consentimientos/FO-HCR-18.pdf",
-      },
-      {
         id: "FO-HCR-21",
         nombre: "Retiro de Catéter PICC en Domicilio (FO-HCR-21)",
         descripcionCorta: "Consentimiento Informado Retiro de Catéter PICC en Domicilio",
         pdfPath: "/consentimientos/FO-HCR-21.pdf",
+      },
+      {
+        id: "FORM-3",
+        nombre: "Formato 3",
+        descripcionCorta: "Otro consentimiento",
+        pdfPath: "/consentimientos/FORM-3.pdf",
       },
       {
         id: "FORM-4",
@@ -353,54 +277,6 @@ export default function ConsentimientoPage() {
     const form = e.currentTarget;
     const formData = new FormData(form);
 
-    // Campos especiales: FO-HCR-01 (Procedimientos de Enfermería)
-    if (formatoSeleccionado.id === "FO-HCR-01") {
-      const diagnostico = String(formData.get("diagnostico") ?? "").trim();
-      const procedimiento = String(formData.get("procedimiento") ?? "").trim();
-
-      if (!diagnostico) {
-        setMensaje("❌ Falta el diagnóstico");
-        setCargando(false);
-        return;
-      }
-
-      if (!procedimiento) {
-        setMensaje("❌ Debes seleccionar el procedimiento a realizar");
-        setCargando(false);
-        return;
-      }
-    }
-
-    if (formatoSeleccionado.id === "FO-HCR-18") {
-      const algunaTerapia = Object.values(terapias18).some(Boolean);
-      if (!algunaTerapia) {
-        setMensaje("❌ Debes seleccionar al menos un tipo de terapia");
-        setCargando(false);
-        return;
-      }
-
-      if (entendimiento18 === null) {
-        setMensaje("❌ Debes seleccionar el nivel de entendimiento (1, 3 o 5)");
-        setCargando(false);
-        return;
-      }
-
-      // Si “otro procedimiento” está activo, exigir texto
-      for (const k of Object.keys(otroProc18) as TerapiaKey[]) {
-        if (otroProc18[k].activo && !otroProc18[k].descripcion.trim()) {
-          setMensaje(`❌ Falta describir el "Otro procedimiento" para ${k}`);
-          setCargando(false);
-          return;
-        }
-      }
-
-      formData.append("terapiasJson", JSON.stringify(terapias18));
-      formData.append("procedimientosJson", JSON.stringify(proc18));
-      formData.append("otrosJson", JSON.stringify(otroProc18));
-      formData.append("entendimiento", String(entendimiento18));
-    }
-
-
     formData.set("fechaHora", fechaAuto);
     formData.append("formatoId", formatoSeleccionado.id);
     formData.append("firmaPacientePngBase64", firmaPaciente);
@@ -431,15 +307,15 @@ export default function ConsentimientoPage() {
 
       if (response.ok) {
         const data = await response.json();
-        const mensaje = aceptado
-          ? "✅ Consentimiento ACEPTADO y guardado correctamente"
+        const mensaje = aceptado 
+          ? "✅ Consentimiento ACEPTADO y guardado correctamente" 
           : "✅ Consentimiento RECHAZADO y registrado correctamente";
         setMensaje(mensaje);
-
+        
         // Resetear formulario
         const form = document.querySelector("form");
         if (form) form.reset();
-
+        
         setFormatoSeleccionado(null);
         setFirmaPaciente(null);
         setFirmaEspecialista(null);
@@ -472,38 +348,38 @@ export default function ConsentimientoPage() {
           <div className={styles.modalCard}>
             <h2 className={styles.modalTitle}>Confirmación del Consentimiento</h2>
             <p className={styles.modalText}>
-              Por favor, confirme si el paciente <strong>ACEPTA</strong> o <strong>NO ACEPTA</strong>
+              Por favor, confirme si el paciente <strong>ACEPTA</strong> o <strong>NO ACEPTA</strong> 
               el procedimiento descrito en el consentimiento informado.
             </p>
-
+            
             <div className={styles.modalButtons}>
-              <button
+              <button 
                 type="button"
                 className={styles.primaryButton}
                 onClick={() => enviarConsentimientoFinal(true)}
                 disabled={cargando}
-                style={{
-                  backgroundColor: '#059669',
+                style={{ 
+                  backgroundColor: '#059669', 
                   borderColor: '#059669'
                 }}
               >
                 ✅ SÍ, ACEPTO EL CONSENTIMIENTO
               </button>
-
-              <button
+              
+              <button 
                 type="button"
                 className={styles.primaryButton}
                 onClick={() => enviarConsentimientoFinal(false)}
                 disabled={cargando}
-                style={{
-                  backgroundColor: '#dc2626',
+                style={{ 
+                  backgroundColor: '#dc2626', 
                   borderColor: '#dc2626'
                 }}
               >
                 ❌ NO ACEPTO EL CONSENTIMIENTO
               </button>
-
-              <button
+              
+              <button 
                 type="button"
                 className={styles.secondaryButton}
                 onClick={() => {
@@ -515,7 +391,7 @@ export default function ConsentimientoPage() {
                 Cancelar y volver
               </button>
             </div>
-
+            
             <p className={styles.miniHint} style={{ marginTop: '1rem', textAlign: 'center' }}>
               <strong>Nota:</strong> Las firmas se colocarán en la sección correspondiente del PDF.
             </p>
@@ -694,7 +570,7 @@ export default function ConsentimientoPage() {
 
                 {/* Datos del especialista autollenados */}
                 <div className={styles.section}>
-                  <h3 className={styles.sectionTitle}>Datos del personal de la salud</h3>
+                  <h3 className={styles.sectionTitle}>Datos del especialista</h3>
 
                   <div className={styles.grid2}>
                     <div className={styles.field}>
@@ -736,7 +612,7 @@ export default function ConsentimientoPage() {
 
                 {/* Datos del paciente manuales */}
                 <div className={styles.section}>
-                  <h3 className={styles.sectionTitle}>Datos del paciente o acudiente</h3>
+                  <h3 className={styles.sectionTitle}>Datos del paciente</h3>
 
                   <div className={styles.grid2}>
                     <div className={styles.field}>
@@ -770,350 +646,6 @@ export default function ConsentimientoPage() {
                     </div>
                   </div>
                 </div>
-                {esFO18 && (
-                  <section className={styles.fo18Card}>
-                    <div className={styles.fo18Header}>
-                      <h3 className={styles.fo18Title}>Terapias</h3>
-                      <p className={styles.fo18Subtitle}>
-                        Selecciona el tipo de terapia y los procedimientos. Puedes marcar varios.
-                      </p>
-                    </div>
-
-                    {/* Terapias */}
-                    <div className={styles.fo18Section}>
-                      <div className={styles.fo18SectionTitle}>Tipo de terapia</div>
-
-                      <div className={styles.fo18TherapyGrid}>
-                        {[
-                          { key: "fisica", label: "Terapia Física (Fisioterapia)" },
-                          { key: "fonoaudiologia", label: "Terapia del Lenguaje (Fonoaudiología)" },
-                          { key: "respiratoria", label: "Terapia Respiratoria" },
-                          { key: "ocupacional", label: "Terapia Ocupacional" },
-                        ].map((t) => (
-                          <label key={t.key} className={styles.fo18TherapyItem}>
-                            <input
-                              className={styles.fo18Checkbox}
-                              type="checkbox"
-                              checked={terapias18[t.key as keyof typeof terapias18]}
-                              onChange={(e) =>
-                                setTerapias18((s) => ({ ...s, [t.key]: e.target.checked }))
-                              }
-                            />
-                            <span>{t.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className={styles.fo18Divider} />
-
-                    {/* Procedimientos por terapia */}
-                    <div className={styles.fo18Section}>
-                      <div className={styles.fo18SectionTitle}>Procedimientos</div>
-
-                      {terapias18.fisica && (
-                        <div className={styles.fo18TherapyCard}>
-                          <div className={styles.fo18TherapyCardTitle}>Fisioterapia</div>
-
-                          <div className={styles.fo18ProcGrid}>
-                            {Object.entries(proc18.fisica).map(([k, v]) => (
-                              <label key={k} className={styles.fo18ProcItem}>
-                                <input
-                                  className={styles.fo18Checkbox}
-                                  type="checkbox"
-                                  checked={v}
-                                  onChange={(e) =>
-                                    setProc18((s) => ({
-                                      ...s,
-                                      fisica: { ...s.fisica, [k]: e.target.checked },
-                                    }))
-                                  }
-                                />
-                                <span>{k.replaceAll("_", " ")}</span>
-                              </label>
-                            ))}
-                          </div>
-
-                          <div className={styles.fo18OtherRow}>
-                            <label className={styles.fo18ProcItem}>
-                              <input
-                                className={styles.fo18Checkbox}
-                                type="checkbox"
-                                checked={otroProc18.fisica.activo}
-                                onChange={(e) =>
-                                  setOtroProc18((s) => ({
-                                    ...s,
-                                    fisica: { ...s.fisica, activo: e.target.checked },
-                                  }))
-                                }
-                              />
-                              <span>Otro procedimiento</span>
-                            </label>
-
-                            <input
-                              className={styles.fo18OtherInput}
-                              value={otroProc18.fisica.descripcion}
-                              onChange={(e) =>
-                                setOtroProc18((s) => ({
-                                  ...s,
-                                  fisica: { ...s.fisica, descripcion: e.target.value },
-                                }))
-                              }
-                              placeholder="Describe el procedimiento…"
-                              disabled={!otroProc18.fisica.activo}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {terapias18.fonoaudiologia && (
-                        <div className={styles.fo18TherapyCard}>
-                          <div className={styles.fo18TherapyCardTitle}>Fonoaudiología</div>
-
-                          <div className={styles.fo18ProcGrid}>
-                            {Object.entries(proc18.fonoaudiologia).map(([k, v]) => (
-                              <label key={k} className={styles.fo18ProcItem}>
-                                <input
-                                  className={styles.fo18Checkbox}
-                                  type="checkbox"
-                                  checked={v}
-                                  onChange={(e) =>
-                                    setProc18((s) => ({
-                                      ...s,
-                                      fonoaudiologia: {
-                                        ...s.fonoaudiologia,
-                                        [k]: e.target.checked,
-                                      },
-                                    }))
-                                  }
-                                />
-                                <span>{k.replaceAll("_", " ")}</span>
-                              </label>
-                            ))}
-                          </div>
-
-                          {/* <div className={styles.fo18OtherRow}>
-                            <label className={styles.fo18ProcItem}>
-                              <input
-                                className={styles.fo18Checkbox}
-                                type="checkbox"
-                                checked={otroProc18.fonoaudiologia.activo}
-                                onChange={(e) =>
-                                  setOtroProc18((s) => ({
-                                    ...s,
-                                    fonoaudiologia: {
-                                      ...s.fonoaudiologia,
-                                      activo: e.target.checked,
-                                    },
-                                  }))
-                                }
-                              />
-                              <span>Otro procedimiento</span>
-                            </label>
-
-                            <input
-                              className={styles.fo18OtherInput}
-                              value={otroProc18.fonoaudiologia.descripcion}
-                              onChange={(e) =>
-                                setOtroProc18((s) => ({
-                                  ...s,
-                                  fonoaudiologia: {
-                                    ...s.fonoaudiologia,
-                                    descripcion: e.target.value,
-                                  },
-                                }))
-                              }
-                              placeholder="Describe el procedimiento…"
-                              disabled={!otroProc18.fonoaudiologia.activo}
-                            />
-                          </div> */}
-                        </div>
-                      )}
-
-                      {terapias18.respiratoria && (
-                        <div className={styles.fo18TherapyCard}>
-                          <div className={styles.fo18TherapyCardTitle}>Terapia Respiratoria</div>
-
-                          <div className={styles.fo18ProcGrid}>
-                            {Object.entries(proc18.respiratoria).map(([k, v]) => (
-                              <label key={k} className={styles.fo18ProcItem}>
-                                <input
-                                  className={styles.fo18Checkbox}
-                                  type="checkbox"
-                                  checked={v}
-                                  onChange={(e) =>
-                                    setProc18((s) => ({
-                                      ...s,
-                                      respiratoria: { ...s.respiratoria, [k]: e.target.checked },
-                                    }))
-                                  }
-                                />
-                                <span>{k.replaceAll("_", " ")}</span>
-                              </label>
-                            ))}
-                          </div>
-
-                          <div className={styles.fo18OtherRow}>
-                            <label className={styles.fo18ProcItem}>
-                              <input
-                                className={styles.fo18Checkbox}
-                                type="checkbox"
-                                checked={otroProc18.respiratoria.activo}
-                                onChange={(e) =>
-                                  setOtroProc18((s) => ({
-                                    ...s,
-                                    respiratoria: {
-                                      ...s.respiratoria,
-                                      activo: e.target.checked,
-                                    },
-                                  }))
-                                }
-                              />
-                              <span>Otro procedimiento</span>
-                            </label>
-
-                            <input
-                              className={styles.fo18OtherInput}
-                              value={otroProc18.respiratoria.descripcion}
-                              onChange={(e) =>
-                                setOtroProc18((s) => ({
-                                  ...s,
-                                  respiratoria: {
-                                    ...s.respiratoria,
-                                    descripcion: e.target.value,
-                                  },
-                                }))
-                              }
-                              placeholder="Describe el procedimiento…"
-                              disabled={!otroProc18.respiratoria.activo}
-                            />
-                          </div>
-                        </div>
-                      )}
-
-                      {terapias18.ocupacional && (
-                        <div className={styles.fo18TherapyCard}>
-                          <div className={styles.fo18TherapyCardTitle}>Terapia Ocupacional</div>
-
-                          <div className={styles.fo18ProcGrid}>
-                            {Object.entries(proc18.ocupacional).map(([k, v]) => (
-                              <label key={k} className={styles.fo18ProcItem}>
-                                <input
-                                  className={styles.fo18Checkbox}
-                                  type="checkbox"
-                                  checked={v}
-                                  onChange={(e) =>
-                                    setProc18((s) => ({
-                                      ...s,
-                                      ocupacional: { ...s.ocupacional, [k]: e.target.checked },
-                                    }))
-                                  }
-                                />
-                                <span>{k.replaceAll("_", " ")}</span>
-                              </label>
-                            ))}
-                          </div>
-
-                          <div className={styles.fo18OtherRow}>
-                            <label className={styles.fo18ProcItem}>
-                              <input
-                                className={styles.fo18Checkbox}
-                                type="checkbox"
-                                checked={otroProc18.ocupacional.activo}
-                                onChange={(e) =>
-                                  setOtroProc18((s) => ({
-                                    ...s,
-                                    ocupacional: { ...s.ocupacional, activo: e.target.checked },
-                                  }))
-                                }
-                              />
-                              <span>Otro procedimiento</span>
-                            </label>
-
-                            <input
-                              className={styles.fo18OtherInput}
-                              value={otroProc18.ocupacional.descripcion}
-                              onChange={(e) =>
-                                setOtroProc18((s) => ({
-                                  ...s,
-                                  ocupacional: {
-                                    ...s.ocupacional,
-                                    descripcion: e.target.value,
-                                  },
-                                }))
-                              }
-                              placeholder="Describe el procedimiento…"
-                              disabled={!otroProc18.ocupacional.activo}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className={styles.fo18Divider} />
-
-                    {/* Entendimiento */}
-                    <div className={styles.fo18Section}>
-                      <div className={styles.fo18SectionTitle}>Entendimiento del consentimiento (Paciente)</div>
-                      <p className={styles.fo18Subtitle}>
-                        Apreciado usuario califique en una escala de 1, 3 o 5 el entendiiento referente al consentimiento informado:
-                      </p>
-
-                      <div className={styles.fo18RadioRow}>
-                        {[
-                          { v: 1 as const, label: "1 — No comprendido" },
-                          { v: 3 as const, label: "3 — Medianamente comprendido" },
-                          { v: 5 as const, label: "5 — Comprendido completamente" },
-                        ].map((opt) => (
-                          <label key={opt.v} className={styles.fo18RadioItem}>
-                            <input
-                              type="radio"
-                              checked={entendimiento18 === opt.v}
-                              onChange={() => setEntendimiento18(opt.v)}
-                            />
-                            <span>{opt.label}</span>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  </section>
-                )}
-
-
-                {/* Campos especiales FO-HCR-01 */}
-                {formatoSeleccionado.id === "FO-HCR-01" && (
-                  <div className={styles.section}>
-                    <h3 className={styles.sectionTitle}>Procedimiento de Enfermería</h3>
-
-                    <div className={styles.field}>
-                      <label>Diagnóstico</label>
-                      <input
-                        type="text"
-                        name="diagnostico"
-                        required
-                        className={styles.input}
-                        placeholder="Escribe el diagnóstico indicado en la historia clínica"
-                      />
-                    </div>
-
-                    <div className={styles.field}>
-                      <label>Procedimiento a realizar</label>
-                      <select name="procedimiento" required className={styles.input} defaultValue="">
-                        <option value="" disabled>
-                          Selecciona una opción
-                        </option>
-                        {PROCEDIMIENTOS_ENFERMERIA.map((p) => (
-                          <option key={p} value={p}>
-                            {p}
-                          </option>
-                        ))}
-                      </select>
-                      <p className={styles.miniHint}>
-                        (Se marcará una “X” en el PDF en la opción seleccionada)
-                      </p>
-                    </div>
-                  </div>
-                )}
 
                 {/* Firmas */}
                 <div className={styles.section}>

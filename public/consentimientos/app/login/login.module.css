@@ -1,0 +1,396 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #fef2f2 0%, #ffe4e6 100%);
+  padding: 5PX;
+}
+
+.loginWrapper {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 80rem;
+  background-color: white;
+  border-radius: 1.5rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .loginWrapper {
+    flex-direction: row;
+  }
+}
+
+/* Panel Izquierdo - Login Form (primero en móviles, izquierda en desktop) */
+.loginPanel {
+  width: 100%;
+  padding: 2rem;
+  order: 1;
+}
+
+@media (min-width: 768px) {
+  .loginPanel {
+    width: 65%;
+    padding: 5PX;
+    order: 1;
+  }
+}
+
+.loginContainer {
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.mobileLogo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+
+.logoMobileWrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.logoTitle {
+  font-size: 1.8rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+}
+
+.logoSubtitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 0.5rem;
+}
+
+.logoTagline {
+  color: #fecaca;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.loginHeader {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.loginTitle {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #181717;
+  margin-bottom: 0.5rem;
+}
+
+.loginSubtitle {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.errorAlert {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #fef2f2;
+  border-left: 4px solid #dc2626;
+  color: #dc2626;
+  border-radius: 0.5rem;
+}
+
+.errorContent {
+  display: flex;
+  align-items: flex-start;
+}
+
+.errorIcon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: #dc2626;
+  margin-top: 0.125rem;
+  margin-right: 0.5rem;
+  flex-shrink: 0;
+}
+
+.errorMessage {
+  font-weight: 500;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.formLabel {
+  display: block;
+  color: #161515;
+  font-size: 15px;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.iconLabel {
+  display: inline-flex;
+  align-items: center;
+}
+
+.iconRed {
+  margin-right: 0.5rem;
+  color: #e80214;
+}
+
+.inputWrapper {
+  position: relative;
+}
+
+.inputField {
+  width: 100%;
+  padding-left: 3rem;
+  padding-right: 1rem;
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.75rem;
+  outline: none;
+  transition: all 0.2s;
+  font-size: 1rem;
+}
+
+.inputField:focus {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.5);
+}
+
+.inputIcon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #f87171;
+  font-size: 1rem;
+}
+
+.submitButton {
+  width: 100%;
+  background: linear-gradient(135deg, #e80214 0%, #e80214 100%);
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  position: relative;
+  font-size: 1rem;
+  margin-top: 0.5rem;
+}
+
+.submitButton:hover:not(:disabled) {
+  background: linear-gradient(135deg, #e80214 0%, #941d1d 100%);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.submitButton:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.5);
+}
+
+.submitButton:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.buttonContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  margin-right: 0.75rem;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.supportInfo {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.supportText {
+  text-align: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.supportNumber {
+  color: #e80214;
+  font-weight: 500;
+}
+
+/* Panel Derecho - Información (segundo en móviles, derecha en desktop) */
+.infoPanel {
+  width: 100%;
+  background: #e80214;
+  color: white;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  order: 2;
+}
+
+@media (min-width: 768px) {
+  .infoPanel {
+    width: 40%;
+    padding: 3rem;
+    order: 2;
+  }
+}
+
+.desktopLogo {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .desktopLogo {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+}
+
+.desktopLogoImages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.logoDesktopMain {
+  width: 200px;
+  height: 200px;
+  object-fit: contain;
+}
+
+
+.desktopLogoText {
+  text-align: center;
+}
+
+.desktopLogoTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+}
+
+
+.desktopLogoTagline {
+  color: #fecaca;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.infoCard {
+  margin-bottom: 1.5rem;
+  padding: 1.5rem;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  backdrop-filter: blur(8px);
+}
+
+.infoCardContent {
+  text-align: center;
+}
+
+.infoDescription {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.quote {
+  text-align: center;
+  margin-bottom: 10PX;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+  font-size: 1.1rem;
+  padding: 0 1rem;
+}
+
+.features {
+  margin-top: 1rem;
+}
+
+.featureItem {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.featureIcon {
+  background-color: rgba(255, 255, 255, 0.2);
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  margin-right: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+}
+
+.featureIcon svg {
+  font-size: 1.25rem;
+}
+
+.featureContent h3 {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+  font-size: 1.1rem;
+}
+
+.featureContent p {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+}
+
+.footer {
+  padding-top: 10PX;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.footerText {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.6);
+  text-align: center;
+}
+
+@media (min-width: 768px) {
+  .footerText {
+    text-align: left;
+  }
+}
