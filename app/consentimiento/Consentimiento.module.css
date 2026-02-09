@@ -6,13 +6,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 12px;
+  padding: 5px;
   font-family: "Open Sans", Arial, Helvetica, sans-serif;
 }
 
 .card {
   background: #ffffff;
-  padding: 22px;
+  padding: 5px;
   border-radius: 12px;
   width: 100%;
   max-width: 720px;
@@ -612,3 +612,75 @@
     padding: 14px 12px; /* un poco más cómodo para tocar */
   }
 }
+
+
+/* =========================
+   Ajustes responsive FO-HCR-18
+   ========================= */
+
+/* 1) Terapias: en móvil 1 columna */
+@media (max-width: 640px) {
+  .fo18TherapyGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 2) Procedimientos: en móvil 1 columna (evita que se apriete el texto) */
+@media (max-width: 640px) {
+  .fo18ProcGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .fo18ProcItem {
+    align-items: flex-start;
+  }
+
+  .fo18ProcItem span {
+    line-height: 1.25;
+    word-break: break-word;
+  }
+}
+
+/* 3) ✅ OTRO PROCEDIMIENTO: en móvil se apila y el input se ve completo */
+@media (max-width: 640px) {
+  .fo18OtherRow {
+    grid-template-columns: 1fr; /* antes 220px 1fr */
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .fo18OtherInput {
+    width: 100%;
+    min-height: 44px;          /* tamaño cómodo táctil */
+    font-size: 16px;           /* evita zoom automático iOS */
+    padding: 12px 12px;
+  }
+
+  .fo18OtherInput:disabled {
+    opacity: 0.9;
+  }
+}
+
+/* 4) Entendimiento: en móvil 1 columna (o 2 si prefieres) */
+@media (max-width: 640px) {
+  .fo18RadioRow {
+    grid-template-columns: 1fr;
+  }
+
+  .fo18RadioItem {
+    align-items: flex-start;
+  }
+}
+
+/* (Opcional) si quieres 2 columnas en móviles grandes y 1 en pequeños */
+@media (max-width: 640px) and (min-width: 420px) {
+  .fo18RadioRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 419px) {
+  .fo18RadioRow {
+    grid-template-columns: 1fr;
+  }
+}
+
