@@ -174,6 +174,8 @@ export default function ConsentimientoPage() {
   const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [formatoSeleccionado, setFormatoSeleccionado] = useState<Formato | null>(null);
   const esFO18 = formatoSeleccionado?.id === "FO-HCR-18";
+  const esFO11 = formatoSeleccionado?.id === "FO-HCR-11";
+
 
   type TerapiaKey = "fisica" | "fonoaudiologia" | "respiratoria" | "ocupacional";
 
@@ -238,43 +240,76 @@ export default function ConsentimientoPage() {
   const [mostrarModalAceptacion, setMostrarModalAceptacion] = useState(false);
   const [datosTemporales, setDatosTemporales] = useState<FormData | null>(null);
 
+  // ==================
+  // FO-HCR-11 (Alta voluntaria) - estados
+  // ==================
+  const [calidadPaciente11, setCalidadPaciente11] = useState<"SI" | "NO" | "">("");
+  const [calidadResponsable11, setCalidadResponsable11] = useState<"SI" | "NO" | "">("");
+  const [riesgosAlta11, setRiesgosAlta11] = useState("");
+  const [observaciones11, setObservaciones11] = useState("");
+
+
   const formatos: Formato[] = useMemo(
     () => [
       {
         id: "FO-HCR-01",
-        nombre: "Procedimientos de Enfermería (FO-HCR-01)",
+        nombre: "Procedimientos de Enfermería",
         descripcionCorta: "Consentimiento Informado Procedimientos de Enfermería",
         pdfPath: "/consentimientos/FO-HCR-01.pdf",
       },
       {
-        id: "FO-HCR-13",
-        nombre: "Telemedicina (FO-HCR-13)",
-        descripcionCorta: "Consentimiento informado atención modalidad telemedicina",
-        pdfPath: "/consentimientos/FO-HCR-13.pdf",
-      },
-      {
         id: "FO-HCR-18",
-        nombre: "Terapias (FO-HCR-18)",
+        nombre: "Terapias",
         descripcionCorta: "Consentimiento informado integrado para terapias",
         pdfPath: "/consentimientos/FO-HCR-18.pdf",
       },
       {
+        id: "FO-HCR-13",
+        nombre: "Telemedicina",
+        descripcionCorta: "Consentimiento informado atención modalidad telemedicina",
+        pdfPath: "/consentimientos/FO-HCR-13.pdf",
+      },
+      {
+        id: "FO-HCR-19",
+        nombre: "Parada cardiaca",
+        descripcionCorta: "Consentimiento Informado intervención en caso de paro cardiorrespiratorio",
+        pdfPath: "/consentimientos/FO-HCR-19.pdf",
+      },
+      {
+        id: "FO-HCR-20",
+        nombre: "Retiro y cambio de traqueostomia",
+        descripcionCorta: "Consentimiento Informado retiro y cambio de traqueostomia",
+        pdfPath: "/consentimientos/FO-HCR-20.pdf",
+      },
+      {
         id: "FO-HCR-21",
-        nombre: "Retiro de Catéter PICC en Domicilio (FO-HCR-21)",
+        nombre: "Retiro de Catéter PICC en Domicilio",
         descripcionCorta: "Consentimiento Informado Retiro de Catéter PICC en Domicilio",
         pdfPath: "/consentimientos/FO-HCR-21.pdf",
       },
       {
-        id: "FORM-4",
-        nombre: "Formato 4",
-        descripcionCorta: "Otro consentimiento",
-        pdfPath: "/consentimientos/FORM-4.pdf",
+        id: "FO-HCR-22",
+        nombre: "Atencion Domiciliaria",
+        descripcionCorta: "Consentimiento Informado General Atencion Domiciliaria",
+        pdfPath: "/consentimientos/FO-HCR-22.pdf",
       },
       {
-        id: "FORM-5",
-        nombre: "Formato 5",
-        descripcionCorta: "Otro consentimiento",
-        pdfPath: "/consentimientos/FORM-5.pdf",
+        id: "FO-HCR-06",
+        nombre: "Psicología",
+        descripcionCorta: "Consentimiento Informado Psicología",
+        pdfPath: "/consentimientos/FO-HCR-06.pdf",
+      },
+      {
+        id: "FO-HCR-11",
+        nombre: "Alta Voluntaria",
+        descripcionCorta: "Formato Alta Voluntaria",
+        pdfPath: "/consentimientos/FO-HCR-11.pdf",
+      },
+      {
+        id: "FO-HCR-07",
+        nombre: "Nutrición - NPT",
+        descripcionCorta: "Consentimiento Informado nutrición - NPT",
+        pdfPath: "/consentimientos/FO-HCR-07.pdf",
       },
     ],
     []
@@ -399,6 +434,38 @@ export default function ConsentimientoPage() {
       formData.append("otrosJson", JSON.stringify(otroProc18));
       formData.append("entendimiento", String(entendimiento18));
     }
+
+    if (formatoSeleccionado.id === "FO-HCR-11") {
+      if (!calidadPaciente11) {
+        setMensaje("❌ Debes seleccionar SI o NO en 'Como paciente'");
+        setCargando(false);
+        return;
+      }
+
+      if (!calidadResponsable11) {
+        setMensaje("❌ Debes seleccionar SI o NO en 'Como responsable del paciente'");
+        setCargando(false);
+        return;
+      }
+
+      if (!riesgosAlta11.trim()) {
+        setMensaje("❌ El campo 'riesgos del alta voluntaria' es obligatorio");
+        setCargando(false);
+        return;
+      }
+
+      if (!observaciones11.trim()) {
+        setMensaje("❌ El campo 'Observaciones' es obligatorio");
+        setCargando(false);
+        return;
+      }
+
+      formData.append("calidadPaciente11", calidadPaciente11);
+      formData.append("calidadResponsable11", calidadResponsable11);
+      formData.append("riesgosAlta11", riesgosAlta11.trim());
+      formData.append("observaciones11", observaciones11.trim());
+    }
+
 
 
     formData.set("fechaHora", fechaAuto);
@@ -1078,6 +1145,96 @@ export default function ConsentimientoPage() {
                     </div>
                   </section>
                 )}
+
+
+                {esFO11 && (
+                  <section className={styles.fo18Card}>
+                    <div className={styles.fo18Header}>
+                      <h3 className={styles.fo18Title}>Alta voluntaria</h3>
+                      <p className={styles.fo18Subtitle}>
+                        Completa los campos obligatorios para generar el consentimiento.
+                      </p>
+                    </div>
+
+                    {/* Calidad */}
+                    <div className={styles.fo18Section}>
+                      <div className={styles.fo18SectionTitle}>CALIDAD EN LA QUE SE OTORGA ESTA ALTA VOLUNTARIA</div>
+
+                      <div className={styles.fo18TherapyCard}>
+                        <div className={styles.fo18TherapyCardTitle}>Como paciente</div>
+
+                        <div className={styles.fo18RadioRow} style={{ gridTemplateColumns: "repeat(2, minmax(0,1fr))" }}>
+                          {[
+                            { v: "SI" as const, label: "SI" },
+                            { v: "NO" as const, label: "NO" },
+                          ].map((opt) => (
+                            <label key={opt.v} className={styles.fo18RadioItem}>
+                              <input
+                                type="radio"
+                                checked={calidadPaciente11 === opt.v}
+                                onChange={() => setCalidadPaciente11(opt.v)}
+                              />
+                              <span>{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className={styles.fo18TherapyCard}>
+                        <div className={styles.fo18TherapyCardTitle}>
+                          Como responsable del paciente
+                          <div className={styles.fo18Subtitle}>
+                            (Padre o Madre si es menor; representante legal, familiar representante u otras personas que figuren como tales en la Historia Clínica.)
+                          </div>
+                        </div>
+
+                        <div className={styles.fo18RadioRow} style={{ gridTemplateColumns: "repeat(2, minmax(0,1fr))" }}>
+                          {[
+                            { v: "SI" as const, label: "SI" },
+                            { v: "NO" as const, label: "NO" },
+                          ].map((opt) => (
+                            <label key={opt.v} className={styles.fo18RadioItem}>
+                              <input
+                                type="radio"
+                                checked={calidadResponsable11 === opt.v}
+                                onChange={() => setCalidadResponsable11(opt.v)}
+                              />
+                              <span>{opt.label}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className={styles.fo18Divider} />
+
+                    {/* Textos obligatorios */}
+                    <div className={styles.fo18Section}>
+                      <div className={styles.fo18SectionTitle}>Se me ha explicado que los riesgos del alta voluntaria son:</div>
+                      <textarea
+                        className={styles.fo18Textarea}
+                        value={riesgosAlta11}
+                        onChange={(e) => setRiesgosAlta11(e.target.value)}
+                        placeholder="Escriba aquí los riesgos..."
+                        required
+                        rows={6}
+                      />
+                    </div>
+
+                    <div className={styles.fo18Section}>
+                      <div className={styles.fo18SectionTitle}>Observaciones</div>
+                      <textarea
+                        className={styles.fo18Textarea}
+                        value={observaciones11}
+                        onChange={(e) => setObservaciones11(e.target.value)}
+                        placeholder="Escriba aquí las observaciones..."
+                        required
+                        rows={6}
+                      />
+                    </div>
+                  </section>
+                )}
+
 
 
                 {/* Campos especiales FO-HCR-01 */}

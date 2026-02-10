@@ -40,6 +40,41 @@ function drawDebugGrid(page: any, font: any) {
   }
 }
 
+function wrapText(font: any, text: string, fontSize: number, maxWidth: number) {
+  const words = text.replace(/\s+/g, " ").trim().split(" ");
+  const lines: string[] = [];
+  let line = "";
+
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    const width = font.widthOfTextAtSize(test, fontSize);
+    if (width <= maxWidth) {
+      line = test;
+    } else {
+      if (line) lines.push(line);
+      line = w;
+    }
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function drawWrappedLines(page: any, font: any, text: string, cfg: { x: number; y: number; maxWidth: number; maxLines: number; lineHeight: number; size?: number }) {
+  const size = cfg.size ?? 10;
+  const lines = wrapText(font, text, size, cfg.maxWidth).slice(0, cfg.maxLines);
+
+  for (let i = 0; i < lines.length; i++) {
+    page.drawText(lines[i], {
+      x: cfg.x,
+      y: cfg.y - i * cfg.lineHeight,
+      size,
+      font,
+      color: rgb(0, 0, 0),
+    });
+  }
+}
+
+
 /**
  * Coordenadas por formato (en puntos PDF)
  * (0,0) está abajo-izquierda; subir = aumentar Y.
@@ -135,6 +170,21 @@ type TemplateCfg = {
 
   // Entendimiento 1/3/5
   entendimientoPos?: { pageIndex: number; x: number; y: number; size?: number };
+
+  // ===========================
+  // FO-HCR-11 (Alta voluntaria)
+  // ===========================
+  calidadAltaVoluntariaMarks?: {
+    pacienteSI: { pageIndex: number; x: number; y: number };
+    pacienteNO: { pageIndex: number; x: number; y: number };
+    responsableSI: { pageIndex: number; x: number; y: number };
+    responsableNO: { pageIndex: number; x: number; y: number };
+  };
+
+  riesgosAltaBox?: { pageIndex: number; x: number; y: number; maxWidth: number; maxLines: number; lineHeight: number; size?: number };
+  observacionesBox?: { pageIndex: number; x: number; y: number; maxWidth: number; maxLines: number; lineHeight: number; size?: number };
+
+
 };
 
 const TEMPLATE_MAP: Record<string, TemplateCfg> = {
@@ -172,11 +222,8 @@ const TEMPLATE_MAP: Record<string, TemplateCfg> = {
     },
   },
 
-  /**
-   * ✅ FT-HCR-21 (Retiro de Catéter PICC en Domicilio)
-   * - OJO: en el PDF impreso aparece "FT-HCR-21"
-   * - En este formato NO hay HORA; hay SERVICIO y CAMA
-   */
+  // ✅ FT-HCR-21 (Retiro de Catéter PICC en Domicilio)
+
   "FT-HCR-21": {
     templatePublicPath: "consentimientos/FO-HCR-21.pdf",
     page1: {
@@ -423,6 +470,268 @@ const TEMPLATE_MAP: Record<string, TemplateCfg> = {
     // Entendimiento (pág 4: “Coloque aquí su calificación en:”)
     entendimientoPos: { pageIndex: 3, x: 210, y: 201, size: 12 },
   },
+
+  // ✅ FT-HCR-22 (Atención domiciliaria)
+
+  "FO-HCR-22": {
+    templatePublicPath: "consentimientos/FO-HCR-22.pdf",
+    page1: {
+      // Fecha de diligenciamiento
+      dia: { x: 170, y: 694 },
+      mes: { x: 225, y: 694 },
+      anio: { x: 282, y: 694 },
+
+      // Tabla paciente (fila de datos)
+      pacientePrimerApellido: { x: 120, y: 667 },
+      pacienteSegundoApellido: { x: 202, y: 667 },
+      pacienteNombres: { x: 281, y: 667 },
+      pacienteEdad: { x: 392, y: 667 },
+      pacienteDocumento: { x: 425, y: 667 },
+      pacienteTelefono: { x: 503, y: 667 },
+
+      // Tabla personal de salud (fila de datos)
+      espPrimerApellido: { x: 190, y: 629 },
+      espSegundoApellido: { x: 326, y: 629 },
+      espNombres: { x: 452, y: 629 },
+
+      // Línea "Yo, ____ con numero de documento..."
+      yoPacienteNombre: { x: 52, y: 575 },
+      yoPacienteDocumento: { x: 380, y: 575 },
+    },
+    page2: {
+      // ACEPTA
+      firmaPaciente: { x: 170, y: 630, w: 190, h: 50 },
+      cedulaPaciente: { x: 433, y: 643 },
+      firmaEspecialista: { x: 380, y: 587, w: 210, h: 45 },
+
+      // NO ACEPTA (abajo)
+      noConsentimiento: {
+        firmaPaciente: { x: 170, y: 494, w: 190, h: 45 },
+        cedulaPaciente: { x: 429, y: 513 },
+        firmaEspecialista: { x: 405, y: 446, w: 190, h: 45 },
+      },
+    },
+  },
+
+  // ✅ FT-HCR-20 (Retiro y cambio de trasqueostomia)
+
+  "FO-HCR-20": {
+    templatePublicPath: "consentimientos/FO-HCR-20.pdf",
+    page1: {
+      // Fecha de diligenciamiento
+      dia: { x: 156, y: 688 },
+      mes: { x: 214, y: 688 },
+      anio: { x: 270, y: 688 },
+
+      // Tabla paciente (fila de datos)
+      pacientePrimerApellido: { x: 89, y: 660 },
+      pacienteSegundoApellido: { x: 178, y: 660 },
+      pacienteNombres: { x: 264, y: 660 },
+      pacienteEdad: { x: 377, y: 660 },
+      pacienteDocumento: { x: 414, y: 660 },
+      pacienteTelefono: { x: 497, y: 660 },
+
+      // Tabla personal de salud (fila de datos)
+      espPrimerApellido: { x: 183, y: 624 },
+      espSegundoApellido: { x: 318, y: 624 },
+      espNombres: { x: 455, y: 624 },
+
+      // Línea "Yo, ____ con numero de documento..."
+      yoPacienteNombre: { x: 52, y: 566 },
+      yoPacienteDocumento: { x: 380, y: 566 },
+    },
+    page2: {
+      // ACEPTA
+      firmaPaciente: { x: 170, y: 640, w: 190, h: 50 },
+      cedulaPaciente: { x: 433, y: 657 },
+      firmaEspecialista: { x: 380, y: 597, w: 210, h: 45 },
+
+      // NO ACEPTA (abajo)
+      noConsentimiento: {
+        firmaPaciente: { x: 170, y: 509, w: 190, h: 45 },
+        cedulaPaciente: { x: 429, y: 523 },
+        firmaEspecialista: { x: 395, y: 459, w: 190, h: 45 },
+      },
+    },
+  },
+
+  // ✅ FT-HCR-19 (Paro cardiaco)
+
+  "FO-HCR-19": {
+    templatePublicPath: "consentimientos/FO-HCR-19.pdf",
+    page1: {
+      // Fecha de diligenciamiento
+      dia: { x: 160, y: 688 },
+      mes: { x: 214, y: 688 },
+      anio: { x: 270, y: 688 },
+
+      // Tabla paciente (fila de datos)
+      pacientePrimerApellido: { x: 118, y: 660 },
+      pacienteSegundoApellido: { x: 196, y: 660 },
+      pacienteNombres: { x: 276, y: 660 },
+      pacienteEdad: { x: 382, y: 660 },
+      pacienteDocumento: { x: 415, y: 660 },
+      pacienteTelefono: { x: 500, y: 660 },
+
+      // Tabla personal de salud (fila de datos)
+      espPrimerApellido: { x: 183, y: 624 },
+      espSegundoApellido: { x: 318, y: 624 },
+      espNombres: { x: 455, y: 624 },
+
+      // Línea "Yo, ____ con numero de documento..."
+      yoPacienteNombre: { x: 52, y: 566 },
+      yoPacienteDocumento: { x: 380, y: 566 },
+    },
+    page2: {
+      // ACEPTA
+      firmaPaciente: { x: 170, y: 630, w: 190, h: 50 },
+      cedulaPaciente: { x: 433, y: 647 },
+      firmaEspecialista: { x: 380, y: 593, w: 210, h: 45 },
+
+      // NO ACEPTA (abajo)
+      noConsentimiento: {
+        firmaPaciente: { x: 170, y: 490, w: 190, h: 45 },
+        cedulaPaciente: { x: 429, y: 513 },
+        firmaEspecialista: { x: 395, y: 449, w: 190, h: 45 },
+      },
+    },
+  },
+
+
+  // ✅ FT-HCR-06 (Psicología)
+
+  "FO-HCR-06": {
+    templatePublicPath: "consentimientos/FO-HCR-06.pdf",
+    page1: {
+      // Fecha de diligenciamiento
+      dia: { x: 162, y: 688 },
+      mes: { x: 213, y: 688 },
+      anio: { x: 282, y: 688 },
+
+      // Tabla paciente (fila de datos)
+      pacientePrimerApellido: { x: 89, y: 665 },
+      pacienteSegundoApellido: { x: 180, y: 665 },
+      pacienteNombres: { x: 276, y: 665 },
+      pacienteEdad: { x: 385, y: 665 },
+      pacienteDocumento: { x: 422, y: 665 },
+      pacienteTelefono: { x: 500, y: 665 },
+
+      // Tabla personal de salud (fila de datos)
+      espPrimerApellido: { x: 183, y: 624 },
+      espSegundoApellido: { x: 318, y: 624 },
+      espNombres: { x: 455, y: 624 },
+
+      // Línea "Yo, ____ con numero de documento..."
+      yoPacienteNombre: { x: 50, y: 583 },
+      yoPacienteDocumento: { x: 345, y: 583 },
+    },
+    page2: {
+      // ACEPTA
+      firmaPaciente: { x: 186, y: 648, w: 190, h: 50 },
+      cedulaPaciente: { x: 412, y: 668 },
+      firmaEspecialista: { x: 385, y: 610, w: 210, h: 45 },
+
+      // NO ACEPTA (abajo)
+      noConsentimiento: {
+        firmaPaciente: { x: 184, y: 517, w: 190, h: 45 },
+        cedulaPaciente: { x: 406, y: 536 },
+        firmaEspecialista: { x: 390, y: 468, w: 190, h: 45 },
+      },
+    },
+  },
+
+  // ✅ FT-HCR-011 (Alta voluntaria)
+
+  "FO-HCR-11": {
+    templatePublicPath: "consentimientos/FO-HCR-11.pdf",
+    infoPageIndex: 0,
+    signaturePageIndex: 0, // es 1 sola página
+
+    page1: {
+      dia: { x: 120, y: 881 },
+      mes: { x: 193, y: 881 },
+      anio: { x: 265, y: 881 },
+
+      pacientePrimerApellido: { x: 88, y: 857 },
+      pacienteSegundoApellido: { x: 169, y: 857 },
+      pacienteNombres: { x: 254, y: 857 },
+      pacienteDocumento: { x: 379, y: 857 },
+      pacienteEdad: { x: 465, y: 857 },
+      pacienteTelefono: { x: 516, y: 857 },
+
+      espPrimerApellido: { x: 200, y: 806 },
+      espSegundoApellido: { x: 328, y: 806 },
+      espNombres: { x: 456, y: 806 },
+
+      yoPacienteNombre: { x: 73, y: 752 },
+      yoPacienteDocumento: { x: 97, y: 739 },
+    },
+
+    page2: {
+      // Firma paciente (línea izquierda)
+      firmaPaciente: { x: 80, y: 225, w: 240, h: 45 },
+      cedulaPaciente: { x: 352, y: 239 }, // “Documento del paciente”
+      // Firma personal salud (línea derecha inferior)
+      firmaEspecialista: { x: 326, y: 153, w: 240, h: 45 },
+    },
+
+    // CALIDAD (X sobre los guiones)
+    calidadAltaVoluntariaMarks: {
+      pacienteSI: { pageIndex: 0, x: 179, y: 593 },
+      pacienteNO: { pageIndex: 0, x: 223, y: 593 },
+      responsableSI: { pageIndex: 0, x: 480, y: 565 },
+      responsableNO: { pageIndex: 0, x: 524, y: 565 },
+    },
+
+    // Caja de riesgos (arriba de “Observaciones”)
+    riesgosAltaBox: { pageIndex: 0, x: 45, y: 517, maxWidth: 520, maxLines: 7, lineHeight: 16, size: 10 },
+
+    // Caja de observaciones
+    observacionesBox: { pageIndex: 0, x: 45, y: 390, maxWidth: 520, maxLines: 7, lineHeight: 16, size: 10 },
+  },
+
+  // ✅ FT-HCR-07 (Nutrición)
+
+  "FO-HCR-07": {
+    templatePublicPath: "consentimientos/FO-HCR-07.pdf",
+    page1: {
+      // Fecha de diligenciamiento
+      dia: { x: 160, y: 688 },
+      mes: { x: 213, y: 688 },
+      anio: { x: 282, y: 688 },
+
+      // Tabla paciente (fila de datos)
+      pacientePrimerApellido: { x: 110, y: 665 },
+      pacienteSegundoApellido: { x: 188, y: 665 },
+      pacienteNombres: { x: 268, y: 665 },
+      pacienteEdad: { x: 382, y: 665 },
+      pacienteDocumento: { x: 416, y: 665 },
+      pacienteTelefono: { x: 497, y: 665 },
+
+      // Tabla personal de salud (fila de datos)
+      espPrimerApellido: { x: 184, y: 630 },
+      espSegundoApellido: { x: 318, y: 630 },
+      espNombres: { x: 448, y: 630 },
+
+      // Línea "Yo, ____ con numero de documento..."
+      yoPacienteNombre: { x: 54, y: 583 },
+      yoPacienteDocumento: { x: 380, y: 583 },
+    },
+    page2: {
+      // ACEPTA
+      firmaPaciente: { x: 183, y: 425, w: 190, h: 50 },
+      cedulaPaciente: { x: 416, y: 440 },
+      firmaEspecialista: { x: 380, y: 383, w: 210, h: 45 },
+
+      // NO ACEPTA (abajo)
+      noConsentimiento: {
+        firmaPaciente: { x: 184, y: 292, w: 190, h: 45 },
+        cedulaPaciente: { x: 405, y: 308 },
+        firmaEspecialista: { x: 390, y: 244, w: 190, h: 45 },
+      },
+    },
+  },
+
 };
 
 export async function POST(req: Request) {
@@ -466,6 +775,13 @@ export async function POST(req: Request) {
     const otrosJson = String(formData.get("otrosJson") || "");
     const entendimientoRaw = String(formData.get("entendimiento") || "");
 
+    // Campos especiales (FO-HCR-11)
+    const calidadPaciente11 = String(formData.get("calidadPaciente11") || "");
+    const calidadResponsable11 = String(formData.get("calidadResponsable11") || "");
+    const riesgosAlta11 = String(formData.get("riesgosAlta11") || "").trim();
+    const observaciones11 = String(formData.get("observaciones11") || "").trim();
+
+
     // Debug
     const debugGrid = String(formData.get("debugGrid") || "") === "true";
 
@@ -497,6 +813,13 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Faltan campos FO-HCR-18 (terapias/procedimientos/otros/entendimiento)" }, { status: 400 });
       }
     }
+
+    if (formatoId === "FO-HCR-11") {
+      if (!calidadPaciente11 || !calidadResponsable11 || !riesgosAlta11 || !observaciones11) {
+        return NextResponse.json({ error: "Faltan campos FO-HCR-11 (calidad / riesgos / observaciones)" }, { status: 400 });
+      }
+    }
+
 
     const now = new Date();
     const dia = String(now.getDate()).padStart(2, "0");
@@ -708,6 +1031,36 @@ export async function POST(req: Request) {
         });
       }
     }
+
+    // FO-HCR-11: calidad + riesgos + observaciones
+
+    if (formatoId === "FO-HCR-11") {
+      // 1) Marcar calidad con X
+      if (templateCfg.calidadAltaVoluntariaMarks) {
+        const m = templateCfg.calidadAltaVoluntariaMarks;
+        const page = pages[0];
+
+        const markPaciente = calidadPaciente11 === "SI" ? m.pacienteSI : m.pacienteNO;
+        const markResponsable = calidadResponsable11 === "SI" ? m.responsableSI : m.responsableNO;
+
+        page.drawText("X", { x: markPaciente.x, y: markPaciente.y, size: 12, font, color: rgb(0, 0, 0) });
+        page.drawText("X", { x: markResponsable.x, y: markResponsable.y, size: 12, font, color: rgb(0, 0, 0) });
+      }
+
+      // 2) Texto riesgos
+      if (templateCfg.riesgosAltaBox) {
+        const page = pages[templateCfg.riesgosAltaBox.pageIndex] ?? pages[0];
+        drawWrappedLines(page, font, riesgosAlta11, templateCfg.riesgosAltaBox);
+      }
+
+      // 3) Texto observaciones
+      if (templateCfg.observacionesBox) {
+        const page = pages[templateCfg.observacionesBox.pageIndex] ?? pages[0];
+        drawWrappedLines(page, font, observaciones11, templateCfg.observacionesBox);
+      }
+    }
+
+
 
     // ===== Página de firmas (LÓGICA ACEPTACIÓN) =====
     const p2 = pages[sigIdx] ?? pages[1] ?? pages[0];
