@@ -14,7 +14,8 @@ import {
   FaTimes,
   FaUserMd,
   FaHospital,
-  FaChevronDown
+  FaChevronDown,
+  FaExclamationTriangle
 } from "react-icons/fa"
 
 function nombreCorto(nombres?: string, primerApellido?: string) {
@@ -137,6 +138,22 @@ export default function Navbar() {
               >
                 <FaFileSignature className="mr-2" />
                 Mis Consentimientos
+              </Link>
+
+              <Link 
+                href="/novedades"
+                className={`flex items-center px-4 py-2 rounded-lg transition-all ${
+                  isActive('/novedades')
+                    ? isScrolled 
+                      ? 'bg-red-50 text-red-600 border border-red-200' 
+                      : 'bg-white/20 text-white'
+                    : isScrolled 
+                      ? 'text-gray-700 hover:bg-red-50 hover:text-red-600' 
+                      : 'text-red-100 hover:bg-white/10'
+                }`}
+              >
+                <FaExclamationTriangle className="mr-2" />
+                Novedades
               </Link>
 
               {(rol === "ADMINISTRATIVO" || rol === "TECNICO") && (
@@ -275,6 +292,19 @@ export default function Navbar() {
                 >
                   <FaFileSignature className="mr-3" />
                   Mis Consentimientos
+                </Link>
+
+                <Link 
+                  href="/novedades"
+                  onClick={() => setIsOpen(false)}
+                  className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+                    isActive('/novedades')
+                      ? 'bg-red-50 text-red-600 border border-red-200' 
+                      : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
+                  }`}
+                >
+                  <FaExclamationTriangle className="mr-3" />
+                  Novedades
                 </Link>
 
                 {(rol === "ADMINISTRATIVO" || rol === "TECNICO") && (

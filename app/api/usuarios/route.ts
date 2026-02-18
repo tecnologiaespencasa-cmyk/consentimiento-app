@@ -19,10 +19,12 @@ export async function POST(req: Request) {
   const segundoApellido = (formData.get("segundoApellido") as string) || ""
   const email = (formData.get("email") as string) || ""
   const telefono = (formData.get("telefono") as string) || ""
+  const cedula = (formData.get("cedula") as string) || ""
+  const profesion = (formData.get("profesion") as any) || ""
   const password = formData.get("password") as string
   const rol = formData.get("rol") as any
 
-  if (!username || !nombres || !primerApellido || !password || !rol) {
+  if (!username || !nombres || !primerApellido || !password || !rol || !cedula || !profesion) {
     return NextResponse.json({ error: "Faltan campos obligatorios" }, { status: 400 })
   }
 
@@ -31,12 +33,14 @@ export async function POST(req: Request) {
   await prisma.user.create({
     data: {
       username,
+      cedula,
       nombres,
       primerApellido,
       segundoApellido: segundoApellido || null,
       email: email || null,
       telefono: telefono || null,
       passwordHash,
+      profesion,
       rol
     }
   })

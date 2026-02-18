@@ -17,6 +17,8 @@ export const authOptions: NextAuthOptions = {
         token.segundoApellido = (user as any).segundoApellido ?? null;
         token.email = (user as any).email ?? null;
         token.telefono = (user as any).telefono ?? null;
+        token.cedula = (user as any).cedula;
+        token.profesion = (user as any).profesion;
       }
       return token;
     },
@@ -31,6 +33,8 @@ export const authOptions: NextAuthOptions = {
         session.user.segundoApellido = (token.segundoApellido as string | null) ?? null;
         session.user.email = (token.email as string | null) ?? null;
         session.user.telefono = (token.telefono as string | null) ?? null;
+        ;(session.user as any).cedula = token.cedula as string
+        ;(session.user as any).profesion = token.profesion as any
       }
       return session;
     },
@@ -63,6 +67,8 @@ export const authOptions: NextAuthOptions = {
           segundoApellido: user.segundoApellido,
           email: user.email,
           telefono: user.telefono,
+          cedula: user.cedula,
+          profesion: user.profesion,
         } as any;
       },
     }),

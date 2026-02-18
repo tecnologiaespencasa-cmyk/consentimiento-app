@@ -32,6 +32,8 @@ export async function GET() {
     segundoApellido: u.segundoApellido ?? null,
     email: u.email ?? null,
     telefono: u.telefono ?? null,
+    cedula: u.cedula ?? "",
+    profesion: u.profesion ?? null,
 
     // Compatibilidad / UI
     nombre,          // <-- Nombre + Primer Apellido (lo que pides)

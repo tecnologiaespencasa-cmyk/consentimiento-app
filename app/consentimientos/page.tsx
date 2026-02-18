@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma"
 import { redirect } from "next/navigation"
 import { FaClipboardCheck, FaUserShield } from "react-icons/fa"
 import ConsentimientosFiltros from "./components/ConsentimientosFiltros"
+import {
+  FaUserMd,
+  FaShieldAlt,
+  FaHome,
+  FaCheckCircle
+} from "react-icons/fa"
 
 export default async function TodosLosConsentimientosPage() {
   const session = await getServerSession(authOptions)
@@ -52,11 +58,11 @@ export default async function TodosLosConsentimientosPage() {
 
   // Estadísticas
   const totalConsentimientos = consentimientos.length
-  
+
   // ✅ Estadísticas usando el campo `aceptado`
   const aceptados = consentimientos.filter(c => c.aceptado === true).length
   const rechazados = consentimientos.filter(c => c.aceptado === false).length
-  
+
   const usuariosUnicos = new Set(consentimientos.map((c) => c.usuarioId)).size
   const hoy = new Date()
   hoy.setHours(0, 0, 0, 0)
@@ -120,38 +126,53 @@ export default async function TodosLosConsentimientosPage() {
         {/* Componente de filtros */}
         <ConsentimientosFiltros consentimientos={consentimientosMapeados as any} rol={rol} />
 
-        {/* Sección de información administrativa */}
-        <div className="mt-8 bg-white rounded-2xl shadow-lg p-6">
-          <div className="flex items-center mb-6">
-            <div className="p-2 bg-red-100 rounded-lg mr-3">
-              <FaUserShield className="text-xl text-red-600" />
+        {/* IMPORTANCIA DEL CONSENTIMIENTO - Visible para todos */}
+        <div className="bg-gradient-to-br from-white to-red-50 rounded-3xl shadow-xl p-8 mb-12 border border-red-100">
+          <div className="flex items-center mb-8">
+            <div className="p-4 bg-gradient-to-br from-red-500 to-red-600 rounded-2xl mr-5 shadow-lg">
+              <FaShieldAlt className="text-3xl text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800">
-              Información Administrativa
-            </h2>
+            <div>
+              <h2 className="text-3xl font-black text-gray-800">Consentimiento Informado</h2>
+              <p className="text-gray-600">Pilar fundamental en la atención médica domiciliaria</p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <h3 className="font-semibold text-blue-800 mb-2">Acceso por Rol</h3>
-              <p className="text-blue-700 text-sm">
-                Solo personal administrativo y técnico puede acceder a esta vista completa.
-              </p>
-            </div>
-
-            <div className="p-4 bg-green-50 rounded-lg">
-              <h3 className="font-semibold text-green-800 mb-2">Responsabilidad</h3>
-              <p className="text-green-700 text-sm">
-                Como {rol.toLowerCase()}, tienes acceso a todos los documentos registrados.
-              </p>
-            </div>
-
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <h3 className="font-semibold text-purple-800 mb-2">Nuevas Funciones</h3>
-              <p className="text-purple-700 text-sm">
-                Ahora puedes buscar por nombre completo y filtrar por estado (Aceptado/Rechazado).
-              </p>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {[
+              {
+                icon: <FaUserMd className="text-2xl" />,
+                title: "Derecho del Paciente",
+                desc: "Información clara y completa sobre su tratamiento",
+                color: "red"
+              },
+              {
+                icon: <FaShieldAlt className="text-2xl" />,
+                title: "Responsabilidad Médica",
+                desc: "Protección legal para profesional y paciente",
+                color: "blue"
+              },
+              {
+                icon: <FaCheckCircle className="text-2xl" />,
+                title: "Cumplimiento Legal",
+                desc: "Obligatorio según legislación colombiana",
+                color: "green"
+              },
+              {
+                icon: <FaHome className="text-2xl" />,
+                title: "Confianza y Transparencia",
+                desc: "Fortalece la relación médico-paciente",
+                color: "purple"
+              }
+            ].map((item, index) => (
+              <div key={index} className="bg-white rounded-xl p-5 shadow-md hover:shadow-lg transition border border-gray-100">
+                <div className={`p-3 bg-${item.color}-100 rounded-lg w-fit mb-3`}>
+                  <div className={`text-${item.color}-600`}>{item.icon}</div>
+                </div>
+                <h4 className="font-bold text-gray-800 mb-1">{item.title}</h4>
+                <p className="text-sm text-gray-600">{item.desc}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>

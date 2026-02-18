@@ -8,7 +8,8 @@ import {
   FaIdCard,
   FaShieldAlt,
   FaEnvelope,
-  FaPhone
+  FaPhone,
+  FaUserMd
 } from "react-icons/fa"
 import { toast } from "react-hot-toast"
 
@@ -16,9 +17,11 @@ export default function CrearUsuarioForm() {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     username: "",
+    cedula: "",
     nombres: "",
     primerApellido: "",
     segundoApellido: "",
+    profesion: "AUXILIAR_ENFERMERIA",
     email: "",
     telefono: "",
     password: "",
@@ -31,9 +34,11 @@ export default function CrearUsuarioForm() {
 
     const formDataObj = new FormData()
     formDataObj.append("username", formData.username.toLowerCase().trim())
+    formDataObj.append("cedula", formData.cedula.trim())
     formDataObj.append("nombres", formData.nombres.trim())
     formDataObj.append("primerApellido", formData.primerApellido.trim())
     formDataObj.append("segundoApellido", formData.segundoApellido.trim())
+    formDataObj.append("profesion", formData.profesion)
     formDataObj.append("email", formData.email.trim())
     formDataObj.append("telefono", formData.telefono.trim())
     formDataObj.append("password", formData.password)
@@ -51,9 +56,11 @@ export default function CrearUsuarioForm() {
         toast.success("Usuario creado exitosamente", { id: loadingToast })
         setFormData({
           username: "",
+          cedula: "",
           nombres: "",
           primerApellido: "",
           segundoApellido: "",
+          profesion: "AUXILIAR_ENFERMERIA",
           email: "",
           telefono: "",
           password: "",
@@ -78,8 +85,8 @@ export default function CrearUsuarioForm() {
 
   const rolDescriptions: Record<string, string> = {
     ADMINISTRATIVO: "Acceso completo a todas las funciones del sistema",
-    TECNICO: "Puede ver todos los consentimientos",
-    ESPECIALISTA: "Solo puede ver sus propios consentimientos"
+    TECNICO: "Puede ver todos los consentimientos y novedades",
+    ESPECIALISTA: "Solo puede ver sus propios consentimientos y novedades"
   }
 
   return (
@@ -118,6 +125,47 @@ export default function CrearUsuarioForm() {
 
         {/* Datos personales (responsive) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <FaIdCard className="inline-block mr-2 text-red-500" />
+              Cédula
+            </label>
+            <div className="relative">
+              <input
+                name="cedula"
+                placeholder="ej: 1234567890"
+                value={(formData as any).cedula}
+                onChange={handleChange}
+                required
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                disabled={loading}
+              />
+              <FaIdCard className="absolute left-3 top-3.5 text-gray-400" />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              <FaUserMd className="inline-block mr-2 text-red-500" />
+              Profesión
+            </label>
+            <div className="relative">
+              <select
+                name="profesion"
+                value={(formData as any).profesion}
+                onChange={handleChange}
+                required
+                className="w-full pl-4 pr-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all"
+                disabled={loading}
+              >
+                <option value="AUXILIAR_ENFERMERIA">Auxiliar de enfermería</option>
+                <option value="ENFERMERIA">Enfermería</option>
+                <option value="MEDICO">Médico</option>
+                <option value="ESPECIALISTA">Especialista</option>
+              </select>
+            </div>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               <FaIdCard className="inline-block mr-2 text-red-500" />

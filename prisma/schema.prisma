@@ -14,11 +14,34 @@ model User {
   rol             Rol
   activo          Boolean          @default(true)
   email           String?          @unique
+  cedula          String
   nombres         String
   primerApellido  String
   segundoApellido String?
+  profesion       Profesion
   telefono        String?
   consentimientos Consentimiento[]
+  novedades       Novedad[]
+  boletines       Boletin[]
+}
+
+model Boletin {
+  id                  String              @id @default(uuid())
+  titulo              String
+  contenidoHtml       String?
+
+  // Adjunto opcional (se sube a SharePoint y se sirve desde el portal)
+  adjuntoTipo         BoletinAdjuntoTipo?
+  adjuntoDriveItemId  String?
+  adjuntoNombre       String?
+  adjuntoMimeType     String?
+
+  publicado           Boolean             @default(true)
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  autorId             String
+  autor               User                @relation(fields: [autorId], references: [id])
 }
 
 model Consentimiento {
@@ -32,8 +55,108 @@ model Consentimiento {
   usuario    User     @relation(fields: [usuarioId], references: [id])
 }
 
+model Novedad {
+  id                 String        @id @default(uuid())
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  // Snapshot del prestador (para auditoría / histórico)
+  prestadorNombre     String
+  prestadorCedula     String
+  prestadorProfesion  Profesion
+  prestadorTelefono   String?
+
+  zonas              Zona[]
+  categoria          CategoriaNovedad
+
+  // Campos para novedad con paciente
+  pacienteNombre     String?
+  pacienteTipoDoc    TipoDocumento?
+  tipoPaciente       TipoNovedadPaciente?
+
+  // Campos para novedad en ruta
+  tipoRuta           TipoNovedadRuta?
+
+  descripcion        String
+
+  // Gestión (solo técnico/administrativo)
+  estado             EstadoNovedad  @default(PENDIENTE)
+  prioridad          Prioridad      @default(MEDIA)
+  asignadoA          String?
+  notasInternas      String?
+
+  usuarioId          String
+  usuario            User          @relation(fields: [usuarioId], references: [id])
+}
+
 enum Rol {
   ESPECIALISTA
   ADMINISTRATIVO
   TECNICO
+}
+
+enum Profesion {
+  AUXILIAR_ENFERMERIA
+  ENFERMERIA
+  MEDICO
+  ESPECIALISTA
+}
+
+enum Zona {
+  NORORIENTAL
+  NOROCCIDENTAL
+  CENTRO_ORIENTAL
+  CENTRO_OCCIDENTAL
+  SURORIENTAL
+  SUROCCIDENTAL
+}
+
+enum CategoriaNovedad {
+  PACIENTE
+  RUTA
+}
+
+enum TipoDocumento {
+  CC
+  TI
+  CE
+  PA
+  PPT
+  NIT
+  RC
+  NUIP
+}
+
+enum TipoNovedadPaciente {
+  ERCA
+  DATOS_ERRADOS
+  AGENDAMIENTO
+  FALLECIMIENTO
+  HOSPITALIZACION
+  DOBLE_PRESTADOR
+  RELACIONAMIENTO
+}
+
+enum TipoNovedadRuta {
+  INCAPACIDAD
+  ACCIDENTE
+  CIERRE_VIAL
+  NO_REALIZO_RUTA
+}
+
+enum EstadoNovedad {
+  PENDIENTE
+  EN_PROCESO
+  RESUELTA
+}
+
+enum Prioridad {
+  BAJA
+  MEDIA
+  ALTA
+}
+
+enum BoletinAdjuntoTipo {
+  IMAGE
+  PDF
 }
