@@ -40,7 +40,6 @@ const TIPOS_DOC = [
   { v: "CE", label: "Cédula de extranjería (CE)" },
   { v: "PA", label: "Pasaporte (PA)" },
   { v: "PPT", label: "Permiso por Protección Temporal (PPT)" },
-  { v: "NIT", label: "NIT" },
   { v: "RC", label: "Registro civil (RC)" },
   { v: "NUIP", label: "NUIP" },
 ];

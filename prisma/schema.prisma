@@ -99,7 +99,10 @@ enum Profesion {
   AUXILIAR_ENFERMERIA
   ENFERMERIA
   MEDICO
-  ESPECIALISTA
+  FISIOTERAPIA
+  FONOAUDIOLOGIA
+  NUTRICION
+  OTRO
 }
 
 enum Zona {
@@ -122,7 +125,6 @@ enum TipoDocumento {
   CE
   PA
   PPT
-  NIT
   RC
   NUIP
 }

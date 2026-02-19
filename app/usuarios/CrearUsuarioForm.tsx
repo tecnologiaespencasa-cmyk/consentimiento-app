@@ -161,7 +161,10 @@ export default function CrearUsuarioForm() {
                 <option value="AUXILIAR_ENFERMERIA">Auxiliar de enfermería</option>
                 <option value="ENFERMERIA">Enfermería</option>
                 <option value="MEDICO">Médico</option>
-                <option value="ESPECIALISTA">Especialista</option>
+                <option value="FISIOTERAPIA">Fisioterapia</option>
+                <option value="FONOAUDIOLOGIA">Fonoaudiologia</option>
+                <option value="NUTRICION">Nutricion</option>
+                <option value="OTRO">Otro</option>
               </select>
             </div>
           </div>
