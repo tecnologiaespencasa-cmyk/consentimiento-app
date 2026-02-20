@@ -58,7 +58,6 @@ export default async function MisNovedadesPage() {
               {novedades.map((n) => {
                 const b = badgeEstado(n.estado);
                 const Icon = b.icon;
-                const fotoEvidenciaUrl = n.fotoIngresoDomicilioUrl ?? n.fotoRutaEvidenciaUrl;
                 return (
                   <div
                     key={n.id}
@@ -67,24 +66,13 @@ export default async function MisNovedadesPage() {
                     <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
                       <div className="min-w-0">
                         <p className="text-sm text-gray-500">{new Date(n.createdAt).toLocaleString()}</p>
+                        <p className="text-xs text-gray-500 mt-1">ID: {n.id}</p>
                         <p className="font-extrabold text-gray-900 truncate">
                           {n.categoria === "PACIENTE" ? "Paciente" : "Ruta"} • {n.categoria === "PACIENTE" ? (n.tipoPaciente ?? "-") : (n.tipoRuta ?? "-")}
                         </p>
                         <p className="text-sm text-gray-700 mt-1 line-clamp-50">
                           {n.descripcion}
                         </p>
-                        {fotoEvidenciaUrl ? (
-                          <p className="text-xs mt-2">
-                            <a
-                              href={fotoEvidenciaUrl}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-blue-700 underline"
-                            >
-                              Ver foto de evidencia
-                            </a>
-                          </p>
-                        ) : null}
                         <p className="text-xs text-gray-500 mt-2">
                           Zonas: {n.zonas.join(", ")}
                         </p>

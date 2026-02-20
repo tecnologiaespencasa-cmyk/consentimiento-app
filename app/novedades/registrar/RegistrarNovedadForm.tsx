@@ -441,9 +441,6 @@ export default function RegistrarNovedadForm() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
                           disabled={saving}
                         />
-                        <p className="mt-2 text-xs text-gray-500">
-                          Esta imagen se enviará a SharePoint en la carpeta FotosNovedades.
-                        </p>
                       </div>
                     ) : null}
                   </div>
@@ -480,9 +477,6 @@ export default function RegistrarNovedadForm() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
                           disabled={saving}
                         />
-                        <p className="mt-2 text-xs text-gray-500">
-                          Esta imagen se enviarÃ¡ a SharePoint en la carpeta FotosNovedades.
-                        </p>
                       </div>
                     ) : null}
                   </div>
