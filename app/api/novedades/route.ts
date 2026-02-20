@@ -5,10 +5,57 @@ import { prisma } from "@/lib/prisma";
 import { sendGraphMail } from "@/lib/sendGraphMail";
 import { sendTeamsWebhook } from "@/lib/sendTeamsWebhook";
 import { uploadToSharePointWithInfo } from "@/lib/uploadToSharePoint";
-import { Prisma } from "@prisma/client";
+import {
+  Prisma,
+  Zona,
+  CategoriaNovedad,
+  TipoDocumento,
+  TipoNovedadPaciente,
+  TipoNovedadRuta,
+} from "@prisma/client";
 
 const DESTINOS_NOTIFICACION = [
   "liderdetecnologia@especialistasencasa.com",
+];
+
+const ZONAS_VALIDAS: Zona[] = [
+  "NORORIENTAL",
+  "NOROCCIDENTAL",
+  "CENTRO_ORIENTAL",
+  "CENTRO_OCCIDENTAL",
+  "SURORIENTAL",
+  "SUROCCIDENTAL",
+];
+
+const CATEGORIAS_VALIDAS: CategoriaNovedad[] = ["PACIENTE", "RUTA"];
+
+const TIPOS_DOCUMENTO_VALIDOS: TipoDocumento[] = [
+  "CC",
+  "TI",
+  "CE",
+  "PA",
+  "PPT",
+  "RC",
+  "NUIP",
+];
+
+const TIPOS_PACIENTE_VALIDOS: TipoNovedadPaciente[] = [
+  "ERCA",
+  "DATOS_ERRADOS",
+  "AGENDAMIENTO",
+  "FALLECIMIENTO",
+  "HOSPITALIZACION",
+  "DOBLE_PRESTADOR",
+  "RELACIONAMIENTO",
+  "IMPOSIBILIDAD_CONTACTAR_PACIENTE",
+  "IMPOSIBILIDAD_INGRESAR_DOMICILIO",
+];
+
+const TIPOS_RUTA_VALIDOS: TipoNovedadRuta[] = [
+  "INCAPACIDAD",
+  "ACCIDENTE",
+  "CIERRE_VIAL",
+  "NO_REALIZO_RUTA",
 ];
 
 function nombreCompleto(u: any) {
@@ -124,7 +171,8 @@ export async function POST(req: Request) {
     const contentType = req.headers.get("content-type") || "";
 
     let telefono = "";
-    let zonas: string[] = [];
+    let rawZonas: string[] = [];
+    let zonas: Zona[] = [];
     let categoria = "";
     let pacienteNombre = "";
     let pacienteTipoDoc = "";
@@ -137,7 +185,7 @@ export async function POST(req: Request) {
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       telefono = safeStr(formData.get("telefono"));
-      zonas = formData.getAll("zonas").map((z) => safeStr(z)).filter(Boolean);
+      rawZonas = formData.getAll("zonas").map((z) => safeStr(z)).filter(Boolean);
       categoria = safeStr(formData.get("categoria"));
       pacienteNombre = safeStr(formData.get("pacienteNombre"));
       pacienteTipoDoc = safeStr(formData.get("pacienteTipoDoc"));
@@ -150,7 +198,7 @@ export async function POST(req: Request) {
     } else {
       const body = await req.json();
       telefono = safeStr(body?.telefono);
-      zonas = Array.isArray(body?.zonas) ? body.zonas.map((z: unknown) => safeStr(z)).filter(Boolean) : [];
+      rawZonas = Array.isArray(body?.zonas) ? body.zonas.map((z: unknown) => safeStr(z)).filter(Boolean) : [];
       categoria = safeStr(body?.categoria);
       pacienteNombre = safeStr(body?.pacienteNombre);
       pacienteTipoDoc = safeStr(body?.pacienteTipoDoc);
@@ -160,51 +208,56 @@ export async function POST(req: Request) {
       descripcion = safeStr(body?.descripcion);
     }
 
-    const TIPOS_PACIENTE_VALIDOS = [
-      "ERCA",
-      "DATOS_ERRADOS",
-      "AGENDAMIENTO",
-      "FALLECIMIENTO",
-      "HOSPITALIZACION",
-      "DOBLE_PRESTADOR",
-      "RELACIONAMIENTO",
-      "IMPOSIBILIDAD_CONTACTAR_PACIENTE",
-      "IMPOSIBILIDAD_INGRESAR_DOMICILIO",
-    ];
-
-    if (!zonas.length) {
+    if (!rawZonas.length) {
       return NextResponse.json({ error: "Seleccione al menos una zona" }, { status: 400 });
     }
-    if (!categoria || !["PACIENTE", "RUTA"].includes(categoria)) {
+
+    zonas = rawZonas.filter((z): z is Zona => ZONAS_VALIDAS.includes(z as Zona));
+    if (zonas.length !== rawZonas.length) {
+      return NextResponse.json({ error: "Una o más zonas no son válidas" }, { status: 400 });
+    }
+
+    if (!categoria || !CATEGORIAS_VALIDAS.includes(categoria as CategoriaNovedad)) {
       return NextResponse.json({ error: "Seleccione el tipo de novedad" }, { status: 400 });
     }
     if (!descripcion || !String(descripcion).trim()) {
       return NextResponse.json({ error: "La descripción es obligatoria" }, { status: 400 });
     }
 
-    if (categoria === "PACIENTE") {
+    const categoriaEnum = categoria as CategoriaNovedad;
+
+    const pacienteTipoDocEnum = TIPOS_DOCUMENTO_VALIDOS.includes(pacienteTipoDoc as TipoDocumento)
+      ? (pacienteTipoDoc as TipoDocumento)
+      : null;
+
+    const tipoPacienteEnum = TIPOS_PACIENTE_VALIDOS.includes(tipoPaciente as TipoNovedadPaciente)
+      ? (tipoPaciente as TipoNovedadPaciente)
+      : null;
+
+    const tipoRutaEnum = TIPOS_RUTA_VALIDOS.includes(tipoRuta as TipoNovedadRuta)
+      ? (tipoRuta as TipoNovedadRuta)
+      : null;
+
+    if (categoriaEnum === "PACIENTE") {
       if (!pacienteNombre || !String(pacienteNombre).trim()) {
         return NextResponse.json({ error: "Nombre del paciente es obligatorio" }, { status: 400 });
       }
-      if (!pacienteTipoDoc) {
+      if (!pacienteTipoDocEnum) {
         return NextResponse.json({ error: "Tipo de documento del paciente es obligatorio" }, { status: 400 });
       }
       if (!pacienteDocumento || !String(pacienteDocumento).trim()) {
         return NextResponse.json({ error: "Número de documento del paciente es obligatorio" }, { status: 400 });
       }
-      if (!tipoPaciente) {
+      if (!tipoPacienteEnum) {
         return NextResponse.json({ error: "Tipo de novedad del paciente es obligatorio" }, { status: 400 });
       }
-      if (!TIPOS_PACIENTE_VALIDOS.includes(tipoPaciente)) {
-        return NextResponse.json({ error: "Tipo de novedad del paciente no valido" }, { status: 400 });
-      }
-      if (tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO" && !fotoIngresoDomicilio) {
+      if (tipoPacienteEnum === "IMPOSIBILIDAD_INGRESAR_DOMICILIO" && !fotoIngresoDomicilio) {
         return NextResponse.json({ error: "Debe adjuntar una foto para esta novedad" }, { status: 400 });
       }
     }
 
-    if (categoria === "RUTA") {
-      if (!tipoRuta) {
+    if (categoriaEnum === "RUTA") {
+      if (!tipoRutaEnum) {
         return NextResponse.json({ error: "Tipo de novedad en ruta es obligatorio" }, { status: 400 });
       }
     }
@@ -216,7 +269,7 @@ export async function POST(req: Request) {
     const prestadorTelefono = safeStr(telefono ?? u.telefono) || null;
 
     const requiereFotoIngresoDomicilio =
-      categoria === "PACIENTE" && tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO";
+      categoriaEnum === "PACIENTE" && tipoPacienteEnum === "IMPOSIBILIDAD_INGRESAR_DOMICILIO";
 
     let fotoSubida: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
     if (requiereFotoIngresoDomicilio && fotoIngresoDomicilio) {
@@ -250,16 +303,16 @@ export async function POST(req: Request) {
             prestadorProfesion,
             prestadorTelefono,
             zonas,
-            categoria,
-            pacienteNombre: categoria === "PACIENTE" ? safeStr(pacienteNombre) : null,
-            pacienteTipoDoc: categoria === "PACIENTE" ? pacienteTipoDoc : null,
-            pacienteDocumento: categoria === "PACIENTE" ? safeStr(pacienteDocumento) : null,
-            tipoPaciente: categoria === "PACIENTE" ? tipoPaciente : null,
-            fotoIngresoDomicilioUrl: categoria === "PACIENTE" ? fotoSubida?.webUrl ?? null : null,
-            fotoIngresoDomicilioDriveItemId: categoria === "PACIENTE" ? fotoSubida?.id ?? null : null,
-            fotoIngresoDomicilioNombre: categoria === "PACIENTE" ? fotoSubida?.name ?? null : null,
-            fotoIngresoDomicilioMimeType: categoria === "PACIENTE" ? fotoSubida?.mimeType ?? null : null,
-            tipoRuta: categoria === "RUTA" ? tipoRuta : null,
+            categoria: categoriaEnum,
+            pacienteNombre: categoriaEnum === "PACIENTE" ? safeStr(pacienteNombre) : null,
+            pacienteTipoDoc: categoriaEnum === "PACIENTE" ? pacienteTipoDocEnum : null,
+            pacienteDocumento: categoriaEnum === "PACIENTE" ? safeStr(pacienteDocumento) : null,
+            tipoPaciente: categoriaEnum === "PACIENTE" ? tipoPacienteEnum : null,
+            fotoIngresoDomicilioUrl: categoriaEnum === "PACIENTE" ? fotoSubida?.webUrl ?? null : null,
+            fotoIngresoDomicilioDriveItemId: categoriaEnum === "PACIENTE" ? fotoSubida?.id ?? null : null,
+            fotoIngresoDomicilioNombre: categoriaEnum === "PACIENTE" ? fotoSubida?.name ?? null : null,
+            fotoIngresoDomicilioMimeType: categoriaEnum === "PACIENTE" ? fotoSubida?.mimeType ?? null : null,
+            tipoRuta: categoriaEnum === "RUTA" ? tipoRutaEnum : null,
             descripcion: safeStr(descripcion),
             usuarioId: u.id,
           },
