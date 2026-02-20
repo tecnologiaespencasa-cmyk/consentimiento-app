@@ -3,11 +3,12 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
-import { useSession } from "next-auth/react"
+import { signOut, useSession } from "next-auth/react"
 import { 
   FaHome, 
   FaFileSignature, 
   FaUsers, 
+  FaUserCircle,
   FaSignOutAlt,
   FaBars,
   FaTimes,
@@ -32,6 +33,8 @@ export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false)
   const [isScrolled, setIsScrolled] = useState(false)
   const [showUserMenu, setShowUserMenu] = useState(false)
+  const [showSignOutModal, setShowSignOutModal] = useState(false)
+  const [isSigningOut, setIsSigningOut] = useState(false)
   
   // Usar useSession para obtener datos de autenticación
   const { data: session, status } = useSession()
@@ -80,6 +83,12 @@ export default function Navbar() {
     pathname === "/consentimientos" ||
     pathname.startsWith("/consentimientos/")
 
+  async function confirmSignOut() {
+    if (isSigningOut) return
+    setIsSigningOut(true)
+    await signOut({ callbackUrl: "/login" })
+  }
+
   return (
     <>
       {/* Navbar Principal */}
@@ -110,7 +119,7 @@ export default function Navbar() {
                   <p className={`text-xs ${
                     isScrolled ? 'text-gray-600' : 'text-red-100'
                   }`}>
-                    Sistema de Consentimientos
+                    Sistema de consentimientos y novedades
                   </p>
                 </div>
               </Link>
@@ -228,14 +237,25 @@ export default function Navbar() {
                         {displayName}
                       </p>
                     </div>
-                    <Link 
-                      href="/api/auth/signout" 
-                      className="flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                    <Link
+                      href="/mi-usuario"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                       onClick={() => setShowUserMenu(false)}
+                    >
+                      <FaUserCircle className="mr-3" />
+                      Mi usuario
+                    </Link>
+                    <button
+                      type="button"
+                      className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      onClick={() => {
+                        setShowUserMenu(false)
+                        setShowSignOutModal(true)
+                      }}
                     >
                       <FaSignOutAlt className="mr-3" />
                       Cerrar Sesión
-                    </Link>
+                    </button>
                   </div>
                 )}
               </div>
@@ -331,14 +351,26 @@ export default function Navbar() {
                   </div>
                 </div>
 
-                <Link 
-                  href="/api/auth/signout"
+                <Link
+                  href="/mi-usuario"
                   onClick={() => setIsOpen(false)}
-                  className="flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  className="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <FaUserCircle className="mr-3" />
+                  Mi usuario
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false)
+                    setShowSignOutModal(true)
+                  }}
+                  className="w-full text-left flex items-center px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 >
                   <FaSignOutAlt className="mr-3" />
                   Cerrar Sesión
-                </Link>
+                </button>
               </div>
             </div>
           </div>
@@ -352,6 +384,42 @@ export default function Navbar() {
           onClick={() => setIsOpen(false)}
         />
       )}
+
+      {showSignOutModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/35 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl border border-red-100 overflow-hidden">
+            <div className="bg-gradient-to-r from-red-700 to-red-800 px-5 py-4">
+              <h3 className="text-white font-semibold text-lg">Cerrar sesión</h3>
+            </div>
+
+            <div className="px-5 py-5">
+              <p className="text-sm text-gray-700">
+                ¿Deseas cerrar tu sesión ahora?
+              </p>
+
+              <div className="mt-5 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSignOutModal(false)}
+                  disabled={isSigningOut}
+                  className="px-4 py-2 rounded-lg border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void confirmSignOut()}
+                  disabled={isSigningOut}
+                  className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-60"
+                >
+                  {isSigningOut ? "Cerrando..." : "Cerrar sesión"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }
+
