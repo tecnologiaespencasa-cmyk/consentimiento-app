@@ -107,6 +107,7 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
         n.pacienteTipoDoc,
         n.pacienteDocumento,
         n.fotoIngresoDomicilioUrl,
+        n.fotoRutaEvidenciaUrl,
         n.prestadorNombre,
         n.prestadorCedula,
         n.usuario?.username,
@@ -136,6 +137,7 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
     const start = (safePage - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, safePage]);
+  const fotoEditEvidenciaUrl = edit?.fotoIngresoDomicilioUrl ?? edit?.fotoRutaEvidenciaUrl ?? null;
 
   async function refresh() {
     const t = toast.loading("Actualizando...");
@@ -418,6 +420,7 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                   const b = estadoBadge(n.estado);
                   const Icon = b.icon;
                   const tipo = n.categoria === "PACIENTE" ? n.tipoPaciente : n.tipoRuta;
+                  const fotoEvidenciaUrl = n.fotoIngresoDomicilioUrl ?? n.fotoRutaEvidenciaUrl;
                   const paciente = n.categoria === "PACIENTE"
                     ? ` • ${n.pacienteNombre ?? ""}${n.pacienteTipoDoc ? ` (${n.pacienteTipoDoc}${n.pacienteDocumento ? ` ${n.pacienteDocumento}` : ""})` : ""}`
                     : "";
@@ -439,10 +442,10 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                         </div>
                         <div className="text-xs text-gray-500 truncate max-w-[320px]">{n.descripcion}</div>
                         {paciente ? <div className="text-xs text-gray-500">{paciente}</div> : null}
-                        {n.fotoIngresoDomicilioUrl ? (
+                        {fotoEvidenciaUrl ? (
                           <div className="mt-1">
                             <a
-                              href={n.fotoIngresoDomicilioUrl}
+                              href={fotoEvidenciaUrl}
                               target="_blank"
                               rel="noreferrer"
                               className="text-xs text-blue-700 underline"
@@ -528,10 +531,10 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                   <span className="font-bold">{edit.prestadorNombre}</span> • {edit.categoria} • {edit.categoria === "PACIENTE" ? edit.tipoPaciente : edit.tipoRuta}
                 </p>
                 <p className="text-sm text-gray-700 mt-1 line-clamp-50">{edit.descripcion}</p>
-                {edit.fotoIngresoDomicilioUrl ? (
+                {fotoEditEvidenciaUrl ? (
                   <p className="text-sm mt-2">
                     <a
-                      href={edit.fotoIngresoDomicilioUrl}
+                      href={fotoEditEvidenciaUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="text-blue-700 underline"

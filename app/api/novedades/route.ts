@@ -181,6 +181,7 @@ export async function POST(req: Request) {
     let tipoRuta = "";
     let descripcion = "";
     let fotoIngresoDomicilio: File | null = null;
+    let fotoRutaEvidencia: File | null = null;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
@@ -195,6 +196,8 @@ export async function POST(req: Request) {
       descripcion = safeStr(formData.get("descripcion"));
       const fotoRaw = formData.get("fotoIngresoDomicilio");
       fotoIngresoDomicilio = fotoRaw instanceof File && fotoRaw.size > 0 ? fotoRaw : null;
+      const fotoRutaRaw = formData.get("fotoRutaEvidencia");
+      fotoRutaEvidencia = fotoRutaRaw instanceof File && fotoRutaRaw.size > 0 ? fotoRutaRaw : null;
     } else {
       const body = await req.json();
       telefono = safeStr(body?.telefono);
@@ -260,6 +263,9 @@ export async function POST(req: Request) {
       if (!tipoRutaEnum) {
         return NextResponse.json({ error: "Tipo de novedad en ruta es obligatorio" }, { status: 400 });
       }
+      if ((tipoRutaEnum === "ACCIDENTE" || tipoRutaEnum === "CIERRE_VIAL") && !fotoRutaEvidencia) {
+        return NextResponse.json({ error: "Debe adjuntar una foto para esta novedad de ruta" }, { status: 400 });
+      }
     }
 
     // Snapshot del prestador
@@ -270,6 +276,8 @@ export async function POST(req: Request) {
 
     const requiereFotoIngresoDomicilio =
       categoriaEnum === "PACIENTE" && tipoPacienteEnum === "IMPOSIBILIDAD_INGRESAR_DOMICILIO";
+    const requiereFotoRutaEvidencia =
+      categoriaEnum === "RUTA" && (tipoRutaEnum === "ACCIDENTE" || tipoRutaEnum === "CIERRE_VIAL");
 
     let fotoSubida: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
     if (requiereFotoIngresoDomicilio && fotoIngresoDomicilio) {
@@ -288,6 +296,26 @@ export async function POST(req: Request) {
         { folder: "FotosNovedades" }
       );
     }
+
+    let fotoRutaSubida: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
+    if (requiereFotoRutaEvidencia && fotoRutaEvidencia) {
+      if (!fotoRutaEvidencia.type.startsWith("image/")) {
+        return NextResponse.json({ error: "El archivo adjunto debe ser una imagen" }, { status: 400 });
+      }
+
+      const maxBytes = 10 * 1024 * 1024; // 10 MB
+      if (fotoRutaEvidencia.size > maxBytes) {
+        return NextResponse.json({ error: "La foto no puede superar 10MB" }, { status: 400 });
+      }
+
+      fotoRutaSubida = await uploadToSharePointWithInfo(
+        fotoRutaEvidencia,
+        prestadorCedula,
+        { folder: "FotosNovedades" }
+      );
+    }
+
+    const fotoEvidenciaUrl = fotoSubida?.webUrl ?? fotoRutaSubida?.webUrl ?? null;
 
     let novedad;
 
@@ -312,6 +340,10 @@ export async function POST(req: Request) {
             fotoIngresoDomicilioDriveItemId: categoriaEnum === "PACIENTE" ? fotoSubida?.id ?? null : null,
             fotoIngresoDomicilioNombre: categoriaEnum === "PACIENTE" ? fotoSubida?.name ?? null : null,
             fotoIngresoDomicilioMimeType: categoriaEnum === "PACIENTE" ? fotoSubida?.mimeType ?? null : null,
+            fotoRutaEvidenciaUrl: categoriaEnum === "RUTA" ? fotoRutaSubida?.webUrl ?? null : null,
+            fotoRutaEvidenciaDriveItemId: categoriaEnum === "RUTA" ? fotoRutaSubida?.id ?? null : null,
+            fotoRutaEvidenciaNombre: categoriaEnum === "RUTA" ? fotoRutaSubida?.name ?? null : null,
+            fotoRutaEvidenciaMimeType: categoriaEnum === "RUTA" ? fotoRutaSubida?.mimeType ?? null : null,
             tipoRuta: categoriaEnum === "RUTA" ? tipoRutaEnum : null,
             descripcion: safeStr(descripcion),
             usuarioId: u.id,
@@ -345,7 +377,7 @@ export async function POST(req: Request) {
             `Categoría: ${categoria}`,
             `Zonas: ${(zonas ?? []).join(", ")}`,
             `ID: ${novedad.id}`,
-            fotoSubida?.webUrl ? `Foto: ${fotoSubida.webUrl}` : null,
+            fotoEvidenciaUrl ? `Foto: ${fotoEvidenciaUrl}` : null,
             ``,
             `Abrir en admin: ${linkAdmin}`,
           ].filter(Boolean).join("\n")
@@ -371,7 +403,7 @@ export async function POST(req: Request) {
       `Categoría: ${categoria}`,
       categoria === "PACIENTE" ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})` : null,
       categoria === "PACIENTE" ? `Tipo: ${tipoPaciente}` : null,
-      fotoSubida?.webUrl ? `Foto evidencia: ${fotoSubida.webUrl}` : null,
+      fotoEvidenciaUrl ? `Foto evidencia: ${fotoEvidenciaUrl}` : null,
       categoria === "RUTA" ? `Tipo: ${tipoRuta}` : null,
       `Descripción: ${descripcionCorta}`,
       `ID: ${novedad.id}`,

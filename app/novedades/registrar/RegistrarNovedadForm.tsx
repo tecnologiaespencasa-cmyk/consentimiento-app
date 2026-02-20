@@ -89,6 +89,8 @@ export default function RegistrarNovedadForm() {
 
   // ruta
   const [tipoRuta, setTipoRuta] = useState("INCAPACIDAD");
+  const [fotoRutaEvidencia, setFotoRutaEvidencia] = useState<File | null>(null);
+  const fotoRutaInputRef = useRef<HTMLInputElement | null>(null);
 
   const [descripcion, setDescripcion] = useState("");
 
@@ -113,7 +115,12 @@ export default function RegistrarNovedadForm() {
       setFotoIngresoDomicilio(null);
       if (fotoInputRef.current) fotoInputRef.current.value = "";
     }
-  }, [categoria, tipoPaciente]);
+
+    if (!(categoria === "RUTA" && (tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL"))) {
+      setFotoRutaEvidencia(null);
+      if (fotoRutaInputRef.current) fotoRutaInputRef.current.value = "";
+    }
+  }, [categoria, tipoPaciente, tipoRuta]);
 
   const profesionLabel = useMemo(() => {
     const p = me?.profesion;
@@ -130,6 +137,8 @@ export default function RegistrarNovedadForm() {
   const canSubmit = useMemo(() => {
     const requiereFotoDomicilio =
       categoria === "PACIENTE" && tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO";
+    const requiereFotoRuta =
+      categoria === "RUTA" && (tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL");
 
     if (!me) return false;
     if (zonas.length === 0) return false;
@@ -137,8 +146,11 @@ export default function RegistrarNovedadForm() {
     if (categoria === "PACIENTE") {
       return !!pacienteNombre.trim() && !!pacienteDocumento.trim() && (!requiereFotoDomicilio || !!fotoIngresoDomicilio);
     }
+    if (categoria === "RUTA") {
+      return !requiereFotoRuta || !!fotoRutaEvidencia;
+    }
     return true;
-  }, [me, zonas, descripcion, categoria, pacienteNombre, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio]);
+  }, [me, zonas, descripcion, categoria, pacienteNombre, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -167,6 +179,9 @@ export default function RegistrarNovedadForm() {
         }
       } else {
         payload.append("tipoRuta", tipoRuta);
+        if ((tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL") && fotoRutaEvidencia) {
+          payload.append("fotoRutaEvidencia", fotoRutaEvidencia);
+        }
       }
 
       const res = await fetch("/api/novedades", {
@@ -191,6 +206,8 @@ export default function RegistrarNovedadForm() {
       setFotoIngresoDomicilio(null);
       if (fotoInputRef.current) fotoInputRef.current.value = "";
       setTipoRuta("INCAPACIDAD");
+      setFotoRutaEvidencia(null);
+      if (fotoRutaInputRef.current) fotoRutaInputRef.current.value = "";
       setDescripcion("");
     } catch (e: any) {
       toast.error(e?.message || "Error guardando", { id: t });
@@ -449,6 +466,25 @@ export default function RegistrarNovedadForm() {
                         </button>
                       ))}
                     </div>
+                    {(tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL") ? (
+                      <div className="mt-4">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Foto de evidencia (obligatoria)
+                        </label>
+                        <input
+                          ref={fotoRutaInputRef}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={(e) => setFotoRutaEvidencia(e.target.files?.[0] ?? null)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                          disabled={saving}
+                        />
+                        <p className="mt-2 text-xs text-gray-500">
+                          Esta imagen se enviarÃ¡ a SharePoint en la carpeta FotosNovedades.
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 )}
               </div>

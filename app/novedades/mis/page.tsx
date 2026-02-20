@@ -58,6 +58,7 @@ export default async function MisNovedadesPage() {
               {novedades.map((n) => {
                 const b = badgeEstado(n.estado);
                 const Icon = b.icon;
+                const fotoEvidenciaUrl = n.fotoIngresoDomicilioUrl ?? n.fotoRutaEvidenciaUrl;
                 return (
                   <div
                     key={n.id}
@@ -72,10 +73,10 @@ export default async function MisNovedadesPage() {
                         <p className="text-sm text-gray-700 mt-1 line-clamp-50">
                           {n.descripcion}
                         </p>
-                        {n.fotoIngresoDomicilioUrl ? (
+                        {fotoEvidenciaUrl ? (
                           <p className="text-xs mt-2">
                             <a
-                              href={n.fotoIngresoDomicilioUrl}
+                              href={fotoEvidenciaUrl}
                               target="_blank"
                               rel="noreferrer"
                               className="text-blue-700 underline"

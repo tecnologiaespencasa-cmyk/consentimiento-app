@@ -78,6 +78,10 @@ model Novedad {
   fotoIngresoDomicilioDriveItemId String?
   fotoIngresoDomicilioNombre    String?
   fotoIngresoDomicilioMimeType  String?
+  fotoRutaEvidenciaUrl          String?
+  fotoRutaEvidenciaDriveItemId  String?
+  fotoRutaEvidenciaNombre       String?
+  fotoRutaEvidenciaMimeType     String?
 
   // Campos para novedad en ruta
   tipoRuta           TipoNovedadRuta?
