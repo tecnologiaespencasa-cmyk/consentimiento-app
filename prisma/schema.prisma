@@ -72,6 +72,7 @@ model Novedad {
   // Campos para novedad con paciente
   pacienteNombre     String?
   pacienteTipoDoc    TipoDocumento?
+  pacienteDocumento  String?
   tipoPaciente       TipoNovedadPaciente?
 
   // Campos para novedad en ruta

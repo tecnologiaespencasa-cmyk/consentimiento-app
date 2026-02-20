@@ -80,6 +80,7 @@ export default function RegistrarNovedadForm() {
   // paciente
   const [pacienteNombre, setPacienteNombre] = useState("");
   const [pacienteTipoDoc, setPacienteTipoDoc] = useState("CC");
+  const [pacienteDocumento, setPacienteDocumento] = useState("");
   const [tipoPaciente, setTipoPaciente] = useState("ERCA");
 
   // ruta
@@ -119,9 +120,9 @@ export default function RegistrarNovedadForm() {
     if (!me) return false;
     if (zonas.length === 0) return false;
     if (!descripcion.trim()) return false;
-    if (categoria === "PACIENTE") return !!pacienteNombre.trim();
+    if (categoria === "PACIENTE") return !!pacienteNombre.trim() && !!pacienteDocumento.trim();
     return true;
-  }, [me, zonas, descripcion, categoria, pacienteNombre]);
+  }, [me, zonas, descripcion, categoria, pacienteNombre, pacienteDocumento]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -143,6 +144,7 @@ export default function RegistrarNovedadForm() {
       if (categoria === "PACIENTE") {
         payload.pacienteNombre = pacienteNombre.trim();
         payload.pacienteTipoDoc = pacienteTipoDoc;
+        payload.pacienteDocumento = pacienteDocumento.trim();
         payload.tipoPaciente = tipoPaciente;
       } else {
         payload.tipoRuta = tipoRuta;
@@ -166,6 +168,7 @@ export default function RegistrarNovedadForm() {
       setCategoria("PACIENTE");
       setPacienteNombre("");
       setPacienteTipoDoc("CC");
+      setPacienteDocumento("");
       setTipoPaciente("ERCA");
       setTipoRuta("INCAPACIDAD");
       setDescripcion("");
@@ -332,7 +335,7 @@ export default function RegistrarNovedadForm() {
 
                 {/* Campos condicionales */}
                 {categoria === "PACIENTE" ? (
-                  <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div className="md:col-span-2">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del paciente</label>
                       <input
@@ -358,7 +361,17 @@ export default function RegistrarNovedadForm() {
                         ))}
                       </select>
                     </div>
-                    <div className="md:col-span-3">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Número de documento</label>
+                      <input
+                        value={pacienteDocumento}
+                        onChange={(e) => setPacienteDocumento(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                        placeholder="Ej: 43830559"
+                        disabled={saving}
+                      />
+                    </div>
+                    <div className="md:col-span-4">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de novedad</label>
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         {TIPOS_PACIENTE.map((t) => (

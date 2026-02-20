@@ -105,6 +105,7 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
         n.tipoRuta,
         n.pacienteNombre,
         n.pacienteTipoDoc,
+        n.pacienteDocumento,
         n.prestadorNombre,
         n.prestadorCedula,
         n.usuario?.username,
@@ -416,7 +417,9 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                   const b = estadoBadge(n.estado);
                   const Icon = b.icon;
                   const tipo = n.categoria === "PACIENTE" ? n.tipoPaciente : n.tipoRuta;
-                  const paciente = n.categoria === "PACIENTE" ? ` • ${n.pacienteNombre ?? ""}` : "";
+                  const paciente = n.categoria === "PACIENTE"
+                    ? ` • ${n.pacienteNombre ?? ""}${n.pacienteTipoDoc ? ` (${n.pacienteTipoDoc}${n.pacienteDocumento ? ` ${n.pacienteDocumento}` : ""})` : ""}`
+                    : "";
                   return (
                     <tr key={n.id} className="border-t border-gray-100 hover:bg-gray-50">
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700">{fmtDate(n.createdAt)}</td>

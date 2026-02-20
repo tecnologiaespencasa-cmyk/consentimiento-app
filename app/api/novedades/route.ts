@@ -128,6 +128,7 @@ export async function POST(req: Request) {
       categoria,
       pacienteNombre,
       pacienteTipoDoc,
+      pacienteDocumento,
       tipoPaciente,
       tipoRuta,
       descripcion,
@@ -149,6 +150,9 @@ export async function POST(req: Request) {
       }
       if (!pacienteTipoDoc) {
         return NextResponse.json({ error: "Tipo de documento del paciente es obligatorio" }, { status: 400 });
+      }
+      if (!pacienteDocumento || !String(pacienteDocumento).trim()) {
+        return NextResponse.json({ error: "Número de documento del paciente es obligatorio" }, { status: 400 });
       }
       if (!tipoPaciente) {
         return NextResponse.json({ error: "Tipo de novedad del paciente es obligatorio" }, { status: 400 });
@@ -184,6 +188,7 @@ export async function POST(req: Request) {
             categoria,
             pacienteNombre: categoria === "PACIENTE" ? safeStr(pacienteNombre) : null,
             pacienteTipoDoc: categoria === "PACIENTE" ? pacienteTipoDoc : null,
+            pacienteDocumento: categoria === "PACIENTE" ? safeStr(pacienteDocumento) : null,
             tipoPaciente: categoria === "PACIENTE" ? tipoPaciente : null,
             tipoRuta: categoria === "RUTA" ? tipoRuta : null,
             descripcion: safeStr(descripcion),
@@ -241,7 +246,7 @@ export async function POST(req: Request) {
       prestadorTelefono ? `Teléfono: ${prestadorTelefono}` : null,
       `Zona(s): ${(zonas ?? []).join(", ")}`,
       `Categoría: ${categoria}`,
-      categoria === "PACIENTE" ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc})` : null,
+      categoria === "PACIENTE" ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})` : null,
       categoria === "PACIENTE" ? `Tipo: ${tipoPaciente}` : null,
       categoria === "RUTA" ? `Tipo: ${tipoRuta}` : null,
       `Descripción: ${descripcionCorta}`,
