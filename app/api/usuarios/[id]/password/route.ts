@@ -6,14 +6,10 @@ import { authOptions } from "@/lib/authOptions"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcrypt"
 
-function extractUserId(req: Request) {
-  // req.url suele ser: http://localhost:3000/api/usuarios/<id>/password
-  const url = req.url || ""
-  const match = url.match(/\/api\/usuarios\/([^/]+)\/password/i)
-  return match?.[1] ?? ""
-}
-
-export async function PATCH(req: Request) {
+export async function PATCH(
+  req: Request,
+  context: { params: Promise<{ id: string }> }
+) {
   try {
     const session = await getServerSession(authOptions)
 
@@ -21,15 +17,11 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "No autorizado" }, { status: 401 })
     }
 
-    const id = extractUserId(req)
-
-    // ✅ Debug útil (lo verás en consola)
-    console.log("[PATCH /api/usuarios/:id/password] url =", req.url)
-    console.log("[PATCH /api/usuarios/:id/password] extracted id =", id)
+    const { id } = await context.params
 
     if (!id) {
       return NextResponse.json(
-        { error: "No se pudo obtener el id del usuario desde la URL" },
+        { error: "Id de usuario invalido" },
         { status: 400 }
       )
     }
@@ -39,7 +31,7 @@ export async function PATCH(req: Request) {
 
     if (!newPassword || newPassword.length < 6) {
       return NextResponse.json(
-        { error: "La contraseña debe tener mínimo 6 caracteres" },
+        { error: "La contrasena debe tener minimo 6 caracteres" },
         { status: 400 }
       )
     }
@@ -55,7 +47,7 @@ export async function PATCH(req: Request) {
   } catch (error) {
     console.error("ERROR PATCH PASSWORD USUARIO:", error)
     return NextResponse.json(
-      { error: "Error actualizando contraseña" },
+      { error: "Error actualizando contrasena" },
       { status: 500 }
     )
   }
