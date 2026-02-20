@@ -563,6 +563,9 @@ export default function AdminNovedades({
                 <p className="text-sm text-gray-700 mt-2">
                   <span className="font-bold">{edit.prestadorNombre}</span> • {edit.categoria} • {edit.categoria === "PACIENTE" ? edit.tipoPaciente : edit.tipoRuta}
                 </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  Teléfono prestador: <span className="font-semibold">{edit.prestadorTelefono ? edit.prestadorTelefono : "No registrado"}</span>
+                </p>
                 <p className="text-sm text-gray-700 mt-1 line-clamp-50">{edit.descripcion}</p>
                 {fotoEditEvidenciaUrl ? (
                   <p className="text-sm mt-2">
