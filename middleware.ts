@@ -4,7 +4,14 @@ import type { NextRequest } from "next/server"
 
 export default withAuth(
     function middleware(req: NextRequest) {
-        const token = (req as any).nextauth.token
+        const authReq = req as NextRequest & {
+            nextauth?: {
+                token?: {
+                    rol?: string
+                }
+            }
+        }
+        const token = authReq.nextauth?.token
         const rol = token?.rol
         const pathname = req.nextUrl.pathname
 
@@ -16,12 +23,12 @@ export default withAuth(
             return NextResponse.redirect(new URL("/login", req.url))
         }
 
-        // Listado de consentimientos (admin y tecnico)
+        // Vista administrativa de todos los consentimientos (solo admin y tecnico)
         if (
-            pathname.startsWith("/consentimientos") &&
+            pathname.startsWith("/consentimientos/todos") &&
             !["ADMINISTRATIVO", "TECNICO"].includes(rol)
         ) {
-            return NextResponse.redirect(new URL("/consentimiento", req.url))
+            return NextResponse.redirect(new URL("/consentimientos", req.url))
         }
 
         // Gestión de usuarios (solo admin)
