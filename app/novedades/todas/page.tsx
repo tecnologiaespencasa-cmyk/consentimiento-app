@@ -4,6 +4,12 @@ import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import AdminNovedades from "./AdminNovedades";
 
+function nombreCompleto(u: any) {
+  return `${u?.nombres ?? ""} ${u?.primerApellido ?? ""} ${u?.segundoApellido ?? ""}`
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default async function TodasLasNovedadesPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user) redirect("/login");
@@ -30,5 +36,11 @@ export default async function TodasLasNovedadesPage() {
     orderBy: { createdAt: "desc" },
   });
 
-  return <AdminNovedades initialNovedades={novedades as any} />;
+  const user = session.user as any;
+  const currentUser = {
+    rol: user.rol as "ADMINISTRATIVO" | "TECNICO",
+    nombre: nombreCompleto(user) || user.username || "Usuario",
+  };
+
+  return <AdminNovedades initialNovedades={novedades as any} currentUser={currentUser} />;
 }

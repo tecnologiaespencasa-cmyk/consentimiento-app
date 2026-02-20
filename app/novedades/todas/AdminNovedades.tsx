@@ -14,11 +14,14 @@ import {
   FaCheckCircle,
   FaUser,
   FaMapMarkedAlt,
-  FaPen,
   FaTimes,
 } from "react-icons/fa";
 
 type Novedad = any;
+type CurrentUser = {
+  rol: "ADMINISTRATIVO" | "TECNICO";
+  nombre: string;
+};
 
 const ZONAS = [
   "NORORIENTAL",
@@ -55,9 +58,16 @@ function estadoBadge(estado: string) {
   return map[estado] ?? { cls: "bg-gray-50 text-gray-700 border-gray-200", icon: FaClock, label: estado };
 }
 
-export default function AdminNovedades({ initialNovedades }: { initialNovedades: Novedad[] }) {
+export default function AdminNovedades({
+  initialNovedades,
+  currentUser,
+}: {
+  initialNovedades: Novedad[];
+  currentUser: CurrentUser;
+}) {
   const [data, setData] = useState<Novedad[]>(initialNovedades ?? []);
   const [showFilters, setShowFilters] = useState(true);
+  const isAdmin = currentUser.rol === "ADMINISTRATIVO";
 
   // filtros
   const [q, setQ] = useState("");
@@ -110,6 +120,7 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
         n.fotoRutaEvidenciaUrl,
         n.prestadorNombre,
         n.prestadorCedula,
+        n.asignadoA,
         n.usuario?.username,
         nombreCompleto(n.usuario),
         (n.zonas ?? []).join(" "),
@@ -138,6 +149,10 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, safePage]);
   const fotoEditEvidenciaUrl = edit?.fotoIngresoDomicilioUrl ?? edit?.fotoRutaEvidenciaUrl ?? null;
+  const asignadoNormalizado = editAsignadoA.trim();
+  const bloqueadoPorAsignacion =
+    !isAdmin && Boolean(asignadoNormalizado) && asignadoNormalizado !== currentUser.nombre;
+  const puedeTomarNovedad = !saving && !bloqueadoPorAsignacion;
 
   async function refresh() {
     const t = toast.loading("Actualizando...");
@@ -162,6 +177,11 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
 
   async function saveEdit() {
     if (!edit) return;
+    if (!editAsignadoA.trim() && !isAdmin) {
+      toast.error("Debes tomar la novedad antes de guardar cambios");
+      return;
+    }
+
     setSaving(true);
     const t = toast.loading("Guardando cambios...");
     try {
@@ -410,9 +430,9 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                   <th className="px-4 py-3">Prestador</th>
                   <th className="px-4 py-3">Tipo</th>
                   <th className="px-4 py-3">Zonas</th>
+                  <th className="px-4 py-3">Asignado</th>
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3">Prioridad</th>
-                  <th className="px-4 py-3">Gestión</th>
                 </tr>
               </thead>
               <tbody>
@@ -425,7 +445,20 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                     ? ` • ${n.pacienteNombre ?? ""}${n.pacienteTipoDoc ? ` (${n.pacienteTipoDoc}${n.pacienteDocumento ? ` ${n.pacienteDocumento}` : ""})` : ""}`
                     : "";
                   return (
-                    <tr key={n.id} className="border-t border-gray-100 hover:bg-gray-50">
+                    <tr
+                      key={n.id}
+                      className="border-t border-gray-100 hover:bg-gray-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                      onClick={() => openEdit(n)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          openEdit(n);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="button"
+                      aria-label={`Abrir gestión de novedad ${n.id}`}
+                    >
                       <td className="px-4 py-3 whitespace-nowrap text-gray-700">{fmtDate(n.createdAt)}</td>
                       <td className="px-4 py-3">
                         <div className="font-bold text-gray-900 flex items-center gap-2">
@@ -449,6 +482,7 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                               target="_blank"
                               rel="noreferrer"
                               className="text-xs text-blue-700 underline"
+                              onClick={(e) => e.stopPropagation()}
                             >
                               Ver foto de evidencia
                             </a>
@@ -456,6 +490,13 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                         ) : null}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700">{(n.zonas ?? []).join(", ")}</td>
+                      <td className="px-4 py-3 text-xs text-gray-700">
+                        {n.asignadoA ? (
+                          <span className="font-semibold text-gray-800">{n.asignadoA}</span>
+                        ) : (
+                          <span className="text-gray-400">Sin asignar</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-full border ${b.cls}`}>
                           <Icon /> {b.label}
@@ -473,14 +514,6 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                         >
                           {n.prioridad}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => openEdit(n)}
-                          className="inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50"
-                        >
-                          <FaPen /> Editar
-                        </button>
                       </td>
                     </tr>
                   );
@@ -586,14 +619,51 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
               </div>
 
               <div className="md:col-span-2">
-                <label className="text-xs font-bold text-gray-600">Asignado a (opcional)</label>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <label className="text-xs font-bold text-gray-600">Asignado a (obligatorio)</label>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setEditAsignadoA(currentUser.nombre)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold border ${
+                        puedeTomarNovedad
+                          ? "bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                          : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                      }`}
+                      disabled={!puedeTomarNovedad}
+                    >
+                      Tomar novedad
+                    </button>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => setEditAsignadoA("")}
+                        className="px-3 py-1 rounded-lg text-xs font-bold border border-gray-200 bg-white hover:bg-gray-50"
+                        disabled={saving}
+                      >
+                        Desasignar
+                      </button>
+                    )}
+                  </div>
+                </div>
                 <input
                   value={editAsignadoA}
                   onChange={(e) => setEditAsignadoA(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-xl"
+                  className={`w-full px-3 py-2 border rounded-xl ${
+                    !asignadoNormalizado ? "border-red-300" : "border-gray-300"
+                  }`}
                   placeholder="Nombre del responsable"
                   disabled={saving}
+                  readOnly={!isAdmin}
                 />
+                {!asignadoNormalizado ? (
+                  <p className="text-xs text-red-600 mt-1">Debes asignar un responsable para guardar.</p>
+                ) : null}
+                {bloqueadoPorAsignacion ? (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Esta novedad ya está asignada a <span className="font-semibold">{editAsignadoA}</span>. Solo administrativo puede cambiar o desasignar.
+                  </p>
+                ) : null}
               </div>
 
               <div className="md:col-span-2">

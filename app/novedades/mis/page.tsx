@@ -76,6 +76,9 @@ export default async function MisNovedadesPage() {
                         <p className="text-xs text-gray-500 mt-2">
                           Zonas: {n.zonas.join(", ")}
                         </p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Asignado a: {n.asignadoA ? n.asignadoA : "Sin asignar"}
+                        </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={`inline-flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-full border ${b.cls}`}>
