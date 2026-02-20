@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 import { sendGraphMail } from "@/lib/sendGraphMail";
 import { sendTeamsWebhook } from "@/lib/sendTeamsWebhook";
+import { Prisma } from "@prisma/client";
 
 const DESTINOS_NOTIFICACION = [
   "liderdetecnologia@especialistasencasa.com",
@@ -26,6 +27,45 @@ function escapeHtml(s: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function formatDateForRadicado(date: Date) {
+  const parts = new Intl.DateTimeFormat("es-CO", {
+    timeZone: "America/Bogota",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).formatToParts(date);
+
+  const day = parts.find((p) => p.type === "day")?.value ?? "01";
+  const month = parts.find((p) => p.type === "month")?.value ?? "01";
+  const year = parts.find((p) => p.type === "year")?.value ?? "1970";
+
+  return `${day}${month}${year}`;
+}
+
+async function buildNovedadRadicado(cedula: string) {
+  const fecha = formatDateForRadicado(new Date());
+  const cedulaLimpia = safeStr(cedula).replace(/\D/g, "") || "0";
+  const prefix = `${fecha}-`;
+
+  const idsDelDia = await prisma.novedad.findMany({
+    where: { id: { startsWith: prefix } },
+    select: { id: true },
+  });
+
+  let maxConsecutivo = 0;
+
+  for (const { id } of idsDelDia) {
+    const partes = id.split("-");
+    const consecutivo = Number(partes[2]);
+
+    if (Number.isInteger(consecutivo) && consecutivo > maxConsecutivo) {
+      maxConsecutivo = consecutivo;
+    }
+  }
+
+  return `${fecha}-${cedulaLimpia}-${maxConsecutivo + 1}`;
 }
 
 export async function GET(req: Request) {
@@ -127,22 +167,41 @@ export async function POST(req: Request) {
     const prestadorProfesion = u.profesion;
     const prestadorTelefono = safeStr(telefono ?? u.telefono) || null;
 
-    const novedad = await prisma.novedad.create({
-      data: {
-        prestadorNombre,
-        prestadorCedula,
-        prestadorProfesion,
-        prestadorTelefono,
-        zonas,
-        categoria,
-        pacienteNombre: categoria === "PACIENTE" ? safeStr(pacienteNombre) : null,
-        pacienteTipoDoc: categoria === "PACIENTE" ? pacienteTipoDoc : null,
-        tipoPaciente: categoria === "PACIENTE" ? tipoPaciente : null,
-        tipoRuta: categoria === "RUTA" ? tipoRuta : null,
-        descripcion: safeStr(descripcion),
-        usuarioId: u.id,
-      },
-    });
+    let novedad;
+
+    for (let intento = 0; intento < 5; intento++) {
+      const radicado = await buildNovedadRadicado(prestadorCedula);
+
+      try {
+        novedad = await prisma.novedad.create({
+          data: {
+            id: radicado,
+            prestadorNombre,
+            prestadorCedula,
+            prestadorProfesion,
+            prestadorTelefono,
+            zonas,
+            categoria,
+            pacienteNombre: categoria === "PACIENTE" ? safeStr(pacienteNombre) : null,
+            pacienteTipoDoc: categoria === "PACIENTE" ? pacienteTipoDoc : null,
+            tipoPaciente: categoria === "PACIENTE" ? tipoPaciente : null,
+            tipoRuta: categoria === "RUTA" ? tipoRuta : null,
+            descripcion: safeStr(descripcion),
+            usuarioId: u.id,
+          },
+        });
+        break;
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (!novedad) {
+      throw new Error("No fue posible generar un radicado único para la novedad");
+    }
 
     const baseUrl = process.env.NEXTAUTH_URL || "";
     const linkAdmin = baseUrl ? `${baseUrl}/novedades/todas` : "/novedades/todas";
