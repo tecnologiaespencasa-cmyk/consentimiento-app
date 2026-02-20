@@ -7,7 +7,6 @@ import { useSession } from "next-auth/react"
 import { 
   FaHome, 
   FaFileSignature, 
-  FaClipboardList, 
   FaUsers, 
   FaSignOutAlt,
   FaBars,
@@ -62,13 +61,24 @@ export default function Navbar() {
   if (!session?.user) return null
 
   // ✅ Campos nuevos en sesión
-  const { nombres, primerApellido, rol, username } = session.user as any
+  const user = session.user as {
+    nombres?: string
+    primerApellido?: string
+    rol?: string
+    username?: string
+  }
+  const { nombres, primerApellido, rol, username } = user
 
   // Nombre corto (Pedro Perez)
   const displayName = nombreCorto(nombres, primerApellido) || username || "Usuario"
 
   // Función para verificar si el enlace está activo
   const isActive = (path: string) => pathname === path
+  const isConsentimientosSection =
+    pathname === "/consentimiento" ||
+    pathname === "/mis-consentimientos" ||
+    pathname === "/consentimientos" ||
+    pathname.startsWith("/consentimientos/")
 
   return (
     <>
@@ -125,9 +135,9 @@ export default function Navbar() {
               </Link>
 
               <Link 
-                href="/mis-consentimientos"
+                href="/consentimientos"
                 className={`flex items-center px-4 py-2 rounded-lg transition-all ${
-                  isActive('/mis-consentimientos')
+                  isConsentimientosSection
                     ? isScrolled 
                       ? 'bg-red-50 text-red-600 border border-red-200' 
                       : 'bg-white/20 text-white'
@@ -137,7 +147,7 @@ export default function Navbar() {
                 }`}
               >
                 <FaFileSignature className="mr-2" />
-                Mis Consentimientos
+                Consentimientos
               </Link>
 
               <Link 
@@ -155,24 +165,6 @@ export default function Navbar() {
                 <FaExclamationTriangle className="mr-2" />
                 Novedades
               </Link>
-
-              {(rol === "ADMINISTRATIVO" || rol === "TECNICO") && (
-                <Link 
-                  href="/consentimientos"
-                  className={`flex items-center px-4 py-2 rounded-lg transition-all ${
-                    isActive('/consentimientos')
-                      ? isScrolled 
-                        ? 'bg-red-50 text-red-600 border border-red-200' 
-                        : 'bg-white/20 text-white'
-                      : isScrolled 
-                        ? 'text-gray-700 hover:bg-red-50 hover:text-red-600' 
-                        : 'text-red-100 hover:bg-white/10'
-                  }`}
-                >
-                  <FaClipboardList className="mr-2" />
-                  Ver Todos
-                </Link>
-              )}
 
               {rol === "ADMINISTRATIVO" && (
                 <Link 
@@ -282,16 +274,16 @@ export default function Navbar() {
                 </Link>
 
                 <Link 
-                  href="/mis-consentimientos"
+                  href="/consentimientos"
                   onClick={() => setIsOpen(false)}
                   className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                    isActive('/mis-consentimientos')
+                    isConsentimientosSection
                       ? 'bg-red-50 text-red-600 border border-red-200' 
                       : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
                   }`}
                 >
                   <FaFileSignature className="mr-3" />
-                  Mis Consentimientos
+                  Consentimientos
                 </Link>
 
                 <Link 
@@ -306,21 +298,6 @@ export default function Navbar() {
                   <FaExclamationTriangle className="mr-3" />
                   Novedades
                 </Link>
-
-                {(rol === "ADMINISTRATIVO" || rol === "TECNICO") && (
-                  <Link 
-                    href="/consentimientos"
-                    onClick={() => setIsOpen(false)}
-                    className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                      isActive('/consentimientos')
-                        ? 'bg-red-50 text-red-600 border border-red-200' 
-                        : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                    }`}
-                  >
-                    <FaClipboardList className="mr-3" />
-                    Ver Todos
-                  </Link>
-                )}
 
                 {rol === "ADMINISTRATIVO" && (
                   <Link 

@@ -276,7 +276,7 @@ export default async function HomePage() {
 
                 {esTecnicoOAdministrativo && (
                   <Link 
-                    href="/consentimientos" 
+                    href="/consentimientos/todos" 
                     className="mt-6 block text-center py-2 text-sm text-red-600 hover:text-red-700 font-medium border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
                   >
                     Ver todos los consentimientos
