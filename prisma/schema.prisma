@@ -74,6 +74,10 @@ model Novedad {
   pacienteTipoDoc    TipoDocumento?
   pacienteDocumento  String?
   tipoPaciente       TipoNovedadPaciente?
+  fotoIngresoDomicilioUrl       String?
+  fotoIngresoDomicilioDriveItemId String?
+  fotoIngresoDomicilioNombre    String?
+  fotoIngresoDomicilioMimeType  String?
 
   // Campos para novedad en ruta
   tipoRuta           TipoNovedadRuta?
@@ -138,6 +142,8 @@ enum TipoNovedadPaciente {
   HOSPITALIZACION
   DOBLE_PRESTADOR
   RELACIONAMIENTO
+  IMPOSIBILIDAD_CONTACTAR_PACIENTE
+  IMPOSIBILIDAD_INGRESAR_DOMICILIO
 }
 
 enum TipoNovedadRuta {

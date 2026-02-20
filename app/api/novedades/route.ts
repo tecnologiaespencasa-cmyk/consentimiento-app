@@ -4,6 +4,7 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { prisma } from "@/lib/prisma";
 import { sendGraphMail } from "@/lib/sendGraphMail";
 import { sendTeamsWebhook } from "@/lib/sendTeamsWebhook";
+import { uploadToSharePointWithInfo } from "@/lib/uploadToSharePoint";
 import { Prisma } from "@prisma/client";
 
 const DESTINOS_NOTIFICACION = [
@@ -120,21 +121,58 @@ export async function POST(req: Request) {
   const u = session.user as any;
 
   try {
-    const body = await req.json();
+    const contentType = req.headers.get("content-type") || "";
 
-    const {
-      telefono,
-      zonas,
-      categoria,
-      pacienteNombre,
-      pacienteTipoDoc,
-      pacienteDocumento,
-      tipoPaciente,
-      tipoRuta,
-      descripcion,
-    } = body ?? {};
+    let telefono = "";
+    let zonas: string[] = [];
+    let categoria = "";
+    let pacienteNombre = "";
+    let pacienteTipoDoc = "";
+    let pacienteDocumento = "";
+    let tipoPaciente = "";
+    let tipoRuta = "";
+    let descripcion = "";
+    let fotoIngresoDomicilio: File | null = null;
 
-    if (!Array.isArray(zonas) || zonas.length === 0) {
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      telefono = safeStr(formData.get("telefono"));
+      zonas = formData.getAll("zonas").map((z) => safeStr(z)).filter(Boolean);
+      categoria = safeStr(formData.get("categoria"));
+      pacienteNombre = safeStr(formData.get("pacienteNombre"));
+      pacienteTipoDoc = safeStr(formData.get("pacienteTipoDoc"));
+      pacienteDocumento = safeStr(formData.get("pacienteDocumento"));
+      tipoPaciente = safeStr(formData.get("tipoPaciente"));
+      tipoRuta = safeStr(formData.get("tipoRuta"));
+      descripcion = safeStr(formData.get("descripcion"));
+      const fotoRaw = formData.get("fotoIngresoDomicilio");
+      fotoIngresoDomicilio = fotoRaw instanceof File && fotoRaw.size > 0 ? fotoRaw : null;
+    } else {
+      const body = await req.json();
+      telefono = safeStr(body?.telefono);
+      zonas = Array.isArray(body?.zonas) ? body.zonas.map((z: unknown) => safeStr(z)).filter(Boolean) : [];
+      categoria = safeStr(body?.categoria);
+      pacienteNombre = safeStr(body?.pacienteNombre);
+      pacienteTipoDoc = safeStr(body?.pacienteTipoDoc);
+      pacienteDocumento = safeStr(body?.pacienteDocumento);
+      tipoPaciente = safeStr(body?.tipoPaciente);
+      tipoRuta = safeStr(body?.tipoRuta);
+      descripcion = safeStr(body?.descripcion);
+    }
+
+    const TIPOS_PACIENTE_VALIDOS = [
+      "ERCA",
+      "DATOS_ERRADOS",
+      "AGENDAMIENTO",
+      "FALLECIMIENTO",
+      "HOSPITALIZACION",
+      "DOBLE_PRESTADOR",
+      "RELACIONAMIENTO",
+      "IMPOSIBILIDAD_CONTACTAR_PACIENTE",
+      "IMPOSIBILIDAD_INGRESAR_DOMICILIO",
+    ];
+
+    if (!zonas.length) {
       return NextResponse.json({ error: "Seleccione al menos una zona" }, { status: 400 });
     }
     if (!categoria || !["PACIENTE", "RUTA"].includes(categoria)) {
@@ -157,6 +195,12 @@ export async function POST(req: Request) {
       if (!tipoPaciente) {
         return NextResponse.json({ error: "Tipo de novedad del paciente es obligatorio" }, { status: 400 });
       }
+      if (!TIPOS_PACIENTE_VALIDOS.includes(tipoPaciente)) {
+        return NextResponse.json({ error: "Tipo de novedad del paciente no valido" }, { status: 400 });
+      }
+      if (tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO" && !fotoIngresoDomicilio) {
+        return NextResponse.json({ error: "Debe adjuntar una foto para esta novedad" }, { status: 400 });
+      }
     }
 
     if (categoria === "RUTA") {
@@ -170,6 +214,27 @@ export async function POST(req: Request) {
     const prestadorCedula = u.cedula;
     const prestadorProfesion = u.profesion;
     const prestadorTelefono = safeStr(telefono ?? u.telefono) || null;
+
+    const requiereFotoIngresoDomicilio =
+      categoria === "PACIENTE" && tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO";
+
+    let fotoSubida: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
+    if (requiereFotoIngresoDomicilio && fotoIngresoDomicilio) {
+      if (!fotoIngresoDomicilio.type.startsWith("image/")) {
+        return NextResponse.json({ error: "El archivo adjunto debe ser una imagen" }, { status: 400 });
+      }
+
+      const maxBytes = 10 * 1024 * 1024; // 10 MB
+      if (fotoIngresoDomicilio.size > maxBytes) {
+        return NextResponse.json({ error: "La foto no puede superar 10MB" }, { status: 400 });
+      }
+
+      fotoSubida = await uploadToSharePointWithInfo(
+        fotoIngresoDomicilio,
+        prestadorCedula,
+        { folder: "FotosNovedades" }
+      );
+    }
 
     let novedad;
 
@@ -190,6 +255,10 @@ export async function POST(req: Request) {
             pacienteTipoDoc: categoria === "PACIENTE" ? pacienteTipoDoc : null,
             pacienteDocumento: categoria === "PACIENTE" ? safeStr(pacienteDocumento) : null,
             tipoPaciente: categoria === "PACIENTE" ? tipoPaciente : null,
+            fotoIngresoDomicilioUrl: categoria === "PACIENTE" ? fotoSubida?.webUrl ?? null : null,
+            fotoIngresoDomicilioDriveItemId: categoria === "PACIENTE" ? fotoSubida?.id ?? null : null,
+            fotoIngresoDomicilioNombre: categoria === "PACIENTE" ? fotoSubida?.name ?? null : null,
+            fotoIngresoDomicilioMimeType: categoria === "PACIENTE" ? fotoSubida?.mimeType ?? null : null,
             tipoRuta: categoria === "RUTA" ? tipoRuta : null,
             descripcion: safeStr(descripcion),
             usuarioId: u.id,
@@ -223,9 +292,10 @@ export async function POST(req: Request) {
             `Categoría: ${categoria}`,
             `Zonas: ${(zonas ?? []).join(", ")}`,
             `ID: ${novedad.id}`,
+            fotoSubida?.webUrl ? `Foto: ${fotoSubida.webUrl}` : null,
             ``,
             `Abrir en admin: ${linkAdmin}`,
-          ].join("\n")
+          ].filter(Boolean).join("\n")
         );
       } catch (e) {
         console.error("No se pudo notificar a Teams:", e);
@@ -248,6 +318,7 @@ export async function POST(req: Request) {
       `Categoría: ${categoria}`,
       categoria === "PACIENTE" ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})` : null,
       categoria === "PACIENTE" ? `Tipo: ${tipoPaciente}` : null,
+      fotoSubida?.webUrl ? `Foto evidencia: ${fotoSubida.webUrl}` : null,
       categoria === "RUTA" ? `Tipo: ${tipoRuta}` : null,
       `Descripción: ${descripcionCorta}`,
       `ID: ${novedad.id}`,

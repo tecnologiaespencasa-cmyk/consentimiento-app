@@ -72,6 +72,18 @@ export default async function MisNovedadesPage() {
                         <p className="text-sm text-gray-700 mt-1 line-clamp-50">
                           {n.descripcion}
                         </p>
+                        {n.fotoIngresoDomicilioUrl ? (
+                          <p className="text-xs mt-2">
+                            <a
+                              href={n.fotoIngresoDomicilioUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-blue-700 underline"
+                            >
+                              Ver foto de evidencia
+                            </a>
+                          </p>
+                        ) : null}
                         <p className="text-xs text-gray-500 mt-2">
                           Zonas: {n.zonas.join(", ")}
                         </p>

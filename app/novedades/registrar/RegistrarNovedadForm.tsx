@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import {
@@ -52,6 +52,8 @@ const TIPOS_PACIENTE = [
   { v: "HOSPITALIZACION", label: "Hospitalización" },
   { v: "DOBLE_PRESTADOR", label: "Doble prestador" },
   { v: "RELACIONAMIENTO", label: "Problemas de relacionamiento" },
+  { v: "IMPOSIBILIDAD_CONTACTAR_PACIENTE", label: "Imposibilidad de contactar al paciente" },
+  { v: "IMPOSIBILIDAD_INGRESAR_DOMICILIO", label: "Imposibilidad de ingresar al domicilio" },
 ];
 
 const TIPOS_RUTA = [
@@ -82,6 +84,8 @@ export default function RegistrarNovedadForm() {
   const [pacienteTipoDoc, setPacienteTipoDoc] = useState("CC");
   const [pacienteDocumento, setPacienteDocumento] = useState("");
   const [tipoPaciente, setTipoPaciente] = useState("ERCA");
+  const [fotoIngresoDomicilio, setFotoIngresoDomicilio] = useState<File | null>(null);
+  const fotoInputRef = useRef<HTMLInputElement | null>(null);
 
   // ruta
   const [tipoRuta, setTipoRuta] = useState("INCAPACIDAD");
@@ -104,6 +108,13 @@ export default function RegistrarNovedadForm() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!(categoria === "PACIENTE" && tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO")) {
+      setFotoIngresoDomicilio(null);
+      if (fotoInputRef.current) fotoInputRef.current.value = "";
+    }
+  }, [categoria, tipoPaciente]);
+
   const profesionLabel = useMemo(() => {
     const p = me?.profesion;
     if (!p) return "";
@@ -117,12 +128,17 @@ export default function RegistrarNovedadForm() {
   }, [me?.profesion]);
 
   const canSubmit = useMemo(() => {
+    const requiereFotoDomicilio =
+      categoria === "PACIENTE" && tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO";
+
     if (!me) return false;
     if (zonas.length === 0) return false;
     if (!descripcion.trim()) return false;
-    if (categoria === "PACIENTE") return !!pacienteNombre.trim() && !!pacienteDocumento.trim();
+    if (categoria === "PACIENTE") {
+      return !!pacienteNombre.trim() && !!pacienteDocumento.trim() && (!requiereFotoDomicilio || !!fotoIngresoDomicilio);
+    }
     return true;
-  }, [me, zonas, descripcion, categoria, pacienteNombre, pacienteDocumento]);
+  }, [me, zonas, descripcion, categoria, pacienteNombre, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -134,26 +150,28 @@ export default function RegistrarNovedadForm() {
     setSaving(true);
     const t = toast.loading("Guardando novedad...");
     try {
-      const payload: any = {
-        telefono: telefono.trim(),
-        zonas,
-        categoria,
-        descripcion: descripcion.trim(),
-      };
+      const payload = new FormData();
+      payload.append("telefono", telefono.trim());
+      zonas.forEach((z) => payload.append("zonas", z));
+      payload.append("categoria", categoria);
+      payload.append("descripcion", descripcion.trim());
 
       if (categoria === "PACIENTE") {
-        payload.pacienteNombre = pacienteNombre.trim();
-        payload.pacienteTipoDoc = pacienteTipoDoc;
-        payload.pacienteDocumento = pacienteDocumento.trim();
-        payload.tipoPaciente = tipoPaciente;
+        payload.append("pacienteNombre", pacienteNombre.trim());
+        payload.append("pacienteTipoDoc", pacienteTipoDoc);
+        payload.append("pacienteDocumento", pacienteDocumento.trim());
+        payload.append("tipoPaciente", tipoPaciente);
+
+        if (tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO" && fotoIngresoDomicilio) {
+          payload.append("fotoIngresoDomicilio", fotoIngresoDomicilio);
+        }
       } else {
-        payload.tipoRuta = tipoRuta;
+        payload.append("tipoRuta", tipoRuta);
       }
 
       const res = await fetch("/api/novedades", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: payload,
       });
 
       if (!res.ok) {
@@ -170,6 +188,8 @@ export default function RegistrarNovedadForm() {
       setPacienteTipoDoc("CC");
       setPacienteDocumento("");
       setTipoPaciente("ERCA");
+      setFotoIngresoDomicilio(null);
+      if (fotoInputRef.current) fotoInputRef.current.value = "";
       setTipoRuta("INCAPACIDAD");
       setDescripcion("");
     } catch (e: any) {
@@ -390,6 +410,25 @@ export default function RegistrarNovedadForm() {
                         ))}
                       </div>
                     </div>
+                    {tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO" ? (
+                      <div className="md:col-span-4">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Foto de evidencia (obligatoria)
+                        </label>
+                        <input
+                          ref={fotoInputRef}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={(e) => setFotoIngresoDomicilio(e.target.files?.[0] ?? null)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                          disabled={saving}
+                        />
+                        <p className="mt-2 text-xs text-gray-500">
+                          Esta imagen se enviará a SharePoint en la carpeta FotosNovedades.
+                        </p>
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="mt-4">

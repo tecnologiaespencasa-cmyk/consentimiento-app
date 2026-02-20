@@ -106,6 +106,7 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
         n.pacienteNombre,
         n.pacienteTipoDoc,
         n.pacienteDocumento,
+        n.fotoIngresoDomicilioUrl,
         n.prestadorNombre,
         n.prestadorCedula,
         n.usuario?.username,
@@ -438,6 +439,18 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                         </div>
                         <div className="text-xs text-gray-500 truncate max-w-[320px]">{n.descripcion}</div>
                         {paciente ? <div className="text-xs text-gray-500">{paciente}</div> : null}
+                        {n.fotoIngresoDomicilioUrl ? (
+                          <div className="mt-1">
+                            <a
+                              href={n.fotoIngresoDomicilioUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-xs text-blue-700 underline"
+                            >
+                              Ver foto de evidencia
+                            </a>
+                          </div>
+                        ) : null}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-700">{(n.zonas ?? []).join(", ")}</td>
                       <td className="px-4 py-3">
@@ -515,6 +528,18 @@ export default function AdminNovedades({ initialNovedades }: { initialNovedades:
                   <span className="font-bold">{edit.prestadorNombre}</span> • {edit.categoria} • {edit.categoria === "PACIENTE" ? edit.tipoPaciente : edit.tipoRuta}
                 </p>
                 <p className="text-sm text-gray-700 mt-1 line-clamp-50">{edit.descripcion}</p>
+                {edit.fotoIngresoDomicilioUrl ? (
+                  <p className="text-sm mt-2">
+                    <a
+                      href={edit.fotoIngresoDomicilioUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-700 underline"
+                    >
+                      Ver foto de evidencia
+                    </a>
+                  </p>
+                ) : null}
               </div>
               <button
                 onClick={() => setEdit(null)}
