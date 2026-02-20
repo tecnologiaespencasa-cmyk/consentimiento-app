@@ -12,7 +12,7 @@ export default withAuth(
             }
         }
         const token = authReq.nextauth?.token
-        const rol = token?.rol
+        const rol = token?.rol ?? ""
         const pathname = req.nextUrl.pathname
 
         // Página de carga de consentimiento (todos)
