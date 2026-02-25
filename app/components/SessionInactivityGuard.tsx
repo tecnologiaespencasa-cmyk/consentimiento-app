@@ -19,6 +19,12 @@ export default function SessionInactivityGuard() {
   const lastActivityRef = useRef<number>(0)
   const isSigningOutRef = useRef(false)
 
+  const writeActivityNow = useCallback(() => {
+    const now = Date.now()
+    lastActivityRef.current = now
+    localStorage.setItem(LAST_ACTIVITY_KEY, String(now))
+  }, [])
+
   const clearTimer = useCallback(() => {
     if (timeoutRef.current !== null) {
       window.clearTimeout(timeoutRef.current)
@@ -70,14 +76,17 @@ export default function SessionInactivityGuard() {
       return
     }
 
+    const now = Date.now()
     const storedActivity = parseTimestamp(localStorage.getItem(LAST_ACTIVITY_KEY))
+    const isStaleActivity =
+      !storedActivity || now - storedActivity >= INACTIVITY_LIMIT_MS
 
-    if (storedActivity) {
-      lastActivityRef.current = storedActivity
+    if (isStaleActivity) {
+      // If the stored value is stale (or missing), restart inactivity tracking
+      // to avoid immediate logout right after a fresh login.
+      writeActivityNow()
     } else {
-      const now = Date.now()
-      lastActivityRef.current = now
-      localStorage.setItem(LAST_ACTIVITY_KEY, String(now))
+      lastActivityRef.current = storedActivity
     }
 
     scheduleLogout()
@@ -90,8 +99,7 @@ export default function SessionInactivityGuard() {
         return
       }
 
-      lastActivityRef.current = now
-      localStorage.setItem(LAST_ACTIVITY_KEY, String(now))
+      writeActivityNow()
       scheduleLogout()
     }
 
@@ -148,7 +156,7 @@ export default function SessionInactivityGuard() {
       window.removeEventListener("storage", handleStorage)
       clearTimer()
     }
-  }, [clearTimer, scheduleLogout, status, triggerLogout])
+  }, [clearTimer, scheduleLogout, status, triggerLogout, writeActivityNow])
 
   return null
 }
