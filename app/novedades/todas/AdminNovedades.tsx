@@ -553,9 +553,12 @@ export default function AdminNovedades({
 
       {/* Modal */}
       {edit && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="fixed inset-0 z-50 p-2 md:p-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setEdit(null)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl border border-gray-100 w-[95vw] max-w-2xl p-5">
+          <div className="relative h-full w-full overflow-y-auto pointer-events-none">
+            <div className="min-h-full flex items-start md:items-center justify-center">
+              <div className="relative pointer-events-auto bg-white rounded-2xl shadow-2xl border border-gray-100 w-[95vw] max-w-2xl max-h-[92dvh] overflow-hidden flex flex-col p-5">
+                <div className="overflow-y-auto pr-1">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-extrabold text-gray-900">Gestión de novedad</h2>
@@ -720,7 +723,9 @@ export default function AdminNovedades({
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 mt-4">
+                </div>
+
+            <div className="shrink-0 flex items-center justify-end gap-2 mt-4 pt-3 border-t border-gray-100 bg-white">
               <button
                 onClick={() => setEdit(null)}
                 className="px-4 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50"
@@ -735,6 +740,8 @@ export default function AdminNovedades({
               >
                 Guardar cambios
               </button>
+            </div>
+              </div>
             </div>
           </div>
         </div>
