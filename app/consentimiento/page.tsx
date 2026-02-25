@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./Consentimiento.module.css";
 
 type Modo = "adjuntar" | "firmar" | null;
@@ -163,6 +164,7 @@ function SignaturePad({
 }
 
 export default function ConsentimientoPage() {
+  const router = useRouter();
   const [modo, setModo] = useState<Modo>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -189,38 +191,38 @@ export default function ConsentimientoPage() {
   // Procedimientos (checkbox múltiples) por terapia
   const [proc18, setProc18] = useState<Record<TerapiaKey, Record<string, boolean>>>({
     fisica: {
-      evaluacion: false,
-      medios_fisicos: false,
-      ejercicios_cardiovasculares: false,
-      propiocepcion: false,
-      fuerza: false,
-      equilibrio: false,
-      flexibilidad: false,
+      Evaluacion: false,
+      Medios_fisicos: false,
+      Ejercicios_cardiovasculares: false,
+      Propiocepcion: false,
+      Fuerza: false,
+      Equilibrio: false,
+      Flexibilidad: false,
     },
     fonoaudiologia: {
-      evaluacion: false,
-      trastornos_comunicacion: false,
-      trastornos_habla: false,
-      dificultades_lenguaje: false,
-      problemas_voz: false,
-      trastornos_deglucion: false,
+      Evaluacion: false,
+      Trastornos_comunicacion: false,
+      Trastornos_habla: false,
+      Dificultades_lenguaje: false,
+      Problemas_voz: false,
+      Trastornos_deglucion: false,
     },
     respiratoria: {
-      aspiracion_secreciones: false,
-      nebulizacion_inhalatoria: false,
-      higiene_bronquial: false,
-      rehabilitacion_pulmonar: false,
-      cuidados_traqueostomia: false,
-      manejo_traqueostomia: false,
-      educacion_apoyo: false,
+      Aspiracion_secreciones: false,
+      Nebulizacion_inhalatoria: false,
+      Higiene_bronquial: false,
+      Rehabilitacion_pulmonar: false,
+      Cuidados_traqueostomia: false,
+      Manejo_traqueostomia: false,
+      Educacion_apoyo: false,
     },
     ocupacional: {
-      evaluacion: false,
-      motricidad_fina: false,
-      motricidad_gruesa: false,
-      avd: false,
-      sensoriales: false,
-      rehabilitacion_funcional: false,
+      Evaluacion: false,
+      Motricidad_fina: false,
+      Motricidad_gruesa: false,
+      AVD: false,
+      Sensoriales: false,
+      Rehabilitacion_funcional: false,
     },
   });
 
@@ -239,6 +241,9 @@ export default function ConsentimientoPage() {
   // NUEVOS ESTADOS para aceptación
   const [mostrarModalAceptacion, setMostrarModalAceptacion] = useState(false);
   const [datosTemporales, setDatosTemporales] = useState<FormData | null>(null);
+  const [mostrarModalGuardado, setMostrarModalGuardado] = useState(false);
+  const [estadoGuardado, setEstadoGuardado] = useState<"procesando" | "exito">("procesando");
+  const [decisionAceptada, setDecisionAceptada] = useState<boolean | null>(null);
 
   // ==================
   // FO-HCR-11 (Alta voluntaria) - estados
@@ -486,9 +491,12 @@ export default function ConsentimientoPage() {
     setCargando(true);
     setMensaje(null);
     setMostrarModalAceptacion(false);
+    setDecisionAceptada(aceptado);
+    setEstadoGuardado("procesando");
+    setMostrarModalGuardado(true);
 
     // Agregar el estado de aceptación al FormData
-    datosTemporales.append("aceptado", aceptado ? "true" : "false");
+    datosTemporales.set("aceptado", aceptado ? "true" : "false");
 
     try {
       const response = await fetch("/api/consentimientos/firmados", {
@@ -497,11 +505,7 @@ export default function ConsentimientoPage() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        const mensaje = aceptado
-          ? "✅ Consentimiento ACEPTADO y guardado correctamente"
-          : "✅ Consentimiento RECHAZADO y registrado correctamente";
-        setMensaje(mensaje);
+        await response.json();
 
         // Resetear formulario
         const form = document.querySelector("form");
@@ -511,12 +515,16 @@ export default function ConsentimientoPage() {
         setFirmaPaciente(null);
         setFirmaEspecialista(null);
         setDatosTemporales(null);
+        setEstadoGuardado("exito");
+        setTimeout(() => router.push("/"), 1400);
       } else {
         const txt = await response.text().catch(() => "");
+        setMostrarModalGuardado(false);
         setMensaje(`❌ Error al guardar el consentimiento. ${txt ? `(${txt})` : ""}`.trim());
       }
     } catch (error) {
       console.error(error);
+      setMostrarModalGuardado(false);
       setMensaje("❌ Error de conexión con el servidor");
     } finally {
       setCargando(false);
@@ -539,7 +547,7 @@ export default function ConsentimientoPage() {
           <div className={styles.modalCard}>
             <h2 className={styles.modalTitle}>Confirmación del Consentimiento</h2>
             <p className={styles.modalText}>
-              Por favor, confirme si el paciente <strong>ACEPTA</strong> o <strong>NO ACEPTA</strong>
+              Por favor, confirme si el paciente <strong>ACEPTA</strong> o <strong>NO ACEPTA </strong>
               el procedimiento descrito en el consentimiento informado.
             </p>
 
@@ -586,6 +594,31 @@ export default function ConsentimientoPage() {
             <p className={styles.miniHint} style={{ marginTop: '1rem', textAlign: 'center' }}>
               <strong>Nota:</strong> Las firmas se colocarán en la sección correspondiente del PDF.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE PROCESO / ÉXITO DE GUARDADO */}
+      {mostrarModalGuardado && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.statusModalCard} aria-live="polite">
+            {estadoGuardado === "procesando" ? (
+              <>
+                <div className={styles.statusSpinner} aria-hidden="true" />
+                <h2 className={styles.modalTitle}>Procesando consentimiento</h2>
+                <p className={styles.modalText}>
+                  Guardando decisión: <strong>{decisionAceptada ? "ACEPTADO" : "NO ACEPTADO"}</strong>.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className={styles.statusSuccessIcon} aria-hidden="true">
+                  <span>✓</span>
+                </div>
+                <h2 className={styles.modalTitle}>Guardado correctamente</h2>
+                <p className={styles.modalText}>Redirigiendo al inicio...</p>
+              </>
+            )}
           </div>
         </div>
       )}

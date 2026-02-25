@@ -401,9 +401,9 @@ const TEMPLATE_MAP: Record<string, TemplateCfg> = {
     // PÁGINA 5 (firmas)
     page2: {
       // ACEPTA
-      firmaPaciente: { x: 225, y: 410, w: 260, h: 55 },
+      firmaPaciente: { x: 215, y: 410, w: 260, h: 55 },
       cedulaPaciente: { x: 565, y: 440 },
-      firmaEspecialista: { x: 565, y: 370, w: 210, h: 55 },
+      firmaEspecialista: { x: 535, y: 370, w: 210, h: 55 },
 
       // NO ACEPTA
       noConsentimiento: {
@@ -424,39 +424,39 @@ const TEMPLATE_MAP: Record<string, TemplateCfg> = {
     // X en procedimientos múltiples (BASE: AJUSTAR)
     procedimientosMulti: {
       // Fisioterapia (págs 1–2)
-      "fisica.evaluacion": { pageIndex: 0, x: 703, y: 143 },
-      "fisica.medios_fisicos": { pageIndex: 0, x: 703, y: 117 },
-      "fisica.ejercicios_cardiovasculares": { pageIndex: 0, x: 703, y: 91 },
+      "fisica.Evaluacion": { pageIndex: 0, x: 703, y: 143 },
+      "fisica.Medios_fisicos": { pageIndex: 0, x: 703, y: 117 },
+      "fisica.Ejercicios_cardiovasculares": { pageIndex: 0, x: 703, y: 91 },
 
-      "fisica.propiocepcion": { pageIndex: 1, x: 703, y: 498 },
-      "fisica.fuerza": { pageIndex: 1, x: 703, y: 477 },
-      "fisica.equilibrio": { pageIndex: 1, x: 703, y: 459 },
-      "fisica.flexibilidad": { pageIndex: 1, x: 703, y: 443 },
+      "fisica.Propiocepcion": { pageIndex: 1, x: 703, y: 498 },
+      "fisica.Fuerza": { pageIndex: 1, x: 703, y: 477 },
+      "fisica.Equilibrio": { pageIndex: 1, x: 703, y: 459 },
+      "fisica.Flexibilidad": { pageIndex: 1, x: 703, y: 443 },
 
       // Fonoaudiología (pág 2)
-      "fonoaudiologia.evaluacion": { pageIndex: 1, x: 703, y: 347 },
-      "fonoaudiologia.trastornos_comunicacion": { pageIndex: 1, x: 703, y: 307 },
-      "fonoaudiologia.trastornos_habla": { pageIndex: 1, x: 703, y: 275 },
-      "fonoaudiologia.dificultades_lenguaje": { pageIndex: 1, x: 703, y: 251 },
-      "fonoaudiologia.problemas_voz": { pageIndex: 1, x: 703, y: 226 },
-      "fonoaudiologia.trastornos_deglucion": { pageIndex: 1, x: 703, y: 201 },
+      "fonoaudiologia.Evaluacion": { pageIndex: 1, x: 703, y: 347 },
+      "fonoaudiologia.Trastornos_comunicacion": { pageIndex: 1, x: 703, y: 307 },
+      "fonoaudiologia.Trastornos_habla": { pageIndex: 1, x: 703, y: 275 },
+      "fonoaudiologia.Dificultades_lenguaje": { pageIndex: 1, x: 703, y: 251 },
+      "fonoaudiologia.Problemas_voz": { pageIndex: 1, x: 703, y: 226 },
+      "fonoaudiologia.Trastornos_deglucion": { pageIndex: 1, x: 703, y: 201 },
 
       // Respiratoria (págs 2–3)
-      "respiratoria.aspiracion_secreciones": { pageIndex: 1, x: 703, y: 110 },
-      "respiratoria.nebulizacion_inhalatoria": { pageIndex: 2, x: 703, y: 477 },
-      "respiratoria.higiene_bronquial": { pageIndex: 2, x: 703, y: 406 },
-      "respiratoria.rehabilitacion_pulmonar": { pageIndex: 2, x: 703, y: 354 },
-      "respiratoria.cuidados_traqueostomia": { pageIndex: 2, x: 703, y: 310 },
-      "respiratoria.manejo_traqueostomia": { pageIndex: 2, x: 703, y: 250 },
-      "respiratoria.educacion_apoyo": { pageIndex: 2, x: 703, y: 180 },
+      "respiratoria.Aspiracion_secreciones": { pageIndex: 1, x: 703, y: 110 },
+      "respiratoria.Nebulizacion_inhalatoria": { pageIndex: 2, x: 703, y: 477 },
+      "respiratoria.Higiene_bronquial": { pageIndex: 2, x: 703, y: 406 },
+      "respiratoria.Rehabilitacion_pulmonar": { pageIndex: 2, x: 703, y: 354 },
+      "respiratoria.Cuidados_traqueostomia": { pageIndex: 2, x: 703, y: 310 },
+      "respiratoria.Manejo_traqueostomia": { pageIndex: 2, x: 703, y: 250 },
+      "respiratoria.Educacion_apoyo": { pageIndex: 2, x: 703, y: 180 },
 
       // Ocupacional (pág 4)
-      "ocupacional.evaluacion": { pageIndex: 3, x: 703, y: 486 },
-      "ocupacional.motricidad_fina": { pageIndex: 3, x: 703, y: 454 },
+      "ocupacional.Evaluacion": { pageIndex: 3, x: 703, y: 486 },
+      "ocupacional.Motricidad_fina": { pageIndex: 3, x: 703, y: 454 },
       "ocupacional.motricidad_gruesa": { pageIndex: 3, x: 703, y: 422 },
-      "ocupacional.avd": { pageIndex: 3, x: 703, y: 386 },
-      "ocupacional.sensoriales": { pageIndex: 3, x: 703, y: 353 },
-      "ocupacional.rehabilitacion_funcional": { pageIndex: 3, x: 703, y: 329 },
+      "ocupacional.AVD": { pageIndex: 3, x: 703, y: 386 },
+      "ocupacional.Sensoriales": { pageIndex: 3, x: 703, y: 353 },
+      "ocupacional.Rehabilitacion_funcional": { pageIndex: 3, x: 703, y: 329 },
     },
 
     // Otro procedimiento (check + texto) (BASE: AJUSTAR)
