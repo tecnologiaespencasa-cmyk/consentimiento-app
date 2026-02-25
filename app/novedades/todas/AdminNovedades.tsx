@@ -560,25 +560,6 @@ export default function AdminNovedades({
               <div>
                 <h2 className="text-lg font-extrabold text-gray-900">Gestión de novedad</h2>
                 <p className="text-xs text-gray-500">ID: {edit.id}</p>
-                <p className="text-sm text-gray-700 mt-2">
-                  <span className="font-bold">{edit.prestadorNombre}</span> • {edit.categoria} • {edit.categoria === "PACIENTE" ? edit.tipoPaciente : edit.tipoRuta}
-                </p>
-                <p className="text-sm text-gray-700 mt-1">
-                  Teléfono prestador: <span className="font-semibold">{edit.prestadorTelefono ? edit.prestadorTelefono : "No registrado"}</span>
-                </p>
-                <p className="text-sm text-gray-700 mt-1 line-clamp-50">{edit.descripcion}</p>
-                {fotoEditEvidenciaUrl ? (
-                  <p className="text-sm mt-2">
-                    <a
-                      href={fotoEditEvidenciaUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-blue-700 underline"
-                    >
-                      Ver foto de evidencia
-                    </a>
-                  </p>
-                ) : null}
               </div>
               <button
                 onClick={() => setEdit(null)}
@@ -586,6 +567,63 @@ export default function AdminNovedades({
               >
                 <FaTimes />
               </button>
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
+                <p className="text-xs font-bold text-gray-600 mb-2">Datos del reporte</p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Prestador:</span> {edit.prestadorNombre || "No registrado"}
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  <span className="font-semibold">Telefono:</span> {edit.prestadorTelefono || "No registrado"}
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  <span className="font-semibold">Categoria:</span> {edit.categoria || "No registrada"}
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  <span className="font-semibold">Tipo:</span> {(edit.categoria === "PACIENTE" ? edit.tipoPaciente : edit.tipoRuta) || "No registrado"}
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  <span className="font-semibold">Fecha:</span> {fmtDate(edit.createdAt)}
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
+                <p className="text-xs font-bold text-gray-600 mb-2">Datos del paciente</p>
+                {edit.categoria === "PACIENTE" ? (
+                  <>
+                    <p className="text-sm text-gray-700">
+                      <span className="font-semibold">Nombre:</span> {edit.pacienteNombre || "No registrado"}
+                    </p>
+                    <p className="text-sm text-gray-700 mt-1">
+                      <span className="font-semibold">Tipo documento:</span> {edit.pacienteTipoDoc || "No registrado"}
+                    </p>
+                    <p className="text-sm text-gray-700 mt-1">
+                      <span className="font-semibold">Numero documento:</span> {edit.pacienteDocumento || "No registrado"}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-600">No aplica para novedades de ruta.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-gray-200 p-3">
+              <p className="text-xs font-bold text-gray-600 mb-1">Descripcion reportada</p>
+              <p className="text-sm text-gray-700">{edit.descripcion || "Sin descripcion"}</p>
+              {fotoEditEvidenciaUrl ? (
+                <p className="text-sm mt-2">
+                  <a
+                    href={fotoEditEvidenciaUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-blue-700 underline"
+                  >
+                    Ver foto de evidencia
+                  </a>
+                </p>
+              ) : null}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
@@ -704,3 +742,4 @@ export default function AdminNovedades({
     </div>
   );
 }
+
