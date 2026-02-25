@@ -334,7 +334,7 @@ const TEMPLATE_MAP: Record<string, TemplateCfg> = {
       // Personal de salud (fila de datos)
       espPrimerApellido: { x: 197, y: 630 },
       espSegundoApellido: { x: 328, y: 630 },
-      espNombres: { x: 453, y: 630 },
+      espNombres: { x: 452, y: 630 },
 
       // FO-HCR-01: diagnóstico en hoja 1
       diagnostico: { x: 90, y: 552 },
