@@ -8,6 +8,7 @@ import {
   FaFilter,
   FaSearch,
   FaSync,
+  FaFileExcel,
   FaExclamationTriangle,
   FaClock,
   FaSpinner,
@@ -17,10 +18,54 @@ import {
   FaTimes,
 } from "react-icons/fa";
 
-type Novedad = any;
 type CurrentUser = {
   rol: "ADMINISTRATIVO" | "TECNICO";
   nombre: string;
+};
+
+type CategoriaFiltro = "" | "PACIENTE" | "RUTA";
+type UsuarioNovedad = {
+  username?: string | null;
+  nombres?: string | null;
+  primerApellido?: string | null;
+  segundoApellido?: string | null;
+  rol?: string | null;
+  email?: string | null;
+  telefono?: string | null;
+  cedula?: string | null;
+  profesion?: string | null;
+};
+
+type Novedad = {
+  id: string;
+  createdAt: string | Date;
+  updatedAt: string | Date;
+  prestadorNombre: string;
+  prestadorCedula: string;
+  prestadorProfesion: string;
+  prestadorTelefono?: string | null;
+  zonas?: string[] | null;
+  categoria: CategoriaFiltro;
+  pacienteNombre?: string | null;
+  pacienteTipoDoc?: string | null;
+  pacienteDocumento?: string | null;
+  tipoPaciente?: string | null;
+  fotoIngresoDomicilioUrl?: string | null;
+  fotoIngresoDomicilioDriveItemId?: string | null;
+  fotoIngresoDomicilioNombre?: string | null;
+  fotoIngresoDomicilioMimeType?: string | null;
+  fotoRutaEvidenciaUrl?: string | null;
+  fotoRutaEvidenciaDriveItemId?: string | null;
+  fotoRutaEvidenciaNombre?: string | null;
+  fotoRutaEvidenciaMimeType?: string | null;
+  tipoRuta?: string | null;
+  descripcion?: string | null;
+  estado: string;
+  prioridad: string;
+  asignadoA?: string | null;
+  notasInternas?: string | null;
+  usuarioId?: string | null;
+  usuario?: UsuarioNovedad | null;
 };
 
 const ZONAS = [
@@ -35,7 +80,7 @@ const ZONAS = [
 const ESTADOS = ["PENDIENTE", "EN_PROCESO", "RESUELTA"];
 const PRIORIDADES = ["BAJA", "MEDIA", "ALTA"];
 
-function fmtDate(d: any) {
+function fmtDate(d: unknown) {
   try {
     return new Date(d).toLocaleString();
   } catch {
@@ -43,19 +88,40 @@ function fmtDate(d: any) {
   }
 }
 
-function nombreCompleto(u: any) {
+function nombreCompleto(u: UsuarioNovedad | null | undefined) {
   return `${u?.nombres ?? ""} ${u?.primerApellido ?? ""} ${u?.segundoApellido ?? ""}`
     .replace(/\s+/g, " ")
     .trim();
 }
 
 function estadoBadge(estado: string) {
-  const map: Record<string, { cls: string; icon: any; label: string }> = {
+  const map: Record<string, { cls: string; icon: typeof FaClock; label: string }> = {
     PENDIENTE: { cls: "bg-yellow-50 text-yellow-800 border-yellow-200", icon: FaClock, label: "Pendiente" },
     EN_PROCESO: { cls: "bg-blue-50 text-blue-800 border-blue-200", icon: FaSpinner, label: "En proceso" },
     RESUELTA: { cls: "bg-green-50 text-green-800 border-green-200", icon: FaCheckCircle, label: "Resuelta" },
   };
   return map[estado] ?? { cls: "bg-gray-50 text-gray-700 border-gray-200", icon: FaClock, label: estado };
+}
+
+function csvEscape(value: unknown) {
+  const raw = value == null ? "" : String(value);
+  return `"${raw.replace(/"/g, "\"\"")}"`;
+}
+
+function isoDate(value: unknown) {
+  if (!value) return "";
+  const dt = new Date(String(value));
+  if (Number.isNaN(dt.getTime())) return "";
+  return dt.toISOString();
+}
+
+function getErrorMessage(error: unknown, fallback = "Error") {
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function toCategoriaFiltro(value: string): CategoriaFiltro {
+  if (value === "PACIENTE" || value === "RUTA") return value;
+  return "";
 }
 
 export default function AdminNovedades({
@@ -71,7 +137,7 @@ export default function AdminNovedades({
 
   // filtros
   const [q, setQ] = useState("");
-  const [categoria, setCategoria] = useState<"" | "PACIENTE" | "RUTA">("");
+  const [categoria, setCategoria] = useState<CategoriaFiltro>("");
   const [estado, setEstado] = useState<string>("");
   const [prioridad, setPrioridad] = useState<string>("");
   const [zona, setZona] = useState<string>("");
@@ -159,12 +225,117 @@ export default function AdminNovedades({
     try {
       const res = await fetch("/api/novedades?all=true");
       if (!res.ok) throw new Error("No se pudo actualizar");
-      const j = await res.json();
+      const j = (await res.json()) as Novedad[];
       setData(j);
       toast.success("Actualizado", { id: t });
-    } catch (e: any) {
-      toast.error(e?.message || "Error", { id: t });
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error), { id: t });
     }
+  }
+
+  function exportExcel() {
+    if (!filtered.length) {
+      toast.error("No hay novedades para exportar");
+      return;
+    }
+
+    const columns = [
+      "id",
+      "createdAt",
+      "updatedAt",
+      "prestadorNombre",
+      "prestadorCedula",
+      "prestadorProfesion",
+      "prestadorTelefono",
+      "zonas",
+      "categoria",
+      "pacienteNombre",
+      "pacienteTipoDoc",
+      "pacienteDocumento",
+      "tipoPaciente",
+      "fotoIngresoDomicilioUrl",
+      "fotoIngresoDomicilioDriveItemId",
+      "fotoIngresoDomicilioNombre",
+      "fotoIngresoDomicilioMimeType",
+      "fotoRutaEvidenciaUrl",
+      "fotoRutaEvidenciaDriveItemId",
+      "fotoRutaEvidenciaNombre",
+      "fotoRutaEvidenciaMimeType",
+      "tipoRuta",
+      "descripcion",
+      "estado",
+      "prioridad",
+      "asignadoA",
+      "notasInternas",
+      "usuarioId",
+      "usuarioUsername",
+      "usuarioNombres",
+      "usuarioPrimerApellido",
+      "usuarioSegundoApellido",
+      "usuarioRol",
+      "usuarioEmail",
+      "usuarioTelefono",
+      "usuarioCedula",
+      "usuarioProfesion",
+    ];
+
+    const rows = filtered.map((n) => [
+      n.id ?? "",
+      isoDate(n.createdAt),
+      isoDate(n.updatedAt),
+      n.prestadorNombre ?? "",
+      n.prestadorCedula ?? "",
+      n.prestadorProfesion ?? "",
+      n.prestadorTelefono ?? "",
+      (n.zonas ?? []).join(", "),
+      n.categoria ?? "",
+      n.pacienteNombre ?? "",
+      n.pacienteTipoDoc ?? "",
+      n.pacienteDocumento ?? "",
+      n.tipoPaciente ?? "",
+      n.fotoIngresoDomicilioUrl ?? "",
+      n.fotoIngresoDomicilioDriveItemId ?? "",
+      n.fotoIngresoDomicilioNombre ?? "",
+      n.fotoIngresoDomicilioMimeType ?? "",
+      n.fotoRutaEvidenciaUrl ?? "",
+      n.fotoRutaEvidenciaDriveItemId ?? "",
+      n.fotoRutaEvidenciaNombre ?? "",
+      n.fotoRutaEvidenciaMimeType ?? "",
+      n.tipoRuta ?? "",
+      n.descripcion ?? "",
+      n.estado ?? "",
+      n.prioridad ?? "",
+      n.asignadoA ?? "",
+      n.notasInternas ?? "",
+      n.usuarioId ?? "",
+      n.usuario?.username ?? "",
+      n.usuario?.nombres ?? "",
+      n.usuario?.primerApellido ?? "",
+      n.usuario?.segundoApellido ?? "",
+      n.usuario?.rol ?? "",
+      n.usuario?.email ?? "",
+      n.usuario?.telefono ?? "",
+      n.usuario?.cedula ?? "",
+      n.usuario?.profesion ?? "",
+    ]);
+
+    const csv = [
+      columns.map(csvEscape).join(";"),
+      ...rows.map((row) => row.map(csvEscape).join(";")),
+    ].join("\n");
+
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    a.href = url;
+    a.download = `novedades_${stamp}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    toast.success(`Exportadas ${filtered.length} novedades`);
   }
 
   function openEdit(n: Novedad) {
@@ -196,16 +367,17 @@ export default function AdminNovedades({
         }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
+        const err = (await res.json().catch(() => null)) as { error?: string } | null;
         throw new Error(err?.error || "No se pudo guardar");
       }
-      const updated = await res.json();
+      const updated = (await res.json()) as { novedad?: Partial<Novedad> };
+      const novedadActualizada = updated.novedad ?? {};
 
-      setData((prev) => prev.map((x) => (x.id === edit.id ? { ...x, ...updated.novedad } : x)));
+      setData((prev) => prev.map((x) => (x.id === edit.id ? { ...x, ...novedadActualizada } : x)));
       toast.success("Actualizado", { id: t });
       setEdit(null);
-    } catch (e: any) {
-      toast.error(e?.message || "Error", { id: t });
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error), { id: t });
     } finally {
       setSaving(false);
     }
@@ -233,6 +405,12 @@ export default function AdminNovedades({
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 bg-white hover:bg-gray-50"
             >
               <FaFilter /> {showFilters ? "Ocultar" : "Mostrar"} filtros
+            </button>
+            <button
+              onClick={exportExcel}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-700 font-bold hover:bg-emerald-100"
+            >
+              <FaFileExcel /> Exportar Excel
             </button>
             <button
               onClick={refresh}
@@ -292,7 +470,7 @@ export default function AdminNovedades({
                 <select
                   value={categoria}
                   onChange={(e) => {
-                    setCategoria(e.target.value as any);
+                    setCategoria(toCategoriaFiltro(e.target.value));
                     setPage(1);
                   }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl"
