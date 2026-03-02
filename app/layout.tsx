@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+﻿import type { Metadata, Viewport } from "next"
 import { Inter, Poppins } from "next/font/google"
 import "./globals.css"
 import Providers from "./providers"
@@ -21,11 +21,16 @@ const poppins = Poppins({
 
 export const metadata: Metadata = {
   title: "Portal Administrativo | Especialistas en Casa IPS",
-  description: "Sistema de gestión integral para servicios de salud domiciliaria",
-  keywords: ["salud domiciliaria", "consentimientos informados", "cuidado médico", "atención en casa"],
+  description: "Sistema de gestiÃ³n integral para servicios de salud domiciliaria",
+  keywords: ["salud domiciliaria", "consentimientos informados", "cuidado mÃ©dico", "atenciÃ³n en casa"],
   authors: [{ name: "Especialistas en Casa IPS" }],
   robots: "index, follow",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
 }
 
 export default function RootLayout({
@@ -43,7 +48,7 @@ export default function RootLayout({
         
         {/* Open Graph para redes sociales */}
         <meta property="og:title" content="Portal Administrativo | Especialistas en Casa IPS" />
-        <meta property="og:description" content="Sistema de gestión integral para servicios de salud domiciliaria" />
+        <meta property="og:description" content="Sistema de gestiÃ³n integral para servicios de salud domiciliaria" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Especialistas en Casa IPS" />
       </head>
@@ -101,7 +106,7 @@ export default function RootLayout({
           />
         </Providers>
         
-        {/* Scripts de analítica (opcional) */}
+        {/* Scripts de analÃ­tica (opcional) */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -127,3 +132,4 @@ export default function RootLayout({
     </html>
   )
 }
+
