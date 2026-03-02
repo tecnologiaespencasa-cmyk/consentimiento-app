@@ -61,9 +61,18 @@ export async function uploadToSharePointWithInfo(
     contentType = input.contentType || contentType;
   }
 
-  const siteId = process.env.SHAREPOINT_SITE_ID!;
-  const defaultFolder = process.env.SHAREPOINT_LIBRARY!; // tu carpeta de consentimientos
-  const folder = (options?.folder || defaultFolder).replace(/^\/+|\/+$/g, "");
+  const siteId = process.env.SHAREPOINT_SITE_ID;
+  if (!siteId) {
+    throw new Error("Falta env SHAREPOINT_SITE_ID");
+  }
+
+  const defaultFolder = process.env.SHAREPOINT_LIBRARY; // carpeta por defecto para consentimientos
+  if (!options?.folder && !defaultFolder) {
+    throw new Error("Falta env SHAREPOINT_LIBRARY");
+  }
+
+  const rawFolder = options?.folder ?? defaultFolder ?? "";
+  const folder = rawFolder.replace(/^\/+|\/+$/g, "");
 
   // ✅ Aquí es donde se decide la carpeta destino
   const uploadPath = folder ? `${folder}/${finalFileName}` : finalFileName;
@@ -84,7 +93,12 @@ export async function uploadToSharePointWithInfo(
     throw new Error(`Error subiendo archivo: ${response.status} ${error}`);
   }
 
-  const data: any = await response.json();
+  const data = (await response.json()) as {
+    webUrl?: string;
+    id?: string;
+    name?: string;
+    file?: { mimeType?: string | null };
+  };
   const mimeType: string | null = data?.file?.mimeType ?? null;
 
   return {
