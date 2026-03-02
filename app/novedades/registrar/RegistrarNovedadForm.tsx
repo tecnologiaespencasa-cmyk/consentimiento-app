@@ -50,10 +50,16 @@ const TIPOS_PACIENTE = [
   { v: "AGENDAMIENTO", label: "Agendamiento" },
   { v: "FALLECIMIENTO", label: "Fallecimientos" },
   { v: "HOSPITALIZACION", label: "Hospitalización" },
+  { v: "PROBABLE_REACCION_ALERGICA", label: "Probable reaccion alergica" },
   { v: "DOBLE_PRESTADOR", label: "Doble prestador" },
   { v: "RELACIONAMIENTO", label: "Problemas de relacionamiento" },
   { v: "IMPOSIBILIDAD_CONTACTAR_PACIENTE", label: "Imposibilidad de contactar al paciente" },
   { v: "IMPOSIBILIDAD_INGRESAR_DOMICILIO", label: "Imposibilidad de ingresar al domicilio" },
+];
+
+const TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA = [
+  "IMPOSIBILIDAD_INGRESAR_DOMICILIO",
+  "PROBABLE_REACCION_ALERGICA",
 ];
 
 const TIPOS_RUTA = [
@@ -204,7 +210,7 @@ export default function RegistrarNovedadForm() {
   }, []);
 
   useEffect(() => {
-    if (!(categoria === "PACIENTE" && tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO")) {
+    if (!(categoria === "PACIENTE" && TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPaciente))) {
       setFotoIngresoDomicilio(null);
       if (fotoInputRef.current) fotoInputRef.current.value = "";
     }
@@ -229,7 +235,7 @@ export default function RegistrarNovedadForm() {
 
   const canSubmit = useMemo(() => {
     const requiereFotoDomicilio =
-      categoria === "PACIENTE" && tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO";
+      categoria === "PACIENTE" && TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPaciente);
     const requiereFotoRuta =
       categoria === "RUTA" && (tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL");
 
@@ -272,7 +278,7 @@ export default function RegistrarNovedadForm() {
         payload.append("pacienteDocumento", pacienteDocumento.trim());
         payload.append("tipoPaciente", tipoPaciente);
 
-        if (tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO" && fotoIngresoDomicilio) {
+        if (TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPaciente) && fotoIngresoDomicilio) {
           payload.append("fotoIngresoDomicilio", fotoIngresoDomicilio);
         }
       } else {
@@ -525,7 +531,7 @@ export default function RegistrarNovedadForm() {
                         ))}
                       </div>
                     </div>
-                    {tipoPaciente === "IMPOSIBILIDAD_INGRESAR_DOMICILIO" ? (
+                    {TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPaciente) ? (
                       <div className="md:col-span-4">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                           Foto de evidencia (obligatoria)

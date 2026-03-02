@@ -45,10 +45,16 @@ const TIPOS_PACIENTE_VALIDOS: TipoNovedadPaciente[] = [
   "AGENDAMIENTO",
   "FALLECIMIENTO",
   "HOSPITALIZACION",
+  "PROBABLE_REACCION_ALERGICA",
   "DOBLE_PRESTADOR",
   "RELACIONAMIENTO",
   "IMPOSIBILIDAD_CONTACTAR_PACIENTE",
   "IMPOSIBILIDAD_INGRESAR_DOMICILIO",
+];
+
+const TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA: TipoNovedadPaciente[] = [
+  "IMPOSIBILIDAD_INGRESAR_DOMICILIO",
+  "PROBABLE_REACCION_ALERGICA",
 ];
 
 const TIPOS_RUTA_VALIDOS: TipoNovedadRuta[] = [
@@ -289,7 +295,9 @@ export async function POST(req: Request) {
       if (!tipoPacienteEnum) {
         return NextResponse.json({ error: "Tipo de novedad del paciente es obligatorio" }, { status: 400 });
       }
-      if (tipoPacienteEnum === "IMPOSIBILIDAD_INGRESAR_DOMICILIO" && !fotoIngresoDomicilio) {
+      const requiereFotoPaciente =
+        tipoPacienteEnum ? TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPacienteEnum) : false;
+      if (requiereFotoPaciente && !fotoIngresoDomicilio) {
         return NextResponse.json({ error: "Debe adjuntar una foto para esta novedad" }, { status: 400 });
       }
     }
@@ -310,7 +318,8 @@ export async function POST(req: Request) {
     const prestadorTelefono = safeStr(telefono ?? u.telefono) || null;
 
     const requiereFotoIngresoDomicilio =
-      categoriaEnum === "PACIENTE" && tipoPacienteEnum === "IMPOSIBILIDAD_INGRESAR_DOMICILIO";
+      categoriaEnum === "PACIENTE" &&
+      Boolean(tipoPacienteEnum && TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPacienteEnum));
     const requiereFotoRutaEvidencia =
       categoriaEnum === "RUTA" && (tipoRutaEnum === "ACCIDENTE" || tipoRutaEnum === "CIERRE_VIAL");
 
@@ -421,7 +430,7 @@ export async function POST(req: Request) {
             fotoEvidenciaUrl ? `Foto: ${fotoEvidenciaUrl}` : null,
             ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
             ``,
-            `Abrir en admin: ${linkAdmin}`,
+            `Gestionar en: ${linkAdmin}`,
           ].filter(Boolean).join("\n")
         );
       } catch (e) {
