@@ -81,11 +81,9 @@ const ESTADOS = ["PENDIENTE", "EN_PROCESO", "RESUELTA"];
 const PRIORIDADES = ["BAJA", "MEDIA", "ALTA"];
 
 function fmtDate(d: unknown) {
-  try {
-    return new Date(d).toLocaleString();
-  } catch {
-    return "-";
-  }
+  if (d == null || d === "") return "-";
+  const date = d instanceof Date ? d : new Date(String(d));
+  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString();
 }
 
 function nombreCompleto(u: UsuarioNovedad | null | undefined) {
