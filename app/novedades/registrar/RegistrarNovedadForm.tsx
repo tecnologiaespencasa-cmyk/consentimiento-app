@@ -139,11 +139,6 @@ async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
     return null;
   }
 
-  if (estadoPermiso === "denied") {
-    toast.error("El permiso de ubicacion esta bloqueado en tu navegador. Se guardara sin ubicacion.");
-    return null;
-  }
-
   try {
     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
