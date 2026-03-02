@@ -75,7 +75,8 @@ type Coordenadas = {
   longitud: number;
 };
 
-const GEO_TIMEOUT_MS = 12000;
+const GEO_TIMEOUT_GRANTED_MS = 12000;
+const GEO_TIMEOUT_PROMPT_MS = 60000;
 
 type EstadoPermisoGeo = PermissionState | "UNKNOWN";
 
@@ -108,17 +109,16 @@ function mensajeErrorGeolocalizacion(
     : null;
 
   if (code === 1) {
-    if (!origenSeguro) {
-      return "No se puede pedir ubicacion en una conexion no segura. Abre el portal por HTTPS.";
-    }
-    if (estadoPermiso === "denied") {
-      return "El permiso de ubicacion esta bloqueado en tu navegador. Habilitalo en la configuracion del sitio.";
-    }
+    if (!origenSeguro) return "No fue posible solicitar tu ubicacion.";
+    if (estadoPermiso === "denied") return "No fue posible obtener tu ubicacion.";
     return "No autorizaste compartir tu ubicacion.";
   }
-  if (code === 2) return "No fue posible obtener la ubicacion actual.";
-  if (code === 3) return "La consulta de ubicacion supero el tiempo limite.";
-  return "Ocurrio un error obteniendo tu ubicacion.";
+  if (code === 2) return "No fue posible obtener tu ubicacion.";
+  if (code === 3) {
+    if (estadoPermiso === "prompt" || estadoPermiso === "UNKNOWN") return "No recibimos respuesta de ubicacion a tiempo.";
+    return "No fue posible obtener tu ubicacion a tiempo.";
+  }
+  return "No fue posible obtener tu ubicacion.";
 }
 
 async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
@@ -127,7 +127,7 @@ async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
   }
 
   if (!("geolocation" in navigator)) {
-    toast.error("Este dispositivo no soporta geolocalizacion. Se guardara sin ubicacion.");
+    toast.error("No fue posible obtener tu ubicacion. La novedad se guardara sin ubicacion.");
     return null;
   }
 
@@ -135,15 +135,20 @@ async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
   const estadoPermiso = await obtenerEstadoPermisoGeolocalizacion();
 
   if (!origenSeguro) {
-    toast.error("No es posible solicitar ubicacion en HTTP. Ingresa por HTTPS para habilitar el permiso.");
+    toast.error("No fue posible solicitar tu ubicacion. La novedad se guardara sin ubicacion.");
     return null;
   }
+
+  const timeoutMs =
+    estadoPermiso === "granted"
+      ? GEO_TIMEOUT_GRANTED_MS
+      : GEO_TIMEOUT_PROMPT_MS;
 
   try {
     const position = await new Promise<GeolocationPosition>((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject, {
         enableHighAccuracy: true,
-        timeout: GEO_TIMEOUT_MS,
+        timeout: timeoutMs,
         maximumAge: 0,
       });
     });
@@ -153,7 +158,7 @@ async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
       longitud: Number(position.coords.longitude.toFixed(8)),
     };
   } catch (error: unknown) {
-    toast.error(`${mensajeErrorGeolocalizacion(error, estadoPermiso, origenSeguro)} Se guardara sin ubicacion.`);
+    toast.error(`${mensajeErrorGeolocalizacion(error, estadoPermiso, origenSeguro)} La novedad se guardara sin ubicacion.`);
     return null;
   }
 }
@@ -287,7 +292,7 @@ export default function RegistrarNovedadForm() {
         throw new Error(err?.error || "No se pudo guardar");
       }
 
-      toast.success("Novedad registrada con éxito. Se notificó al área administrativa.", { id: t });
+      toast.success("Novedad guardada correctamente.", { id: t });
 
       // reset parcial
       setZonas([]);
@@ -302,8 +307,8 @@ export default function RegistrarNovedadForm() {
       setFotoRutaEvidencia(null);
       if (fotoRutaInputRef.current) fotoRutaInputRef.current.value = "";
       setDescripcion("");
-    } catch (e: any) {
-      toast.error(e?.message || "Error guardando", { id: t });
+    } catch {
+      toast.error("No fue posible guardar la novedad. Intenta nuevamente.", { id: t });
     } finally {
       setSaving(false);
     }
@@ -589,12 +594,6 @@ export default function RegistrarNovedadForm() {
                 />
                 <div className="mt-2 text-xs text-gray-500">
                   Se enviará el detalle de la novedad al personal administrativo encargado para su gestión.
-                </div>
-                <div className="mt-1 text-xs text-gray-500">
-                  El sistema intentara capturar tu ubicacion actual al guardar la novedad.
-                </div>
-                <div className="mt-1 text-xs text-gray-500">
-                  Si no aparece el permiso, revisa que estes en HTTPS y que la ubicacion no este bloqueada para este sitio.
                 </div>
               </div>
 
