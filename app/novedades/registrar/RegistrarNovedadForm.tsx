@@ -77,12 +77,45 @@ type Coordenadas = {
 
 const GEO_TIMEOUT_MS = 12000;
 
-function mensajeErrorGeolocalizacion(error: unknown) {
+type EstadoPermisoGeo = PermissionState | "UNKNOWN";
+
+function esOrigenSeguroParaGeolocalizacion() {
+  if (typeof window === "undefined") return false;
+  const { protocol, hostname } = window.location;
+  return protocol === "https:" || hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+async function obtenerEstadoPermisoGeolocalizacion(): Promise<EstadoPermisoGeo> {
+  if (typeof navigator === "undefined" || !("permissions" in navigator)) {
+    return "UNKNOWN";
+  }
+
+  try {
+    const permisos = await navigator.permissions.query({ name: "geolocation" as PermissionName });
+    return permisos.state;
+  } catch {
+    return "UNKNOWN";
+  }
+}
+
+function mensajeErrorGeolocalizacion(
+  error: unknown,
+  estadoPermiso: EstadoPermisoGeo,
+  origenSeguro: boolean
+) {
   const code = typeof error === "object" && error && "code" in error
     ? Number((error as { code?: unknown }).code)
     : null;
 
-  if (code === 1) return "No autorizaste compartir tu ubicacion.";
+  if (code === 1) {
+    if (!origenSeguro) {
+      return "No se puede pedir ubicacion en una conexion no segura. Abre el portal por HTTPS.";
+    }
+    if (estadoPermiso === "denied") {
+      return "El permiso de ubicacion esta bloqueado en tu navegador. Habilitalo en la configuracion del sitio.";
+    }
+    return "No autorizaste compartir tu ubicacion.";
+  }
   if (code === 2) return "No fue posible obtener la ubicacion actual.";
   if (code === 3) return "La consulta de ubicacion supero el tiempo limite.";
   return "Ocurrio un error obteniendo tu ubicacion.";
@@ -93,13 +126,21 @@ async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
     return null;
   }
 
-  if (!window.isSecureContext) {
-    toast.error("La geolocalizacion requiere una conexion segura (HTTPS). Se guardara sin ubicacion.");
+  if (!("geolocation" in navigator)) {
+    toast.error("Este dispositivo no soporta geolocalizacion. Se guardara sin ubicacion.");
     return null;
   }
 
-  if (!("geolocation" in navigator)) {
-    toast.error("Este dispositivo no soporta geolocalizacion. Se guardara sin ubicacion.");
+  const origenSeguro = esOrigenSeguroParaGeolocalizacion();
+  const estadoPermiso = await obtenerEstadoPermisoGeolocalizacion();
+
+  if (!origenSeguro) {
+    toast.error("No es posible solicitar ubicacion en HTTP. Ingresa por HTTPS para habilitar el permiso.");
+    return null;
+  }
+
+  if (estadoPermiso === "denied") {
+    toast.error("El permiso de ubicacion esta bloqueado en tu navegador. Se guardara sin ubicacion.");
     return null;
   }
 
@@ -117,7 +158,7 @@ async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
       longitud: Number(position.coords.longitude.toFixed(8)),
     };
   } catch (error: unknown) {
-    toast.error(`${mensajeErrorGeolocalizacion(error)} Se guardara sin ubicacion.`);
+    toast.error(`${mensajeErrorGeolocalizacion(error, estadoPermiso, origenSeguro)} Se guardara sin ubicacion.`);
     return null;
   }
 }
@@ -556,6 +597,9 @@ export default function RegistrarNovedadForm() {
                 </div>
                 <div className="mt-1 text-xs text-gray-500">
                   El sistema intentara capturar tu ubicacion actual al guardar la novedad.
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  Si no aparece el permiso, revisa que estes en HTTPS y que la ubicacion no este bloqueada para este sitio.
                 </div>
               </div>
 
