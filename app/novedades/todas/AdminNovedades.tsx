@@ -60,6 +60,8 @@ type Novedad = {
   fotoRutaEvidenciaMimeType?: string | null;
   tipoRuta?: string | null;
   descripcion?: string | null;
+  ubicacionLatitud?: number | null;
+  ubicacionLongitud?: number | null;
   estado: string;
   prioridad: string;
   asignadoA?: string | null;
@@ -120,6 +122,19 @@ function getErrorMessage(error: unknown, fallback = "Error") {
 function toCategoriaFiltro(value: string): CategoriaFiltro {
   if (value === "PACIENTE" || value === "RUTA") return value;
   return "";
+}
+
+function coordenadasValidas(latitud: unknown, longitud: unknown): latitud is number {
+  return typeof latitud === "number" && Number.isFinite(latitud) &&
+    typeof longitud === "number" && Number.isFinite(longitud);
+}
+
+function buildGoogleMapsUrl(latitud: number, longitud: number) {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${latitud},${longitud}`)}`;
+}
+
+function buildGoogleMapsEmbedUrl(latitud: number, longitud: number) {
+  return `https://maps.google.com/maps?q=${encodeURIComponent(`${latitud},${longitud}`)}&z=16&output=embed`;
 }
 
 export default function AdminNovedades({
@@ -184,6 +199,8 @@ export default function AdminNovedades({
         n.fotoRutaEvidenciaUrl,
         n.prestadorNombre,
         n.prestadorCedula,
+        n.ubicacionLatitud,
+        n.ubicacionLongitud,
         n.asignadoA,
         n.usuario?.username,
         nombreCompleto(n.usuario),
@@ -213,6 +230,13 @@ export default function AdminNovedades({
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, safePage]);
   const fotoEditEvidenciaUrl = edit?.fotoIngresoDomicilioUrl ?? edit?.fotoRutaEvidenciaUrl ?? null;
+  const editTieneUbicacion = coordenadasValidas(edit?.ubicacionLatitud, edit?.ubicacionLongitud);
+  const editGoogleMapsUrl = editTieneUbicacion
+    ? buildGoogleMapsUrl(edit!.ubicacionLatitud as number, edit!.ubicacionLongitud as number)
+    : null;
+  const editGoogleMapsEmbedUrl = editTieneUbicacion
+    ? buildGoogleMapsEmbedUrl(edit!.ubicacionLatitud as number, edit!.ubicacionLongitud as number)
+    : null;
   const asignadoNormalizado = editAsignadoA.trim();
   const bloqueadoPorAsignacion =
     !isAdmin && Boolean(asignadoNormalizado) && asignadoNormalizado !== currentUser.nombre;
@@ -261,6 +285,8 @@ export default function AdminNovedades({
       "fotoRutaEvidenciaMimeType",
       "tipoRuta",
       "descripcion",
+      "ubicacionLatitud",
+      "ubicacionLongitud",
       "estado",
       "prioridad",
       "asignadoA",
@@ -301,6 +327,8 @@ export default function AdminNovedades({
       n.fotoRutaEvidenciaMimeType ?? "",
       n.tipoRuta ?? "",
       n.descripcion ?? "",
+      n.ubicacionLatitud ?? "",
+      n.ubicacionLongitud ?? "",
       n.estado ?? "",
       n.prioridad ?? "",
       n.asignadoA ?? "",
@@ -617,6 +645,10 @@ export default function AdminNovedades({
                   const Icon = b.icon;
                   const tipo = n.categoria === "PACIENTE" ? n.tipoPaciente : n.tipoRuta;
                   const fotoEvidenciaUrl = n.fotoIngresoDomicilioUrl ?? n.fotoRutaEvidenciaUrl;
+                  const tieneUbicacion = coordenadasValidas(n.ubicacionLatitud, n.ubicacionLongitud);
+                  const ubicacionGoogleMapsUrl = tieneUbicacion
+                    ? buildGoogleMapsUrl(n.ubicacionLatitud as number, n.ubicacionLongitud as number)
+                    : null;
                   const paciente = n.categoria === "PACIENTE"
                     ? ` • ${n.pacienteNombre ?? ""}${n.pacienteTipoDoc ? ` (${n.pacienteTipoDoc}${n.pacienteDocumento ? ` ${n.pacienteDocumento}` : ""})` : ""}`
                     : "";
@@ -661,6 +693,19 @@ export default function AdminNovedades({
                               onClick={(e) => e.stopPropagation()}
                             >
                               Ver foto de evidencia
+                            </a>
+                          </div>
+                        ) : null}
+                        {ubicacionGoogleMapsUrl ? (
+                          <div className="mt-1">
+                            <a
+                              href={ubicacionGoogleMapsUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Ver ubicacion
                             </a>
                           </div>
                         ) : null}
@@ -804,6 +849,43 @@ export default function AdminNovedades({
                 </p>
               ) : null}
             </div>
+
+            {editTieneUbicacion ? (
+              <div className="mt-3 rounded-xl border border-gray-200 p-3">
+                <p className="text-xs font-bold text-gray-600 mb-2">Ubicacion reportada</p>
+                <p className="text-sm text-gray-700">
+                  Latitud: {edit.ubicacionLatitud} | Longitud: {edit.ubicacionLongitud}
+                </p>
+                {editGoogleMapsUrl ? (
+                  <p className="text-sm mt-1">
+                    <a
+                      href={editGoogleMapsUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+                    >
+                      Ver ubicacion en Google Maps
+                    </a>
+                  </p>
+                ) : null}
+                {editGoogleMapsEmbedUrl ? (
+                  <div className="mt-3 h-56 w-full overflow-hidden rounded-xl border border-gray-200">
+                    <iframe
+                      title={`Mapa novedad ${edit.id}`}
+                      src={editGoogleMapsEmbedUrl}
+                      width="100%"
+                      height="100%"
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <div className="mt-3 rounded-xl border border-dashed border-gray-200 p-3 text-sm text-gray-500">
+                Esta novedad no tiene ubicacion capturada.
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4">
               <div>

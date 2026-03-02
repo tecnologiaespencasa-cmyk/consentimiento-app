@@ -70,6 +70,58 @@ function nombreCompleto(me: MeResp | null) {
     .trim();
 }
 
+type Coordenadas = {
+  latitud: number;
+  longitud: number;
+};
+
+const GEO_TIMEOUT_MS = 12000;
+
+function mensajeErrorGeolocalizacion(error: unknown) {
+  const code = typeof error === "object" && error && "code" in error
+    ? Number((error as { code?: unknown }).code)
+    : null;
+
+  if (code === 1) return "No autorizaste compartir tu ubicacion.";
+  if (code === 2) return "No fue posible obtener la ubicacion actual.";
+  if (code === 3) return "La consulta de ubicacion supero el tiempo limite.";
+  return "Ocurrio un error obteniendo tu ubicacion.";
+}
+
+async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
+  if (typeof window === "undefined" || typeof navigator === "undefined") {
+    return null;
+  }
+
+  if (!window.isSecureContext) {
+    toast.error("La geolocalizacion requiere una conexion segura (HTTPS). Se guardara sin ubicacion.");
+    return null;
+  }
+
+  if (!("geolocation" in navigator)) {
+    toast.error("Este dispositivo no soporta geolocalizacion. Se guardara sin ubicacion.");
+    return null;
+  }
+
+  try {
+    const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: GEO_TIMEOUT_MS,
+        maximumAge: 0,
+      });
+    });
+
+    return {
+      latitud: Number(position.coords.latitude.toFixed(8)),
+      longitud: Number(position.coords.longitude.toFixed(8)),
+    };
+  } catch (error: unknown) {
+    toast.error(`${mensajeErrorGeolocalizacion(error)} Se guardara sin ubicacion.`);
+    return null;
+  }
+}
+
 export default function RegistrarNovedadForm() {
   const [me, setMe] = useState<MeResp | null>(null);
   const [loadingMe, setLoadingMe] = useState(true);
@@ -162,11 +214,16 @@ export default function RegistrarNovedadForm() {
     setSaving(true);
     const t = toast.loading("Guardando novedad...");
     try {
+      const coordenadas = await obtenerUbicacionActual();
       const payload = new FormData();
       payload.append("telefono", telefono.trim());
       zonas.forEach((z) => payload.append("zonas", z));
       payload.append("categoria", categoria);
       payload.append("descripcion", descripcion.trim());
+      if (coordenadas) {
+        payload.append("ubicacionLatitud", String(coordenadas.latitud));
+        payload.append("ubicacionLongitud", String(coordenadas.longitud));
+      }
 
       if (categoria === "PACIENTE") {
         payload.append("pacienteNombre", pacienteNombre.trim());
@@ -496,6 +553,9 @@ export default function RegistrarNovedadForm() {
                 />
                 <div className="mt-2 text-xs text-gray-500">
                   Se enviará el detalle de la novedad al personal administrativo encargado para su gestión.
+                </div>
+                <div className="mt-1 text-xs text-gray-500">
+                  El sistema intentara capturar tu ubicacion actual al guardar la novedad.
                 </div>
               </div>
 

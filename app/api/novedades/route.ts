@@ -92,6 +92,11 @@ function formatDateForRadicado(date: Date) {
   return `${day}${month}${year}`;
 }
 
+function buildGoogleMapsLink(latitud: number, longitud: number) {
+  const query = encodeURIComponent(`${latitud},${longitud}`);
+  return `https://www.google.com/maps/search/?api=1&query=${query}`;
+}
+
 async function buildNovedadRadicado(cedula: string) {
   const fecha = formatDateForRadicado(new Date());
   const cedulaLimpia = safeStr(cedula).replace(/\D/g, "") || "0";
@@ -180,6 +185,8 @@ export async function POST(req: Request) {
     let tipoPaciente = "";
     let tipoRuta = "";
     let descripcion = "";
+    let ubicacionLatitudRaw = "";
+    let ubicacionLongitudRaw = "";
     let fotoIngresoDomicilio: File | null = null;
     let fotoRutaEvidencia: File | null = null;
 
@@ -194,6 +201,8 @@ export async function POST(req: Request) {
       tipoPaciente = safeStr(formData.get("tipoPaciente"));
       tipoRuta = safeStr(formData.get("tipoRuta"));
       descripcion = safeStr(formData.get("descripcion"));
+      ubicacionLatitudRaw = safeStr(formData.get("ubicacionLatitud"));
+      ubicacionLongitudRaw = safeStr(formData.get("ubicacionLongitud"));
       const fotoRaw = formData.get("fotoIngresoDomicilio");
       fotoIngresoDomicilio = fotoRaw instanceof File && fotoRaw.size > 0 ? fotoRaw : null;
       const fotoRutaRaw = formData.get("fotoRutaEvidencia");
@@ -209,6 +218,8 @@ export async function POST(req: Request) {
       tipoPaciente = safeStr(body?.tipoPaciente);
       tipoRuta = safeStr(body?.tipoRuta);
       descripcion = safeStr(body?.descripcion);
+      ubicacionLatitudRaw = safeStr(body?.ubicacionLatitud);
+      ubicacionLongitudRaw = safeStr(body?.ubicacionLongitud);
     }
 
     if (!rawZonas.length) {
@@ -225,6 +236,30 @@ export async function POST(req: Request) {
     }
     if (!descripcion || !String(descripcion).trim()) {
       return NextResponse.json({ error: "La descripción es obligatoria" }, { status: 400 });
+    }
+
+    const tieneLatitud = Boolean(ubicacionLatitudRaw);
+    const tieneLongitud = Boolean(ubicacionLongitudRaw);
+    if (tieneLatitud !== tieneLongitud) {
+      return NextResponse.json({ error: "La ubicacion recibida es incompleta" }, { status: 400 });
+    }
+
+    const ubicacionLatitud = tieneLatitud ? Number(ubicacionLatitudRaw) : null;
+    const ubicacionLongitud = tieneLongitud ? Number(ubicacionLongitudRaw) : null;
+
+    if (
+      (ubicacionLatitud !== null && !Number.isFinite(ubicacionLatitud)) ||
+      (ubicacionLongitud !== null && !Number.isFinite(ubicacionLongitud))
+    ) {
+      return NextResponse.json({ error: "La ubicacion recibida no es valida" }, { status: 400 });
+    }
+
+    if (ubicacionLatitud !== null && (ubicacionLatitud < -90 || ubicacionLatitud > 90)) {
+      return NextResponse.json({ error: "La latitud esta fuera de rango" }, { status: 400 });
+    }
+
+    if (ubicacionLongitud !== null && (ubicacionLongitud < -180 || ubicacionLongitud > 180)) {
+      return NextResponse.json({ error: "La longitud esta fuera de rango" }, { status: 400 });
     }
 
     const categoriaEnum = categoria as CategoriaNovedad;
@@ -316,6 +351,10 @@ export async function POST(req: Request) {
     }
 
     const fotoEvidenciaUrl = fotoSubida?.webUrl ?? fotoRutaSubida?.webUrl ?? null;
+    const ubicacionGoogleMapsUrl =
+      ubicacionLatitud !== null && ubicacionLongitud !== null
+        ? buildGoogleMapsLink(ubicacionLatitud, ubicacionLongitud)
+        : null;
 
     let novedad;
 
@@ -346,6 +385,8 @@ export async function POST(req: Request) {
             fotoRutaEvidenciaMimeType: categoriaEnum === "RUTA" ? fotoRutaSubida?.mimeType ?? null : null,
             tipoRuta: categoriaEnum === "RUTA" ? tipoRutaEnum : null,
             descripcion: safeStr(descripcion),
+            ubicacionLatitud,
+            ubicacionLongitud,
             usuarioId: u.id,
           },
         });
@@ -378,6 +419,7 @@ export async function POST(req: Request) {
             `Zonas: ${(zonas ?? []).join(", ")}`,
             `ID: ${novedad.id}`,
             fotoEvidenciaUrl ? `Foto: ${fotoEvidenciaUrl}` : null,
+            ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
             ``,
             `Abrir en admin: ${linkAdmin}`,
           ].filter(Boolean).join("\n")
@@ -404,6 +446,7 @@ export async function POST(req: Request) {
       categoria === "PACIENTE" ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})` : null,
       categoria === "PACIENTE" ? `Tipo: ${tipoPaciente}` : null,
       fotoEvidenciaUrl ? `Foto evidencia: ${fotoEvidenciaUrl}` : null,
+      ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
       categoria === "RUTA" ? `Tipo: ${tipoRuta}` : null,
       `Descripción: ${descripcionCorta}`,
       `ID: ${novedad.id}`,

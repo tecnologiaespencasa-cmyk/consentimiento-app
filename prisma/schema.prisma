@@ -87,6 +87,8 @@ model Novedad {
   tipoRuta           TipoNovedadRuta?
 
   descripcion        String
+  ubicacionLatitud   Float?
+  ubicacionLongitud  Float?
 
   // Gestión (solo técnico/administrativo)
   estado             EstadoNovedad  @default(PENDIENTE)
