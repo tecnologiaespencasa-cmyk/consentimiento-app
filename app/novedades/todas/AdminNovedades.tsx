@@ -853,9 +853,6 @@ export default function AdminNovedades({
             {editTieneUbicacion ? (
               <div className="mt-3 rounded-xl border border-gray-200 p-3">
                 <p className="text-xs font-bold text-gray-600 mb-2">Ubicacion reportada</p>
-                <p className="text-sm text-gray-700">
-                  Latitud: {edit.ubicacionLatitud} | Longitud: {edit.ubicacionLongitud}
-                </p>
                 {editGoogleMapsUrl ? (
                   <p className="text-sm mt-1">
                     <a
