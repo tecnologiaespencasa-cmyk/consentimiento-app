@@ -19,9 +19,16 @@ export default async function MisNovedadesPage() {
   if (!session?.user) redirect("/login");
 
   const u = session.user as any;
+  const where: any = { usuarioId: u.id };
+
+  if (u.rol === "FARMACIA") {
+    where.categoria = "PROCESO_FARMACEUTICO";
+  } else if (u.rol === "ESPECIALISTA") {
+    where.NOT = { categoria: "PROCESO_FARMACEUTICO" };
+  }
 
   const novedades = await prisma.novedad.findMany({
-    where: { usuarioId: u.id },
+    where,
     orderBy: { createdAt: "desc" },
   });
 
@@ -51,13 +58,25 @@ export default async function MisNovedadesPage() {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4">
           {novedades.length === 0 ? (
             <div className="p-8 text-center text-gray-600">
-              Aún no has registrado novedades.
+              Aun no has registrado novedades.
             </div>
           ) : (
             <div className="space-y-3">
               {novedades.map((n) => {
                 const b = badgeEstado(n.estado);
                 const Icon = b.icon;
+                const categoriaLabel =
+                  n.categoria === "PACIENTE"
+                    ? "Paciente"
+                    : n.categoria === "RUTA"
+                    ? "Ruta"
+                    : "Proceso farmaceutico";
+                const tipoLabel =
+                  n.categoria === "PACIENTE"
+                    ? (n.tipoPaciente ?? "-")
+                    : n.categoria === "RUTA"
+                    ? (n.tipoRuta ?? "-")
+                    : (((n as { tipoFarmacia?: string | null }).tipoFarmacia) ?? "-");
                 return (
                   <div
                     key={n.id}
@@ -68,7 +87,7 @@ export default async function MisNovedadesPage() {
                         <p className="text-sm text-gray-500">{new Date(n.createdAt).toLocaleString()}</p>
                         <p className="text-xs text-gray-500 mt-1">ID: {n.id}</p>
                         <p className="font-extrabold text-gray-900 truncate">
-                          {n.categoria === "PACIENTE" ? "Paciente" : "Ruta"} • {n.categoria === "PACIENTE" ? (n.tipoPaciente ?? "-") : (n.tipoRuta ?? "-")}
+                          {categoriaLabel} â€¢ {tipoLabel}
                         </p>
                         <p className="text-sm text-gray-700 mt-1 line-clamp-50">
                           {n.descripcion}

@@ -12,6 +12,7 @@ import {
   TipoDocumento,
   TipoNovedadPaciente,
   TipoNovedadRuta,
+  TipoNovedadFarmacia,
 } from "@prisma/client";
 
 const DESTINOS_NOTIFICACION = [
@@ -27,7 +28,9 @@ const ZONAS_VALIDAS: Zona[] = [
   "SUROCCIDENTAL",
 ];
 
-const CATEGORIAS_VALIDAS: CategoriaNovedad[] = ["PACIENTE", "RUTA"];
+const CATEGORIA_FARMACIA: CategoriaNovedad = "PROCESO_FARMACEUTICO";
+const CATEGORIAS_VALIDAS: CategoriaNovedad[] = ["PACIENTE", "RUTA", CATEGORIA_FARMACIA];
+const ROLES_CON_ACCESO_FARMACIA = ["FARMACIA", "TECNICO", "ADMINISTRATIVO"];
 
 const TIPOS_DOCUMENTO_VALIDOS: TipoDocumento[] = [
   "CC",
@@ -64,6 +67,15 @@ const TIPOS_RUTA_VALIDOS: TipoNovedadRuta[] = [
   "NO_REALIZO_RUTA",
 ];
 
+const TIPOS_FARMACIA_VALIDOS: TipoNovedadFarmacia[] = [
+  "ERROR_KARDEX",
+  "ERROR_REQUISICION",
+  "ERROR_AUTORIZACION",
+  "ERROR_AUXILIAR_ASIGNADO",
+  "ERROR_FORMULA",
+  "ERROR_TODOS_LOS_DOCUMENTOS",
+];
+
 function nombreCompleto(u: any) {
   return `${u?.nombres ?? ""} ${u?.primerApellido ?? ""} ${u?.segundoApellido ?? ""}`
     .replace(/\s+/g, " ")
@@ -81,6 +93,18 @@ function escapeHtml(s: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function etiquetaCategoria(categoria: CategoriaNovedad) {
+  if (categoria === "PACIENTE") return "Paciente";
+  if (categoria === "RUTA") return "Ruta";
+  return "Proceso farmaceutico";
+}
+
+function etiquetaCategoriaConIcono(categoria: CategoriaNovedad) {
+  if (categoria === "PACIENTE") return "Categoria: Paciente";
+  if (categoria === "RUTA") return "Categoria: Ruta";
+  return "Categoria: Proceso farmaceutico";
 }
 
 function formatDateForRadicado(date: Date) {
@@ -149,6 +173,12 @@ export async function GET(req: Request) {
 
   if (mine) where = { usuarioId: id };
 
+  if (rol === "FARMACIA") {
+    where = { ...where, categoria: CATEGORIA_FARMACIA };
+  } else if (rol === "ESPECIALISTA") {
+    where = { ...where, NOT: { categoria: CATEGORIA_FARMACIA } };
+  }
+
   const novedades = await prisma.novedad.findMany({
     where,
     include: {
@@ -190,6 +220,7 @@ export async function POST(req: Request) {
     let pacienteDocumento = "";
     let tipoPaciente = "";
     let tipoRuta = "";
+    let tipoFarmacia = "";
     let descripcion = "";
     let ubicacionLatitudRaw = "";
     let ubicacionLongitudRaw = "";
@@ -206,6 +237,7 @@ export async function POST(req: Request) {
       pacienteDocumento = safeStr(formData.get("pacienteDocumento"));
       tipoPaciente = safeStr(formData.get("tipoPaciente"));
       tipoRuta = safeStr(formData.get("tipoRuta"));
+      tipoFarmacia = safeStr(formData.get("tipoFarmacia"));
       descripcion = safeStr(formData.get("descripcion"));
       ubicacionLatitudRaw = safeStr(formData.get("ubicacionLatitud"));
       ubicacionLongitudRaw = safeStr(formData.get("ubicacionLongitud"));
@@ -223,25 +255,41 @@ export async function POST(req: Request) {
       pacienteDocumento = safeStr(body?.pacienteDocumento);
       tipoPaciente = safeStr(body?.tipoPaciente);
       tipoRuta = safeStr(body?.tipoRuta);
+      tipoFarmacia = safeStr(body?.tipoFarmacia);
       descripcion = safeStr(body?.descripcion);
       ubicacionLatitudRaw = safeStr(body?.ubicacionLatitud);
       ubicacionLongitudRaw = safeStr(body?.ubicacionLongitud);
     }
 
-    if (!rawZonas.length) {
+    if (!categoria || !CATEGORIAS_VALIDAS.includes(categoria as CategoriaNovedad)) {
+      return NextResponse.json({ error: "Seleccione el tipo de novedad" }, { status: 400 });
+    }
+    const puedeReportarProcesoFarmaceutico = ROLES_CON_ACCESO_FARMACIA.includes(String(u.rol));
+    if (u.rol === "FARMACIA" && categoria !== CATEGORIA_FARMACIA) {
+      return NextResponse.json(
+        { error: "El rol farmacia solo puede reportar novedades de proceso farmaceutico" },
+        { status: 403 }
+      );
+    }
+    if (categoria === CATEGORIA_FARMACIA && !puedeReportarProcesoFarmaceutico) {
+      return NextResponse.json(
+        { error: "Solo los roles farmacia, tecnico o administrativo pueden reportar esta novedad" },
+        { status: 403 }
+      );
+    }
+    if (categoria !== CATEGORIA_FARMACIA && !rawZonas.length) {
       return NextResponse.json({ error: "Seleccione al menos una zona" }, { status: 400 });
     }
 
     zonas = rawZonas.filter((z): z is Zona => ZONAS_VALIDAS.includes(z as Zona));
     if (zonas.length !== rawZonas.length) {
-      return NextResponse.json({ error: "Una o más zonas no son válidas" }, { status: 400 });
+      return NextResponse.json({ error: "Una o mas zonas no son validas" }, { status: 400 });
     }
-
-    if (!categoria || !CATEGORIAS_VALIDAS.includes(categoria as CategoriaNovedad)) {
-      return NextResponse.json({ error: "Seleccione el tipo de novedad" }, { status: 400 });
+    if (categoria === CATEGORIA_FARMACIA) {
+      zonas = [];
     }
     if (!descripcion || !String(descripcion).trim()) {
-      return NextResponse.json({ error: "La descripción es obligatoria" }, { status: 400 });
+      return NextResponse.json({ error: "La descripcion es obligatoria" }, { status: 400 });
     }
 
     const tieneLatitud = Boolean(ubicacionLatitudRaw);
@@ -282,6 +330,10 @@ export async function POST(req: Request) {
       ? (tipoRuta as TipoNovedadRuta)
       : null;
 
+    const tipoFarmaciaEnum = TIPOS_FARMACIA_VALIDOS.includes(tipoFarmacia as TipoNovedadFarmacia)
+      ? (tipoFarmacia as TipoNovedadFarmacia)
+      : null;
+
     if (categoriaEnum === "PACIENTE") {
       if (!pacienteNombre || !String(pacienteNombre).trim()) {
         return NextResponse.json({ error: "Nombre del paciente es obligatorio" }, { status: 400 });
@@ -290,7 +342,7 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: "Tipo de documento del paciente es obligatorio" }, { status: 400 });
       }
       if (!pacienteDocumento || !String(pacienteDocumento).trim()) {
-        return NextResponse.json({ error: "Número de documento del paciente es obligatorio" }, { status: 400 });
+        return NextResponse.json({ error: "Numero de documento del paciente es obligatorio" }, { status: 400 });
       }
       if (!tipoPacienteEnum) {
         return NextResponse.json({ error: "Tipo de novedad del paciente es obligatorio" }, { status: 400 });
@@ -311,6 +363,15 @@ export async function POST(req: Request) {
       }
     }
 
+    if (categoriaEnum === CATEGORIA_FARMACIA) {
+      if (!tipoFarmaciaEnum) {
+        return NextResponse.json(
+          { error: "Tipo de novedad de proceso farmaceutico es obligatorio" },
+          { status: 400 }
+        );
+      }
+    }
+
     // Snapshot del prestador
     const prestadorNombre = nombreCompleto(u) || u.username;
     const prestadorCedula = u.cedula;
@@ -322,6 +383,7 @@ export async function POST(req: Request) {
       Boolean(tipoPacienteEnum && TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPacienteEnum));
     const requiereFotoRutaEvidencia =
       categoriaEnum === "RUTA" && (tipoRutaEnum === "ACCIDENTE" || tipoRutaEnum === "CIERRE_VIAL");
+    const prioridadPorDefecto = categoriaEnum === CATEGORIA_FARMACIA ? "ALTA" : "MEDIA";
 
     let fotoSubida: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
     if (requiereFotoIngresoDomicilio && fotoIngresoDomicilio) {
@@ -364,6 +426,13 @@ export async function POST(req: Request) {
       ubicacionLatitud !== null && ubicacionLongitud !== null
         ? buildGoogleMapsLink(ubicacionLatitud, ubicacionLongitud)
         : null;
+    const categoriaLabel = etiquetaCategoria(categoriaEnum);
+    const tipoNovedadSeleccionada =
+      categoriaEnum === "PACIENTE"
+        ? tipoPacienteEnum
+        : categoriaEnum === "RUTA"
+        ? tipoRutaEnum
+        : tipoFarmaciaEnum;
 
     let novedad;
 
@@ -393,7 +462,9 @@ export async function POST(req: Request) {
             fotoRutaEvidenciaNombre: categoriaEnum === "RUTA" ? fotoRutaSubida?.name ?? null : null,
             fotoRutaEvidenciaMimeType: categoriaEnum === "RUTA" ? fotoRutaSubida?.mimeType ?? null : null,
             tipoRuta: categoriaEnum === "RUTA" ? tipoRutaEnum : null,
+            tipoFarmacia: categoriaEnum === CATEGORIA_FARMACIA ? tipoFarmaciaEnum : null,
             descripcion: safeStr(descripcion),
+            prioridad: prioridadPorDefecto,
             ubicacionLatitud,
             ubicacionLongitud,
             usuarioId: u.id,
@@ -409,23 +480,24 @@ export async function POST(req: Request) {
     }
 
     if (!novedad) {
-      throw new Error("No fue posible generar un radicado único para la novedad");
+      throw new Error("No fue posible generar un radicado unico para la novedad");
     }
 
     const baseUrl = process.env.NEXTAUTH_URL || "";
     const linkAdmin = baseUrl ? `${baseUrl}/novedades/todas` : "/novedades/todas";
 
     const teamsUrl = process.env.TEAMS_WEBHOOK_URL;
+    const zonasTexto = (zonas ?? []).join(", ") || "No aplica";
 
     if (teamsUrl) {
       try {
         await sendTeamsWebhook(
           teamsUrl,
-          "🚨 Nueva novedad registrada",
+          "Nueva novedad registrada",
           [
             `Prestador: ${prestadorNombre} (${prestadorProfesion})`,
-            `Categoría: ${categoria}`,
-            `Zonas: ${(zonas ?? []).join(", ")}`,
+            `Categoria: ${categoriaLabel}`,
+            `Zonas: ${zonasTexto}`,
             `ID: ${novedad.id}`,
             fotoEvidenciaUrl ? `Foto: ${fotoEvidenciaUrl}` : null,
             ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
@@ -437,128 +509,129 @@ export async function POST(req: Request) {
         console.error("No se pudo notificar a Teams:", e);
       }
     } else {
-      console.warn("TEAMS_WEBHOOK_URL no configurado: no se envía alerta a Teams");
+      console.warn("TEAMS_WEBHOOK_URL no configurado: no se envia alerta a Teams");
     }
 
 
-    // Resumen para equipo (incluye lo necesario para gestión)
+    // Resumen para equipo (incluye lo necesario para gestion)
     const descripcionTrim = safeStr(descripcion);
     const descripcionCorta =
-      descripcionTrim.slice(0, 220) + (descripcionTrim.length > 220 ? "…" : "");
+      descripcionTrim.slice(0, 220) + (descripcionTrim.length > 220 ? "..." : "");
 
     const resumenEquipo = [
       `Prestador: ${prestadorNombre} (${prestadorProfesion})`,
-      `Cédula: ${prestadorCedula}`,
-      prestadorTelefono ? `Teléfono: ${prestadorTelefono}` : null,
-      `Zona(s): ${(zonas ?? []).join(", ")}`,
-      `Categoría: ${categoria}`,
-      categoria === "PACIENTE" ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})` : null,
-      categoria === "PACIENTE" ? `Tipo: ${tipoPaciente}` : null,
+      `Cedula: ${prestadorCedula}`,
+      prestadorTelefono ? `Telefono: ${prestadorTelefono}` : null,
+      `Zona(s): ${zonasTexto}`,
+      `Categoria: ${categoriaLabel}`,
+      categoriaEnum === "PACIENTE"
+        ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})`
+        : null,
+      tipoNovedadSeleccionada ? `Tipo: ${tipoNovedadSeleccionada}` : null,
       fotoEvidenciaUrl ? `Foto evidencia: ${fotoEvidenciaUrl}` : null,
       ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
-      categoria === "RUTA" ? `Tipo: ${tipoRuta}` : null,
-      `Descripción: ${descripcionCorta}`,
+      `Descripcion: ${descripcionCorta}`,
       `ID: ${novedad.id}`,
     ]
       .filter(Boolean)
       .join("\n");
 
-    // Confirmación al prestador (sin detalles sensibles)
+    // Confirmacion al prestador (sin detalles sensibles)
     const emailPrestador = safeStr(u?.email);
     const textoPrestador = [
       `Hola ${prestadorNombre},`,
       ``,
-      `✅ Tu novedad fue registrada correctamente y ya fue enviada al equipo encargado para su gestión.`,
-      `En caso de requerir información adicional, se comunicarán contigo pronto.`,
+      `Tu novedad fue registrada correctamente y ya fue enviada al equipo encargado para su gestion.`,
+      `En caso de requerir informacion adicional, se comunicaran contigo pronto.`,
       ``,
-      `Número de radicado: ${novedad.id}`,
+      `Numero de radicado: ${novedad.id}`,
       ``,
       `Gracias.`,
     ].join("\n");
 
     const htmlPrestador = `
       <div style="font-family: Arial, sans-serif; line-height: 1.5; max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 5px 20px rgba(0,20,50,0.1); overflow: hidden;">
-  
+
   <!-- Cabecera con estilo de la empresa -->
   <div style="background: linear-gradient(135deg, #e80214 0%, #e80214 100%); padding: 25px 30px; text-align: center;">
     <div style="display:inline-block; background-color:white; border-radius:50px; padding:12px 25px; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
       <span style="font-size:24px; font-weight:700; color:#0a4b7a;">Especialistas</span>
       <span style="font-size:24px; font-weight:300; color:#1a7faa;"> En Casa</span>
-      <div style="font-size:14px; font-weight:500; color:#3a3a3a; letter-spacing:1px; margin-top:2px;">🏥 SALUD DOMICILIARIA</div>
+      <div style="font-size:14px; font-weight:500; color:#3a3a3a; letter-spacing:1px; margin-top:2px;">SALUD DOMICILIARIA</div>
     </div>
   </div>
-  
+
   <!-- Contenido principal -->
   <div style="padding: 30px 30px 25px 30px;">
-    
+
     <!-- Saludo personalizado -->
     <p style="margin:0 0 20px 0; font-size:18px; color:#1e2b3c;">
-      👋 ¡Hola <strong style="color:#0a4b7a;">${escapeHtml(prestadorNombre)}</strong>!
+      Hola <strong style="color:#0a4b7a;">${escapeHtml(prestadorNombre)}</strong>.
     </p>
-    
-    <!-- Mensaje de confirmación con ícono de éxito -->
+
+    <!-- Mensaje de confirmacion -->
     <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:25px;">
       <tr>
         <td style="background:#e6f7e6; border-radius:40px; padding:15px 25px;">
-          <span style="font-size:28px; margin-right:10px;">✅</span>
-          <span style="font-size:18px; font-weight:600; color:#2e7d32;">¡Tu novedad fue registrada correctamente!</span>
+          <span style="font-size:28px; margin-right:10px;">[OK]</span>
+          <span style="font-size:18px; font-weight:600; color:#2e7d32;">Tu novedad fue registrada correctamente.</span>
         </td>
       </tr>
     </table>
-    
+
     <!-- Mensaje principal -->
     <p style="margin:0 0 15px 0; font-size:16px; color:#2c3e50;">
-      Ya fue enviada al equipo encargado para su gestión. En caso de requerir información adicional, se comunicarán contigo pronto.
+      Ya fue enviada al equipo encargado para su gestion. En caso de requerir informacion adicional, se comunicaran contigo pronto.
     </p>
-    
-    <!-- Tarjeta con número de radicado -->
+
+    <!-- Tarjeta con numero de radicado -->
     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f8ff; border-left:5px solid #e80214; border-radius:12px; margin:25px 0;">
       <tr>
         <td style="padding:18px 20px;">
-          <span style="font-size:16px; color:#0a4b7a; font-weight:600;">📋 Número de radicado:</span>
+          <span style="font-size:16px; color:#0a4b7a; font-weight:600;">Numero de radicado:</span>
           <div style="font-size:24px; font-weight:700; color:#0a4b7a; letter-spacing:1px; margin-top:5px;">${escapeHtml(String(novedad.id))}</div>
-          <div style="font-size:14px; color:#5a6f84; margin-top:5px;">Guardá este número para cualquier consulta</div>
+          <div style="font-size:14px; color:#5a6f84; margin-top:5px;">Guarda este numero para cualquier consulta</div>
         </td>
       </tr>
     </table>
-    
+
     <!-- Agradecimiento -->
     <p style="margin:20px 0 10px 0; font-size:16px; color:#2c3e50;">
       Gracias por confiar en <strong>Especialistas En Casa</strong>.
     </p>
-    
+
     <!-- Firma -->
     <div style="margin-top:25px; padding-top:15px; border-top:1px solid #e0e9f0;">
       <p style="margin:0; font-size:14px; color:#5a6f84;">
-        <span style="font-size:16px;">🏠</span> <strong style="color:#0a4b7a;">Especialistas En Casa</strong> · Salud Domiciliaria<br>
-        <span style="font-size:14px;">⚕️ Generamos experiencias extraordinarias en salud</span>
+        <strong style="color:#0a4b7a;">Especialistas En Casa</strong> - Salud Domiciliaria<br>
+        <span style="font-size:14px;">Generamos experiencias extraordinarias en salud</span>
       </p>
     </div>
-    
+
   </div>
-  
+
   <!-- Footer sutil -->
   <div style="background:#f0f5fa; padding:15px 30px; text-align:center; border-top:1px solid #d0ddee;">
     <p style="margin:0; font-size:12px; color:#6b7a8a;">
-      ⏱️ Este es un mensaje automático, por favor no responder.<br>
-      © ${new Date().getFullYear()} Especialistas En Casa
+      Este es un mensaje automatico, por favor no responder.<br>
+      (c) ${new Date().getFullYear()} Especialistas En Casa
     </p>
   </div>
-  
+
 </div>
     `.trim();
 
     // ===========================
-    // Envío de correos (con manejo de errores independiente)
+    // Envio de correos (con manejo de errores independiente)
     // ===========================
     // 1) Correo al equipo encargado
     try {
       await sendGraphMail({
         to: DESTINOS_NOTIFICACION,
-        subject: `Nueva novedad registrada (portal) – ${categoria === "PACIENTE" ? "Paciente" : "Ruta"}`,
+        subject: `Nueva novedad registrada (portal) - ${categoriaLabel}`,
         text: `Se ha registrado una nueva novedad en el portal.
-    
-Categoría: ${categoria === "PACIENTE" ? "Paciente" : "Ruta"}
+
+Categoria: ${categoriaLabel}
 
 Resumen:
 ${resumenEquipo}
@@ -577,43 +650,43 @@ ${linkAdmin}`,
           <tr>
             <td align="center">
               <table width="100%" style="max-width:600px; width:100%; background-color:#ffffff; border-radius:20px; box-shadow:0 5px 20px rgba(0,20,50,0.1); overflow:hidden;">
-                
+
                 <!-- Cabecera con logo -->
                 <tr>
                   <td style="background: linear-gradient(135deg, #e80214 0%, #e80214 100%); padding: 30px 30px 20px 30px; text-align: center;">
                     <div style="display:inline-block; background-color:white; border-radius:60px; padding:15px 30px; box-shadow:0 4px 12px rgba(0,0,0,0.1);">
                       <span style="font-size:28px; font-weight:700; color:#0a4b7a;">Especialistas</span>
                       <span style="font-size:28px; font-weight:300; color:#1a7faa;"> En Casa</span>
-                      <div style="font-size:16px; font-weight:500; color:#3a3a3a; letter-spacing:1px; margin-top:4px;">🏥 SALUD DOMICILIARIA</div>
+                      <div style="font-size:16px; font-weight:500; color:#3a3a3a; letter-spacing:1px; margin-top:4px;">SALUD DOMICILIARIA</div>
                     </div>
                   </td>
                 </tr>
-                
-                <!-- Título -->
+
+                <!-- Titulo -->
                 <tr>
                   <td style="padding: 30px 30px 10px 30px;">
-                    <h2 style="margin:0; font-size:24px; color:#1e2b3c; font-weight:600;">📬 Se registró una nueva novedad</h2>
+                    <h2 style="margin:0; font-size:24px; color:#1e2b3c; font-weight:600;">Se registro una nueva novedad</h2>
                     <div style="height:4px; width:60px; background:#1a7faa; margin:15px 0 10px 0; border-radius:2px;"></div>
                   </td>
                 </tr>
-                
-                <!-- Categoría -->
+
+                <!-- Categoria -->
                 <tr>
                   <td style="padding:0 30px 10px 30px;">
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td style="background:#e8f0fe; border-radius:30px; padding:8px 18px;">
-                          <span style="font-size:16px; color:#0a4b7a;">${categoria === "PACIENTE" ? "👤 Categoría: Paciente" : "🚐 Categoría: Ruta"}</span>
+                          <span style="font-size:16px; color:#0a4b7a;">${etiquetaCategoriaConIcono(categoriaEnum)}</span>
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
-                
+
                 <!-- Resumen -->
                 <tr>
                   <td style="padding:10px 30px 5px 30px;">
-                    <p style="margin:0 0 8px 0; font-size:16px; color:#3a4a5a; font-weight:500;">📋 Resumen de la novedad:</p>
+                    <p style="margin:0 0 8px 0; font-size:16px; color:#3a4a5a; font-weight:500;">Resumen de la novedad:</p>
                   </td>
                 </tr>
                 <tr>
@@ -627,39 +700,39 @@ ${linkAdmin}`,
                     </table>
                   </td>
                 </tr>
-                
-                <!-- Botón de acción -->
+
+                <!-- Boton de accion -->
                 <tr>
                   <td style="padding:10px 30px 20px 30px;">
                     <p style="margin:0 0 15px 0; font-size:16px; color:#2c3e50;">
-                      ⚡ Para conocer más detalles y gestionar esta novedad, ingresá al portal administrativo:
+                      Para conocer mas detalles y gestionar esta novedad, ingresa al portal administrativo:
                     </p>
                     <table cellpadding="0" cellspacing="0" border="0">
                       <tr>
                         <td style="background:#0a4b7a; border-radius:50px; box-shadow:0 4px 8px #e80214;">
-                          <a href="${escapeHtml(linkAdmin)}" style="display:inline-block; padding:14px 36px; font-size:16px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:50px;">🔐 Ir al panel →</a>
+                          <a href="${escapeHtml(linkAdmin)}" style="display:inline-block; padding:14px 36px; font-size:16px; font-weight:600; color:#ffffff; text-decoration:none; border-radius:50px;">Ir al panel</a>
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
-                
+
                 <!-- Enlace de respaldo -->
                 <tr>
                   <td style="padding:0 30px 15px 30px;">
                     <p style="margin:0; font-size:14px; color:#6b7a8a;">
-                      📎 Si el botón no funciona, copiá este enlace:<br>
+                      Si el boton no funciona, copia este enlace:<br>
                       <a href="${escapeHtml(linkAdmin)}" style="color:#1a7faa; word-break:break-all;">${escapeHtml(linkAdmin)}</a>
                     </p>
                   </td>
                 </tr>
-                
+
                 <!-- Footer -->
                 <tr>
                   <td style="padding:25px 30px 20px 30px; background:#f0f5fa; border-top:1px solid #d0ddee;">
                     <p style="margin:0; font-size:13px; color:#5a6f84; text-align:center;">
-                      ⏱️ Este es un mensaje automático del sistema de novedades.<br>
-                      © ${new Date().getFullYear()} Especialistas En Casa · Salud Domiciliaria
+                      Este es un mensaje automatico del sistema de novedades.<br>
+                      (c) ${new Date().getFullYear()} Especialistas En Casa - Salud Domiciliaria
                     </p>
                   </td>
                 </tr>
@@ -675,22 +748,22 @@ ${linkAdmin}`,
       console.error("No se pudo enviar correo al equipo:", mailErr);
     }
 
-    // 2) Confirmación al prestador (si tiene email)
+    // 2) Confirmacion al prestador (si tiene email)
     // Nota: puede ser gmail/hotmail/yahoo, Graph puede enviar a externos sin problema (si el tenant lo permite).
     if (emailPrestador) {
       try {
         await sendGraphMail({
           to: emailPrestador,
-          subject: "Confirmación: registramos tu novedad",
+          subject: "Confirmacion: registramos tu novedad",
           text: textoPrestador,
           html: htmlPrestador,
         });
       } catch (mailErr) {
-        // No bloqueamos la creación: solo log.
-        console.error("No se pudo enviar correo de confirmación al prestador:", mailErr);
+        // No bloqueamos la creacion: solo log.
+        console.error("No se pudo enviar correo de confirmacion al prestador:", mailErr);
       }
     } else {
-      console.warn("Prestador sin email registrado: no se envía confirmación. usuarioId=", u?.id);
+      console.warn("Prestador sin email registrado: no se envia confirmacion. usuarioId=", u?.id);
     }
 
     return NextResponse.json({ ok: true, id: novedad.id });

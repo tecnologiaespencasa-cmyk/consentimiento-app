@@ -20,6 +20,7 @@ type MeResp = {
   primerApellido: string;
   segundoApellido: string | null;
   username: string;
+  rol: "ESPECIALISTA" | "TECNICO" | "ADMINISTRATIVO" | "FARMACIA";
   telefono: string | null;
   cedula: string;
   profesion: string | null;
@@ -35,11 +36,11 @@ const ZONAS = [
 ];
 
 const TIPOS_DOC = [
-  { v: "CC", label: "Cédula de ciudadanía (CC)" },
+  { v: "CC", label: "Cedula de ciudadania (CC)" },
   { v: "TI", label: "Tarjeta de identidad (TI)" },
-  { v: "CE", label: "Cédula de extranjería (CE)" },
+  { v: "CE", label: "Cedula de extranjeria (CE)" },
   { v: "PA", label: "Pasaporte (PA)" },
-  { v: "PPT", label: "Permiso por Protección Temporal (PPT)" },
+  { v: "PPT", label: "Permiso por Proteccion Temporal (PPT)" },
   { v: "RC", label: "Registro civil (RC)" },
   { v: "NUIP", label: "NUIP" },
 ];
@@ -49,7 +50,7 @@ const TIPOS_PACIENTE = [
   { v: "DATOS_ERRADOS", label: "Datos errados" },
   { v: "AGENDAMIENTO", label: "Agendamiento" },
   { v: "FALLECIMIENTO", label: "Fallecimientos" },
-  { v: "HOSPITALIZACION", label: "Hospitalización" },
+  { v: "HOSPITALIZACION", label: "Hospitalizacion" },
   { v: "PROBABLE_REACCION_ALERGICA", label: "Probable reaccion alergica" },
   { v: "DOBLE_PRESTADOR", label: "Doble prestador" },
   { v: "RELACIONAMIENTO", label: "Problemas de relacionamiento" },
@@ -66,7 +67,16 @@ const TIPOS_RUTA = [
   { v: "INCAPACIDAD", label: "Incapacidad" },
   { v: "ACCIDENTE", label: "Accidente" },
   { v: "CIERRE_VIAL", label: "Cierre vial" },
-  { v: "NO_REALIZO_RUTA", label: "No realizó ruta" },
+  { v: "NO_REALIZO_RUTA", label: "No realizo ruta" },
+];
+
+const TIPOS_FARMACIA = [
+  { v: "ERROR_KARDEX", label: "Error en Kardex" },
+  { v: "ERROR_REQUISICION", label: "Error en requisicion" },
+  { v: "ERROR_AUTORIZACION", label: "Error en autorizacion" },
+  { v: "ERROR_AUXILIAR_ASIGNADO", label: "Error en auxiliar asignado" },
+  { v: "ERROR_FORMULA", label: "Error en la formula" },
+  { v: "ERROR_TODOS_LOS_DOCUMENTOS", label: "Error en todos los documentos" },
 ];
 
 function nombreCompleto(me: MeResp | null) {
@@ -176,7 +186,7 @@ export default function RegistrarNovedadForm() {
 
   const [telefono, setTelefono] = useState("");
   const [zonas, setZonas] = useState<string[]>([]);
-  const [categoria, setCategoria] = useState<"PACIENTE" | "RUTA">("PACIENTE");
+  const [categoria, setCategoria] = useState<"PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO">("PACIENTE");
 
   // paciente
   const [pacienteNombre, setPacienteNombre] = useState("");
@@ -190,8 +200,12 @@ export default function RegistrarNovedadForm() {
   const [tipoRuta, setTipoRuta] = useState("INCAPACIDAD");
   const [fotoRutaEvidencia, setFotoRutaEvidencia] = useState<File | null>(null);
   const fotoRutaInputRef = useRef<HTMLInputElement | null>(null);
+  const [tipoFarmacia, setTipoFarmacia] = useState("ERROR_KARDEX");
 
   const [descripcion, setDescripcion] = useState("");
+  const esRolFarmacia = me?.rol === "FARMACIA";
+  const puedeReportarProcesoFarmaceutico =
+    me?.rol === "FARMACIA" || me?.rol === "TECNICO" || me?.rol === "ADMINISTRATIVO";
 
   useEffect(() => {
     (async () => {
@@ -210,6 +224,19 @@ export default function RegistrarNovedadForm() {
   }, []);
 
   useEffect(() => {
+    if (!me) return;
+
+    if (esRolFarmacia && categoria !== "PROCESO_FARMACEUTICO") {
+      setCategoria("PROCESO_FARMACEUTICO");
+      return;
+    }
+
+    if (!puedeReportarProcesoFarmaceutico && categoria === "PROCESO_FARMACEUTICO") {
+      setCategoria("PACIENTE");
+    }
+  }, [me, esRolFarmacia, puedeReportarProcesoFarmaceutico, categoria]);
+
+  useEffect(() => {
     if (!(categoria === "PACIENTE" && TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPaciente))) {
       setFotoIngresoDomicilio(null);
       if (fotoInputRef.current) fotoInputRef.current.value = "";
@@ -225,9 +252,9 @@ export default function RegistrarNovedadForm() {
     const p = me?.profesion;
     if (!p) return "";
     const map: Record<string, string> = {
-      AUXILIAR_ENFERMERIA: "Auxiliar de enfermería",
-      ENFERMERIA: "Enfermería",
-      MEDICO: "Médico",
+      AUXILIAR_ENFERMERIA: "Auxiliar de enfermeria",
+      ENFERMERIA: "Enfermeria",
+      MEDICO: "Medico",
       ESPECIALISTA: "Especialista",
     };
     return map[p] ?? p;
@@ -238,9 +265,10 @@ export default function RegistrarNovedadForm() {
       categoria === "PACIENTE" && TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPaciente);
     const requiereFotoRuta =
       categoria === "RUTA" && (tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL");
+    const requiereZona = categoria !== "PROCESO_FARMACEUTICO";
 
     if (!me) return false;
-    if (zonas.length === 0) return false;
+    if (requiereZona && zonas.length === 0) return false;
     if (!descripcion.trim()) return false;
     if (categoria === "PACIENTE") {
       return !!pacienteNombre.trim() && !!pacienteDocumento.trim() && (!requiereFotoDomicilio || !!fotoIngresoDomicilio);
@@ -248,8 +276,11 @@ export default function RegistrarNovedadForm() {
     if (categoria === "RUTA") {
       return !requiereFotoRuta || !!fotoRutaEvidencia;
     }
+    if (categoria === "PROCESO_FARMACEUTICO") {
+      return !!tipoFarmacia;
+    }
     return true;
-  }, [me, zonas, descripcion, categoria, pacienteNombre, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia]);
+  }, [me, zonas, descripcion, categoria, pacienteNombre, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -264,7 +295,9 @@ export default function RegistrarNovedadForm() {
       const coordenadas = await obtenerUbicacionActual();
       const payload = new FormData();
       payload.append("telefono", telefono.trim());
-      zonas.forEach((z) => payload.append("zonas", z));
+      if (categoria !== "PROCESO_FARMACEUTICO") {
+        zonas.forEach((z) => payload.append("zonas", z));
+      }
       payload.append("categoria", categoria);
       payload.append("descripcion", descripcion.trim());
       if (coordenadas) {
@@ -281,11 +314,13 @@ export default function RegistrarNovedadForm() {
         if (TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPaciente) && fotoIngresoDomicilio) {
           payload.append("fotoIngresoDomicilio", fotoIngresoDomicilio);
         }
-      } else {
+      } else if (categoria === "RUTA") {
         payload.append("tipoRuta", tipoRuta);
         if ((tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL") && fotoRutaEvidencia) {
           payload.append("fotoRutaEvidencia", fotoRutaEvidencia);
         }
+      } else {
+        payload.append("tipoFarmacia", tipoFarmacia);
       }
 
       const res = await fetch("/api/novedades", {
@@ -302,7 +337,7 @@ export default function RegistrarNovedadForm() {
 
       // reset parcial
       setZonas([]);
-      setCategoria("PACIENTE");
+      setCategoria(esRolFarmacia ? "PROCESO_FARMACEUTICO" : "PACIENTE");
       setPacienteNombre("");
       setPacienteTipoDoc("CC");
       setPacienteDocumento("");
@@ -310,6 +345,7 @@ export default function RegistrarNovedadForm() {
       setFotoIngresoDomicilio(null);
       if (fotoInputRef.current) fotoInputRef.current.value = "";
       setTipoRuta("INCAPACIDAD");
+      setTipoFarmacia("ERROR_KARDEX");
       setFotoRutaEvidencia(null);
       if (fotoRutaInputRef.current) fotoRutaInputRef.current.value = "";
       setDescripcion("");
@@ -343,7 +379,7 @@ export default function RegistrarNovedadForm() {
             </div>
           ) : !me ? (
             <div className="p-6 bg-red-50 border border-red-200 rounded-2xl text-red-700">
-              No se pudo cargar tu información. Intenta recargar la página.
+              No se pudo cargar tu informacion. Intenta recargar la pagina.
             </div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-6">
@@ -364,7 +400,7 @@ export default function RegistrarNovedadForm() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     <FaIdCard className="inline-block mr-2 text-red-500" />
-                    Cédula
+                    Cedula
                   </label>
                   <input
                     value={me.cedula}
@@ -376,7 +412,7 @@ export default function RegistrarNovedadForm() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     <FaUserMd className="inline-block mr-2 text-red-500" />
-                    Profesión
+                    Profesion
                   </label>
                   <input
                     value={profesionLabel}
@@ -388,7 +424,7 @@ export default function RegistrarNovedadForm() {
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     <FaPhone className="inline-block mr-2 text-red-500" />
-                    Teléfono (editable)
+                    Telefono (editable)
                   </label>
                   <input
                     value={telefono}
@@ -400,79 +436,108 @@ export default function RegistrarNovedadForm() {
                 </div>
               </div>
 
-              {/* Zonas */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  <FaMapMarkedAlt className="inline-block mr-2 text-red-500" />
-                  Zona (puedes seleccionar varias)
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {ZONAS.map((z) => {
-                    const checked = zonas.includes(z.v);
-                    return (
-                      <button
-                        type="button"
-                        key={z.v}
-                        onClick={() =>
-                          setZonas((prev) =>
-                            checked ? prev.filter((x) => x !== z.v) : [...prev, z.v]
-                          )
-                        }
-                        className={`text-left px-4 py-3 rounded-2xl border transition-all ${
-                          checked
-                            ? "bg-red-50 border-red-300 text-red-700"
-                            : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm">{z.label}</span>
-                          <span
-                            className={`text-xs px-2 py-1 rounded-full ${
-                              checked ? "bg-red-100" : "bg-gray-100"
-                            }`}
-                          >
-                            {checked ? "Seleccionada" : "Seleccionar"}
-                          </span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Categoría */}
+              {/* Categoria */}
               <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
                 <label className="block text-sm font-semibold text-gray-700 mb-3">
                   <FaClipboardList className="inline-block mr-2 text-red-500" />
                   Datos de la novedad
                 </label>
                 <div className="flex flex-col md:flex-row gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setCategoria("PACIENTE")}
-                    className={`px-4 py-3 rounded-2xl border transition-all text-left ${
-                      categoria === "PACIENTE"
-                        ? "bg-white border-red-300 shadow-sm"
-                        : "bg-white/60 border-gray-200 hover:bg-white"
-                    }`}
-                  >
-                    <p className="font-extrabold text-gray-900">Novedad con un paciente</p>
-                    <p className="text-xs text-gray-600">Incluye datos del paciente y tipo de novedad.</p>
-                  </button>
+                  {esRolFarmacia ? (
+                    <button
+                      type="button"
+                      onClick={() => setCategoria("PROCESO_FARMACEUTICO")}
+                      className="px-4 py-3 rounded-2xl border border-red-300 bg-white shadow-sm text-left"
+                    >
+                      <p className="font-extrabold text-gray-900">Novedad en proceso farmaceutico</p>
+                      <p className="text-xs text-gray-600">Error en documentos trazadores en farmacia.</p>
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setCategoria("PACIENTE")}
+                        className={`px-4 py-3 rounded-2xl border transition-all text-left ${
+                          categoria === "PACIENTE"
+                            ? "bg-white border-red-300 shadow-sm"
+                            : "bg-white/60 border-gray-200 hover:bg-white"
+                        }`}
+                      >
+                        <p className="font-extrabold text-gray-900">Novedad con un paciente</p>
+                        <p className="text-xs text-gray-600">Incluye datos del paciente y tipo de novedad.</p>
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setCategoria("RUTA")}
-                    className={`px-4 py-3 rounded-2xl border transition-all text-left ${
-                      categoria === "RUTA"
-                        ? "bg-white border-red-300 shadow-sm"
-                        : "bg-white/60 border-gray-200 hover:bg-white"
-                    }`}
-                  >
-                    <p className="font-extrabold text-gray-900">Novedad en la ruta</p>
-                    <p className="text-xs text-gray-600">Incapacidad, accidente, cierre vial, etc.</p>
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => setCategoria("RUTA")}
+                        className={`px-4 py-3 rounded-2xl border transition-all text-left ${
+                          categoria === "RUTA"
+                            ? "bg-white border-red-300 shadow-sm"
+                            : "bg-white/60 border-gray-200 hover:bg-white"
+                        }`}
+                      >
+                        <p className="font-extrabold text-gray-900">Novedad en la ruta</p>
+                        <p className="text-xs text-gray-600">Incapacidad, accidente, cierre vial, etc.</p>
+                      </button>
+
+                      {puedeReportarProcesoFarmaceutico ? (
+                        <button
+                          type="button"
+                          onClick={() => setCategoria("PROCESO_FARMACEUTICO")}
+                          className={`px-4 py-3 rounded-2xl border transition-all text-left ${
+                            categoria === "PROCESO_FARMACEUTICO"
+                              ? "bg-white border-red-300 shadow-sm"
+                              : "bg-white/60 border-gray-200 hover:bg-white"
+                          }`}
+                        >
+                          <p className="font-extrabold text-gray-900">Novedad en proceso farmaceutico</p>
+                          <p className="text-xs text-gray-600">Error en documentos trazadores en farmacia.</p>
+                        </button>
+                      ) : null}
+                    </>
+                  )}
                 </div>
+
+                {categoria !== "PROCESO_FARMACEUTICO" ? (
+                  <div className="mt-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      <FaMapMarkedAlt className="inline-block mr-2 text-red-500" />
+                      Zona (puedes seleccionar varias)
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {ZONAS.map((z) => {
+                        const checked = zonas.includes(z.v);
+                        return (
+                          <button
+                            type="button"
+                            key={z.v}
+                            onClick={() =>
+                              setZonas((prev) =>
+                                checked ? prev.filter((x) => x !== z.v) : [...prev, z.v]
+                              )
+                            }
+                            className={`text-left px-4 py-3 rounded-2xl border transition-all ${
+                              checked
+                                ? "bg-red-50 border-red-300 text-red-700"
+                                : "bg-white border-gray-200 text-gray-700 hover:bg-gray-50"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-semibold text-sm">{z.label}</span>
+                              <span
+                                className={`text-xs px-2 py-1 rounded-full ${
+                                  checked ? "bg-red-100" : "bg-gray-100"
+                                }`}
+                              >
+                                {checked ? "Seleccionada" : "Seleccionar"}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : null}
 
                 {/* Campos condicionales */}
                 {categoria === "PACIENTE" ? (
@@ -483,7 +548,7 @@ export default function RegistrarNovedadForm() {
                         value={pacienteNombre}
                         onChange={(e) => setPacienteNombre(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-                        placeholder="Ej: María Gómez"
+                        placeholder="Ej: Maria Gomez"
                         disabled={saving}
                       />
                     </div>
@@ -503,7 +568,7 @@ export default function RegistrarNovedadForm() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Número de documento</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Numero de documento</label>
                       <input
                         value={pacienteDocumento}
                         onChange={(e) => setPacienteDocumento(e.target.value)}
@@ -548,7 +613,7 @@ export default function RegistrarNovedadForm() {
                       </div>
                     ) : null}
                   </div>
-                ) : (
+                ) : categoria === "RUTA" ? (
                   <div className="mt-4">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de novedad</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -584,12 +649,32 @@ export default function RegistrarNovedadForm() {
                       </div>
                     ) : null}
                   </div>
+                ) : (
+                  <div className="mt-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de novedad</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {TIPOS_FARMACIA.map((t) => (
+                        <button
+                          key={t.v}
+                          type="button"
+                          onClick={() => setTipoFarmacia(t.v)}
+                          className={`px-3 py-2 rounded-xl border text-sm text-left transition-all ${
+                            tipoFarmacia === t.v
+                              ? "bg-red-50 border-red-300 text-red-700"
+                              : "bg-white border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
 
-              {/* Descripción */}
+              {/* Descripcion */}
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción de la novedad</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Descripcion de la novedad</label>
                 <textarea
                   value={descripcion}
                   onChange={(e) => setDescripcion(e.target.value)}
@@ -599,7 +684,7 @@ export default function RegistrarNovedadForm() {
                   disabled={saving}
                 />
                 <div className="mt-2 text-xs text-gray-500">
-                  Se enviará el detalle de la novedad al personal administrativo encargado para su gestión.
+                  Se enviara el detalle de la novedad al personal administrativo encargado para su gestion.
                 </div>
               </div>
 

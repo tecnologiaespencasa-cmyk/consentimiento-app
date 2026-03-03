@@ -741,6 +741,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
+  if (session.user.rol === "FARMACIA") {
+    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+  }
+
   try {
     const formData = await req.formData();
 

@@ -85,6 +85,7 @@ model Novedad {
 
   // Campos para novedad en ruta
   tipoRuta           TipoNovedadRuta?
+  tipoFarmacia       TipoNovedadFarmacia?
 
   descripcion        String
   ubicacionLatitud   Float?
@@ -104,6 +105,7 @@ enum Rol {
   ESPECIALISTA
   ADMINISTRATIVO
   TECNICO
+  FARMACIA
 }
 
 enum Profesion {
@@ -128,6 +130,7 @@ enum Zona {
 enum CategoriaNovedad {
   PACIENTE
   RUTA
+  PROCESO_FARMACEUTICO
 }
 
 enum TipoDocumento {
@@ -158,6 +161,15 @@ enum TipoNovedadRuta {
   ACCIDENTE
   CIERRE_VIAL
   NO_REALIZO_RUTA
+}
+
+enum TipoNovedadFarmacia {
+  ERROR_KARDEX
+  ERROR_REQUISICION
+  ERROR_AUTORIZACION
+  ERROR_AUXILIAR_ASIGNADO
+  ERROR_FORMULA
+  ERROR_TODOS_LOS_DOCUMENTOS
 }
 
 enum EstadoNovedad {

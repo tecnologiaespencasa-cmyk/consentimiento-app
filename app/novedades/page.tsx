@@ -20,7 +20,7 @@ export default async function NovedadesHome() {
             Novedades
           </h1>
           <p className="text-red-100 text-lg">
-            Registra y gestiona novedades del personal en ruta (paciente / ruta).
+            Registra y gestiona novedades del personal (paciente / ruta / proceso farmaceutico).
           </p>
         </div>
       </div>

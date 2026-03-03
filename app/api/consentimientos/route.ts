@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
     let where: any = {}
 
-    if (mine || rol === "ESPECIALISTA") {
+    if (mine || rol === "ESPECIALISTA" || rol === "FARMACIA") {
         where = { usuarioId: id }
     }
 
@@ -40,6 +40,10 @@ export async function POST(req: Request) {
 
     if (!session?.user?.id) {
         return NextResponse.json({ error: "No autorizado" }, { status: 401 })
+    }
+
+    if (session.user.rol === "FARMACIA") {
+        return NextResponse.json({ error: "No autorizado" }, { status: 403 })
     }
 
     try {

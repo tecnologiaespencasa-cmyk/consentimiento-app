@@ -25,6 +25,18 @@ export default withAuth(
     const rol = token?.rol ?? ""
     const pathname = req.nextUrl.pathname
 
+    // El rol farmacia solo gestiona novedades propias del proceso farmaceutico.
+    if (
+      rol === "FARMACIA" &&
+      (
+        pathname.startsWith("/consentimiento") ||
+        pathname.startsWith("/consentimientos") ||
+        pathname.startsWith("/mis-consentimientos")
+      )
+    ) {
+      return withSecurityHeaders(NextResponse.redirect(new URL("/novedades", req.url)))
+    }
+
     // Pagina de carga de consentimiento (todos)
     if (
       pathname.startsWith("/consentimiento") &&

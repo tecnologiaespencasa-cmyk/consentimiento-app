@@ -86,6 +86,7 @@ export default function CrearUsuarioForm() {
   const rolDescriptions: Record<string, string> = {
     ADMINISTRATIVO: "Acceso completo a todas las funciones del sistema",
     TECNICO: "Puede ver todos los consentimientos y novedades",
+    FARMACIA: "Solo reporta novedades de proceso farmaceutico y ve sus propias novedades",
     ESPECIALISTA: "Solo puede ver sus propios consentimientos y novedades"
   }
 
@@ -300,6 +301,7 @@ export default function CrearUsuarioForm() {
           >
             <option value="ESPECIALISTA">Especialista</option>
             <option value="TECNICO">Técnico</option>
+            <option value="FARMACIA">Farmacia</option>
             <option value="ADMINISTRATIVO">Administrativo</option>
           </select>
           <p className="text-xs text-gray-500 mt-2">{rolDescriptions[formData.rol]}</p>

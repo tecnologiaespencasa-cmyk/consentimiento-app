@@ -80,6 +80,7 @@ export default function UsuariosFiltros({
             <option value="">Todos</option>
             <option value="ADMINISTRATIVO">ADMINISTRATIVO</option>
             <option value="TECNICO">TECNICO</option>
+            <option value="FARMACIA">FARMACIA</option>
             <option value="ESPECIALISTA">ESPECIALISTA</option>
           </select>
         </div>

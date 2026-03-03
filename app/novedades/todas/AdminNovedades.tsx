@@ -23,7 +23,7 @@ type CurrentUser = {
   nombre: string;
 };
 
-type CategoriaFiltro = "" | "PACIENTE" | "RUTA";
+type CategoriaFiltro = "" | "PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO";
 type UsuarioNovedad = {
   username?: string | null;
   nombres?: string | null;
@@ -59,6 +59,7 @@ type Novedad = {
   fotoRutaEvidenciaNombre?: string | null;
   fotoRutaEvidenciaMimeType?: string | null;
   tipoRuta?: string | null;
+  tipoFarmacia?: string | null;
   descripcion?: string | null;
   ubicacionLatitud?: number | null;
   ubicacionLongitud?: number | null;
@@ -120,7 +121,7 @@ function getErrorMessage(error: unknown, fallback = "Error") {
 }
 
 function toCategoriaFiltro(value: string): CategoriaFiltro {
-  if (value === "PACIENTE" || value === "RUTA") return value;
+  if (value === "PACIENTE" || value === "RUTA" || value === "PROCESO_FARMACEUTICO") return value;
   return "";
 }
 
@@ -192,6 +193,7 @@ export default function AdminNovedades({
         n.categoria,
         n.tipoPaciente,
         n.tipoRuta,
+        n.tipoFarmacia,
         n.pacienteNombre,
         n.pacienteTipoDoc,
         n.pacienteDocumento,
@@ -284,6 +286,7 @@ export default function AdminNovedades({
       "fotoRutaEvidenciaNombre",
       "fotoRutaEvidenciaMimeType",
       "tipoRuta",
+      "tipoFarmacia",
       "descripcion",
       "ubicacionLatitud",
       "ubicacionLongitud",
@@ -326,6 +329,7 @@ export default function AdminNovedades({
       n.fotoRutaEvidenciaNombre ?? "",
       n.fotoRutaEvidenciaMimeType ?? "",
       n.tipoRuta ?? "",
+      n.tipoFarmacia ?? "",
       n.descripcion ?? "",
       n.ubicacionLatitud ?? "",
       n.ubicacionLongitud ?? "",
@@ -504,6 +508,7 @@ export default function AdminNovedades({
                   <option value="">Todas</option>
                   <option value="PACIENTE">Paciente</option>
                   <option value="RUTA">Ruta</option>
+                  <option value="PROCESO_FARMACEUTICO">Proceso farmaceutico</option>
                 </select>
               </div>
 
@@ -643,7 +648,12 @@ export default function AdminNovedades({
                 {pageData.map((n) => {
                   const b = estadoBadge(n.estado);
                   const Icon = b.icon;
-                  const tipo = n.categoria === "PACIENTE" ? n.tipoPaciente : n.tipoRuta;
+                  const tipo =
+                    n.categoria === "PACIENTE"
+                      ? n.tipoPaciente
+                      : n.categoria === "RUTA"
+                      ? n.tipoRuta
+                      : n.tipoFarmacia;
                   const fotoEvidenciaUrl = n.fotoIngresoDomicilioUrl ?? n.fotoRutaEvidenciaUrl;
                   const tieneUbicacion = coordenadasValidas(n.ubicacionLatitud, n.ubicacionLongitud);
                   const ubicacionGoogleMapsUrl = tieneUbicacion
@@ -806,7 +816,13 @@ export default function AdminNovedades({
                   <span className="font-semibold">Categoria:</span> {edit.categoria || "No registrada"}
                 </p>
                 <p className="text-sm text-gray-700 mt-1">
-                  <span className="font-semibold">Tipo:</span> {(edit.categoria === "PACIENTE" ? edit.tipoPaciente : edit.tipoRuta) || "No registrado"}
+                  <span className="font-semibold">Tipo:</span> {(
+                    edit.categoria === "PACIENTE"
+                      ? edit.tipoPaciente
+                      : edit.categoria === "RUTA"
+                      ? edit.tipoRuta
+                      : edit.tipoFarmacia
+                  ) || "No registrado"}
                 </p>
                 <p className="text-sm text-gray-700 mt-1">
                   <span className="font-semibold">Fecha:</span> {fmtDate(edit.createdAt)}
@@ -828,7 +844,7 @@ export default function AdminNovedades({
                     </p>
                   </>
                 ) : (
-                  <p className="text-sm text-gray-600">No aplica para novedades de ruta.</p>
+                  <p className="text-sm text-gray-600">No aplica para novedades sin paciente.</p>
                 )}
               </div>
             </div>

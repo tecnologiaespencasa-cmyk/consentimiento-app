@@ -1,0 +1,18 @@
+-- AlterEnum
+ALTER TYPE "Rol" ADD VALUE IF NOT EXISTS 'FARMACIA';
+
+-- AlterEnum
+ALTER TYPE "CategoriaNovedad" ADD VALUE IF NOT EXISTS 'PROCESO_FARMACEUTICO';
+
+-- CreateEnum
+CREATE TYPE "TipoNovedadFarmacia" AS ENUM (
+  'ERROR_KARDEX',
+  'ERROR_REQUISICION',
+  'ERROR_AUTORIZACION',
+  'ERROR_AUXILIAR_ASIGNADO',
+  'ERROR_FORMULA',
+  'ERROR_TODOS_LOS_DOCUMENTOS'
+);
+
+-- AlterTable
+ALTER TABLE "Novedad" ADD COLUMN "tipoFarmacia" "TipoNovedadFarmacia";

@@ -54,13 +54,13 @@ export default async function UsuariosPage({
   const rol = (Array.isArray(sp.rol) ? sp.rol[0] : sp.rol) ?? ""
   const estado = (Array.isArray(sp.estado) ? sp.estado[0] : sp.estado) ?? "" // "activo" | "inactivo" | ""
 
-  // paginación
+  // paginacion
   const page = toInt(Array.isArray(sp.page) ? sp.page[0] : sp.page, 1)
   const take = PAGE_SIZE
 
   const where: any = {}
 
-  if (rol && ["ADMINISTRATIVO", "TECNICO", "ESPECIALISTA"].includes(rol)) {
+  if (rol && ["ADMINISTRATIVO", "TECNICO", "FARMACIA", "ESPECIALISTA"].includes(rol)) {
     where.rol = rol
   }
 
@@ -78,13 +78,13 @@ export default async function UsuariosPage({
     ]
   }
 
-  // Conteo para paginación (FILTRADO)
+  // Conteo para paginacion (FILTRADO)
   const totalFiltrados = await prisma.user.count({ where })
   const totalPages = Math.max(1, Math.ceil(totalFiltrados / PAGE_SIZE))
   const safePage = Math.min(page, totalPages)
   const safeSkip = (safePage - 1) * PAGE_SIZE
 
-  // Traer 20 por página
+  // Traer 20 por pagina
   const usuarios = await prisma.user.findMany({
     where,
     orderBy: { username: "asc" },
@@ -103,21 +103,22 @@ export default async function UsuariosPage({
     },
   })
 
-  // Estadísticas globales (SI O SI se muestran)
+  // Estadisticas globales (SI O SI se muestran)
   const [totalUsuarios, activos] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { activo: true } }),
   ])
 
-  // Estadísticas por rol (se mantienen)
-  const [administradores, tecnicos, especialistas, inactivos] = await Promise.all([
+  // Estadisticas por rol (se mantienen)
+  const [administradores, tecnicos, farmacias, especialistas, inactivos] = await Promise.all([
     prisma.user.count({ where: { rol: "ADMINISTRATIVO" } }),
     prisma.user.count({ where: { rol: "TECNICO" } }),
+    prisma.user.count({ where: { rol: "FARMACIA" } }),
     prisma.user.count({ where: { rol: "ESPECIALISTA" } }),
     prisma.user.count({ where: { activo: false } }),
   ])
 
-  const showingText = `Mostrando ${totalFiltrados} usuario(s) • Página ${safePage}/${totalPages}`
+  const showingText = `Mostrando ${totalFiltrados} usuario(s) - Pagina ${safePage}/${totalPages}`
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
@@ -131,10 +132,10 @@ export default async function UsuariosPage({
 
               <div className="min-w-0">
                 <h1 className="text-lg md:text-xl font-extrabold text-gray-900 truncate">
-                  Administación de usuarios
+                  Administracion de usuarios
                 </h1>
                 <p className="text-xs md:text-sm text-gray-600 truncate">
-                  Administración del acceso, roles y contraseñas del personal.
+                  Administracion del acceso, roles y contrasenas del personal.
                 </p>
               </div>
             </div>
@@ -153,16 +154,16 @@ export default async function UsuariosPage({
             </div>
           </div>
 
-          {/* Segunda línea: “Mostrando…” (compacta) */}
+          {/* Segunda linea: "Mostrando..." (compacta) */}
           <div className="mt-2 text-xs text-gray-600">
             {showingText}
           </div>
         </div>
       </div>
 
-      {/* ✅ Cards por rol (se mantienen igual, con sus logos) */}
+      {/* Cards por rol (se mantienen igual, con sus logos) */}
       <div className="p-[5px]mx-auto px-4 pt-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <div className="bg-white p-5 rounded-2xl shadow-lg border-l-4 border-red-500">
             <div className="flex items-center justify-between">
               <div>
@@ -179,7 +180,7 @@ export default async function UsuariosPage({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-2xl font-bold text-gray-900">{tecnicos}</p>
-                <p className="text-sm text-gray-600 mt-1">Técnicos</p>
+                <p className="text-sm text-gray-600 mt-1">Tecnicos</p>
               </div>
               <div className="p-3 bg-blue-100 rounded-full">
                 <FaUserCog className="text-xl text-blue-600" />
@@ -187,6 +188,17 @@ export default async function UsuariosPage({
             </div>
           </div>
 
+          <div className="bg-white p-5 rounded-2xl shadow-lg border-l-4 border-purple-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{farmacias}</p>
+                <p className="text-sm text-gray-600 mt-1">Farmacia</p>
+              </div>
+              <div className="p-3 bg-purple-100 rounded-full">
+                <FaUserCog className="text-xl text-purple-600" />
+              </div>
+            </div>
+          </div>
           <div className="bg-white p-5 rounded-2xl shadow-lg border-l-4 border-green-500">
             <div className="flex items-center justify-between">
               <div>
@@ -230,7 +242,7 @@ export default async function UsuariosPage({
                 <div className="flex items-center justify-between">
                   <h2 className="text-xl font-bold text-gray-800">Lista de Usuarios</h2>
                   <span className="text-sm text-gray-600">
-                    Página {safePage} de {totalPages} • {totalFiltrados} resultados
+                    Pagina {safePage} de {totalPages} - {totalFiltrados} resultados
                   </span>
                 </div>
               </div>
@@ -240,7 +252,7 @@ export default async function UsuariosPage({
                   <h3 className="text-lg font-semibold text-gray-800 mb-2">
                     No hay usuarios para esos filtros
                   </h3>
-                  <p className="text-gray-600">Prueba cambiando el filtro o limpiándolo.</p>
+                  <p className="text-gray-600">Prueba cambiando el filtro o limpiandolo.</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -271,6 +283,8 @@ export default async function UsuariosPage({
                                     ? "bg-red-100 text-red-600"
                                     : u.rol === "TECNICO"
                                     ? "bg-blue-100 text-blue-600"
+                                    : u.rol === "FARMACIA"
+                                    ? "bg-purple-100 text-purple-600"
                                     : "bg-green-100 text-green-600"
                                 }`}
                               >
@@ -291,6 +305,8 @@ export default async function UsuariosPage({
                                   ? "bg-red-100 text-red-800"
                                   : u.rol === "TECNICO"
                                   ? "bg-blue-100 text-blue-800"
+                                  : u.rol === "FARMACIA"
+                                  ? "bg-purple-100 text-purple-800"
                                   : "bg-green-100 text-green-800"
                               }`}
                             >
@@ -331,7 +347,7 @@ export default async function UsuariosPage({
               <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-3">
                   <div className="text-sm text-gray-600">
-                    <span className="font-semibold">Tu sesión:</span>{" "}
+                    <span className="font-semibold">Tu sesion:</span>{" "}
                     {nombreCorto(session.user as any)} ({session.user.rol})
                   </div>
 
@@ -345,7 +361,7 @@ export default async function UsuariosPage({
                 </div>
 
                 <div className="mt-2 text-xs text-gray-500 text-right">
-                  Máx. {PAGE_SIZE} por página
+                  Max. {PAGE_SIZE} por pagina
                 </div>
               </div>
             </div>

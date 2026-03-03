@@ -50,6 +50,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         categoria: true,
         tipoPaciente: true,
         tipoRuta: true,
+        tipoFarmacia: true,
         usuario: {
           select: {
             email: true,
@@ -117,7 +118,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       const emailPrestador = safeStr(novedadActual.usuario?.email);
       if (emailPrestador) {
         const prestadorNombre = safeStr(novedadActual.prestadorNombre) || "prestador";
-        const tipoNovedad = novedadActual.categoria === "PACIENTE" ? novedadActual.tipoPaciente : novedadActual.tipoRuta;
+        const tipoNovedad =
+          novedadActual.categoria === "PACIENTE"
+            ? novedadActual.tipoPaciente
+            : novedadActual.categoria === "RUTA"
+            ? novedadActual.tipoRuta
+            : novedadActual.tipoFarmacia;
 
         const text = [
           `Hola ${prestadorNombre},`,
