@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/jobs/novedades-farmacia-sin-gestionar",
+      "schedule": "* * * * *"
+    }
+  ]
+}
