@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { sendGraphMail } from "@/lib/sendGraphMail";
 import { sendTeamsWebhook } from "@/lib/sendTeamsWebhook";
 import { uploadToSharePointWithInfo } from "@/lib/uploadToSharePoint";
+import { notificarNovedadesFarmaciaSinGestion } from "@/lib/notificarNovedadesFarmaciaSinGestion";
 import {
   Prisma,
   Zona,
@@ -154,6 +155,12 @@ async function buildNovedadRadicado(cedula: string) {
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  try {
+    await notificarNovedadesFarmaciaSinGestion();
+  } catch (error) {
+    console.error("No se pudo procesar alerta de novedades farmacia sin gestionar:", error);
+  }
 
   const { searchParams } = new URL(req.url);
   const mine = searchParams.get("mine") === "true";
@@ -764,6 +771,12 @@ ${linkAdmin}`,
       }
     } else {
       console.warn("Prestador sin email registrado: no se envia confirmacion. usuarioId=", u?.id);
+    }
+
+    try {
+      await notificarNovedadesFarmaciaSinGestion();
+    } catch (error) {
+      console.error("No se pudo procesar alerta de novedades farmacia sin gestionar:", error);
     }
 
     return NextResponse.json({ ok: true, id: novedad.id });

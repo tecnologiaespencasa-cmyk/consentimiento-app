@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 import { sendGraphMail } from "@/lib/sendGraphMail";
+import { notificarNovedadesFarmaciaSinGestion } from "@/lib/notificarNovedadesFarmaciaSinGestion";
 
 function nombreCompleto(u: any) {
   return `${u?.nombres ?? ""} ${u?.primerApellido ?? ""} ${u?.segundoApellido ?? ""}`
@@ -196,6 +197,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       } else {
         console.warn("Prestador sin email registrado: no se envia confirmacion de cierre. novedadId=", updated.id);
       }
+    }
+
+    try {
+      await notificarNovedadesFarmaciaSinGestion();
+    } catch (error) {
+      console.error("No se pudo procesar alerta de novedades farmacia sin gestionar:", error);
     }
 
     return NextResponse.json({ ok: true, novedad: updated });

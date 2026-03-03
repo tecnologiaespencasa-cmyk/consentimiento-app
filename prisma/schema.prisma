@@ -96,6 +96,7 @@ model Novedad {
   prioridad          Prioridad      @default(MEDIA)
   asignadoA          String?
   notasInternas      String?
+  notificacionFarmaciaSinGestionAt DateTime?
 
   usuarioId          String
   usuario            User          @relation(fields: [usuarioId], references: [id])
