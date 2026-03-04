@@ -96,6 +96,8 @@ model Novedad {
   prioridad          Prioridad      @default(MEDIA)
   asignadoA          String?
   notasInternas      String?
+  farmaciaCorregida  Boolean        @default(false)
+  farmaciaCorregidaAt DateTime?
   notificacionFarmaciaSinGestionAt DateTime?
 
   usuarioId          String

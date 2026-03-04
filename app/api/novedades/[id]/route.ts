@@ -28,17 +28,75 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const session = await getServerSession(authOptions);
   if (!session?.user) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const { rol } = session.user as any;
-  if (!(rol === "ADMINISTRATIVO" || rol === "TECNICO")) {
-    return NextResponse.json({ error: "No autorizado" }, { status: 403 });
-  }
+  const usuarioActual = session.user as any;
+  const rol = String(usuarioActual?.rol || "");
+  const usuarioId = String(usuarioActual?.id || "");
 
   const { id } = await params;
   try {
     const body = await req.json();
+    const tieneCampoFarmaciaCorregida = Object.prototype.hasOwnProperty.call(body ?? {}, "farmaciaCorregida");
+
+    if (rol === "FARMACIA") {
+      if (!tieneCampoFarmaciaCorregida) {
+        return NextResponse.json(
+          { error: "Debe indicar el campo farmaciaCorregida para actualizar la novedad" },
+          { status: 400 }
+        );
+      }
+
+      if (typeof body?.farmaciaCorregida !== "boolean") {
+        return NextResponse.json(
+          { error: "El campo farmaciaCorregida debe ser verdadero o falso" },
+          { status: 400 }
+        );
+      }
+
+      const novedadFarmacia = await prisma.novedad.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          categoria: true,
+          usuarioId: true,
+        },
+      });
+
+      if (!novedadFarmacia) {
+        return NextResponse.json({ error: "Novedad no encontrada" }, { status: 404 });
+      }
+
+      if (novedadFarmacia.categoria !== "PROCESO_FARMACEUTICO" || novedadFarmacia.usuarioId !== usuarioId) {
+        return NextResponse.json(
+          { error: "Solo puedes marcar tus propias novedades de proceso farmaceutico" },
+          { status: 403 }
+        );
+      }
+
+      const farmaciaCorregida = Boolean(body.farmaciaCorregida);
+      const updated = await prisma.novedad.update({
+        where: { id },
+        data: {
+          farmaciaCorregida,
+          farmaciaCorregidaAt: farmaciaCorregida ? new Date() : null,
+        } as any,
+      });
+
+      return NextResponse.json({ ok: true, novedad: updated });
+    }
+
+    if (!(rol === "ADMINISTRATIVO" || rol === "TECNICO")) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
+
+    if (tieneCampoFarmaciaCorregida || Object.prototype.hasOwnProperty.call(body ?? {}, "farmaciaCorregidaAt")) {
+      return NextResponse.json(
+        { error: "El campo de novedad corregida solo puede actualizarlo el rol farmacia desde Mis novedades" },
+        { status: 403 }
+      );
+    }
+
     const { estado, prioridad, asignadoA, notasInternas } = body ?? {};
     const esAdmin = rol === "ADMINISTRATIVO";
-    const usuarioActual = session.user as any;
     const nombreUsuarioActual = nombreCompleto(usuarioActual) || usuarioActual?.username || "";
 
     const novedadActual = await prisma.novedad.findUnique({

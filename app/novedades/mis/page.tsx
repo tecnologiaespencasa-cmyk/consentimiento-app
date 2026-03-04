@@ -1,9 +1,50 @@
-import { getServerSession } from "next-auth";
+﻿import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { FaArrowLeft, FaListAlt, FaClock, FaCheckCircle, FaSpinner } from "react-icons/fa";
+import FarmaciaCorregidaToggle from "./FarmaciaCorregidaToggle";
+
+const TIPOS_FARMACIA_LABEL: Record<string, string> = {
+  ERROR_KARDEX: "Error en kardex",
+  ERROR_REQUISICION: "Error en requisicion",
+  ERROR_AUTORIZACION: "Error en autorizacion",
+  ERROR_AUXILIAR_ASIGNADO: "Error en auxiliar asignado",
+  ERROR_FORMULA: "Error en la formula",
+  ERROR_TODOS_LOS_DOCUMENTOS: "Error en todos los documentos",
+};
+
+function normalizarTextoEnum(value: string) {
+  return value
+    .toLowerCase()
+    .split("_")
+    .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : ""))
+    .join(" ");
+}
+
+function etiquetaTipoNovedad(n: {
+  categoria: string;
+  tipoPaciente?: string | null;
+  tipoRuta?: string | null;
+  tipoFarmacia?: string | null;
+}) {
+  if (n.categoria === "PACIENTE") {
+    return n.tipoPaciente ? normalizarTextoEnum(n.tipoPaciente) : "Sin tipo";
+  }
+
+  if (n.categoria === "RUTA") {
+    return n.tipoRuta ? normalizarTextoEnum(n.tipoRuta) : "Sin tipo";
+  }
+
+  if (!n.tipoFarmacia) return "Sin tipo";
+  return TIPOS_FARMACIA_LABEL[n.tipoFarmacia] ?? normalizarTextoEnum(n.tipoFarmacia);
+}
+
+function etiquetaZonas(zonas: string[] | null | undefined) {
+  if (!zonas?.length) return "No aplica";
+  return zonas.map((z) => normalizarTextoEnum(z)).join(", ");
+}
 
 function badgeEstado(estado: string) {
   const map: Record<string, { cls: string; icon: any; label: string }> = {
@@ -19,9 +60,10 @@ export default async function MisNovedadesPage() {
   if (!session?.user) redirect("/login");
 
   const u = session.user as any;
+  const esRolFarmacia = u.rol === "FARMACIA";
   const where: any = { usuarioId: u.id };
 
-  if (u.rol === "FARMACIA") {
+  if (esRolFarmacia) {
     where.categoria = "PROCESO_FARMACEUTICO";
   } else if (u.rol === "ESPECIALISTA") {
     where.NOT = { categoria: "PROCESO_FARMACEUTICO" };
@@ -71,35 +113,64 @@ export default async function MisNovedadesPage() {
                     : n.categoria === "RUTA"
                     ? "Ruta"
                     : "Proceso farmaceutico";
-                const tipoLabel =
-                  n.categoria === "PACIENTE"
-                    ? (n.tipoPaciente ?? "-")
-                    : n.categoria === "RUTA"
-                    ? (n.tipoRuta ?? "-")
-                    : (((n as { tipoFarmacia?: string | null }).tipoFarmacia) ?? "-");
+                const tipoLabel = etiquetaTipoNovedad({
+                  categoria: n.categoria,
+                  tipoPaciente: n.tipoPaciente,
+                  tipoRuta: n.tipoRuta,
+                  tipoFarmacia: (n as { tipoFarmacia?: string | null }).tipoFarmacia,
+                });
                 return (
                   <div
                     key={n.id}
-                    className="rounded-2xl border border-gray-200 p-4 hover:shadow-sm transition-all"
+                    className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm hover:shadow-md transition-all"
                   >
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-sm text-gray-500">{new Date(n.createdAt).toLocaleString()}</p>
-                        <p className="text-xs text-gray-500 mt-1">ID: {n.id}</p>
-                        <p className="font-extrabold text-gray-900 truncate">
-                          {categoriaLabel} â€¢ {tipoLabel}
-                        </p>
-                        <p className="text-sm text-gray-700 mt-1 line-clamp-50">
-                          {n.descripcion}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-2">
-                          Zonas: {n.zonas.join(", ")}
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Asignado a: {n.asignadoA ? n.asignadoA : "Sin asignar"}
-                        </p>
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap gap-2 text-xs text-gray-600">
+                          <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1">
+                            Fecha: {new Date(n.createdAt).toLocaleString()}
+                          </span>
+                          <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1">
+                            ID: {n.id}
+                          </span>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
+                            Categoria: {categoriaLabel}
+                          </span>
+                          <span className="inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-800">
+                            Tipo: {tipoLabel}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 rounded-xl border border-gray-200 bg-gray-50/60 p-3">
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Descripcion</p>
+                          <p className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">
+                            {n.descripcion || "Sin descripcion"}
+                          </p>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                          {!esRolFarmacia ? (
+                            <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-gray-700">
+                              Zonas: {etiquetaZonas(n.zonas as string[] | undefined)}
+                            </span>
+                          ) : null}
+                          <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-gray-700">
+                            Asignado a: {n.asignadoA ? n.asignadoA : "Sin asignar"}
+                          </span>
+                        </div>
+
+                        {esRolFarmacia ? (
+                          <FarmaciaCorregidaToggle
+                            novedadId={n.id}
+                            initialValue={Boolean((n as any).farmaciaCorregida)}
+                          />
+                        ) : null}
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
+
+                      <div className="flex items-center gap-2 shrink-0 lg:pt-1">
                         <span className={`inline-flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-full border ${b.cls}`}>
                           <Icon /> {b.label}
                         </span>

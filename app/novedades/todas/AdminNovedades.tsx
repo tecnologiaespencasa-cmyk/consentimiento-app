@@ -67,6 +67,8 @@ type Novedad = {
   prioridad: string;
   asignadoA?: string | null;
   notasInternas?: string | null;
+  farmaciaCorregida?: boolean;
+  farmaciaCorregidaAt?: string | Date | null;
   usuarioId?: string | null;
   usuario?: UsuarioNovedad | null;
 };
@@ -294,6 +296,8 @@ export default function AdminNovedades({
       "prioridad",
       "asignadoA",
       "notasInternas",
+      "farmaciaCorregida",
+      "farmaciaCorregidaAt",
       "usuarioId",
       "usuarioUsername",
       "usuarioNombres",
@@ -337,6 +341,8 @@ export default function AdminNovedades({
       n.prioridad ?? "",
       n.asignadoA ?? "",
       n.notasInternas ?? "",
+      n.farmaciaCorregida ? "SI" : "NO",
+      isoDate(n.farmaciaCorregidaAt),
       n.usuarioId ?? "",
       n.usuario?.username ?? "",
       n.usuario?.nombres ?? "",
@@ -415,7 +421,7 @@ export default function AdminNovedades({
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
-      <div className="container mx-auto px-4 py-6">
+      <div className="mx-auto w-full max-w-[1820px] px-4 py-6 md:px-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
             <Link
@@ -693,6 +699,19 @@ export default function AdminNovedades({
                         </div>
                         <div className="text-xs text-gray-500 truncate max-w-[320px]">{n.descripcion}</div>
                         {paciente ? <div className="text-xs text-gray-500">{paciente}</div> : null}
+                        {n.categoria === "PROCESO_FARMACEUTICO" ? (
+                          <div className="mt-1">
+                            <span
+                              className={`inline-flex items-center rounded-full border px-2 py-1 text-[11px] font-bold ${
+                                n.farmaciaCorregida
+                                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
+                                  : "border-amber-300 bg-amber-50 text-amber-700"
+                              }`}
+                            >
+                              Farmacia: {n.farmaciaCorregida ? "Corregida" : "Pendiente"}
+                            </span>
+                          </div>
+                        ) : null}
                         {fotoEvidenciaUrl ? (
                           <div className="mt-1">
                             <a
@@ -865,6 +884,31 @@ export default function AdminNovedades({
                 </p>
               ) : null}
             </div>
+
+            {edit.categoria === "PROCESO_FARMACEUTICO" ? (
+              <div className="mt-3 rounded-xl border border-emerald-100 bg-emerald-50/40 p-3">
+                <p className="text-xs font-bold text-gray-600 mb-2">Confirmacion del area de farmacia</p>
+                <label className="inline-flex items-center gap-3">
+                  <span
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full ${
+                      edit.farmaciaCorregida ? "bg-emerald-500" : "bg-gray-300"
+                    }`}
+                  >
+                    <span
+                      className={`pointer-events-none absolute left-1 inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                        edit.farmaciaCorregida ? "translate-x-5" : "translate-x-0"
+                      }`}
+                    />
+                  </span>
+                  <span className="text-sm font-semibold text-gray-800">novedad corregida</span>
+                </label>
+                <p className="mt-1 text-xs text-gray-600">
+                  {edit.farmaciaCorregida
+                    ? "Farmacia marco esta novedad como corregida."
+                    : "Farmacia aun no marca esta novedad como corregida."}
+                </p>
+              </div>
+            ) : null}
 
             {editTieneUbicacion ? (
               <div className="mt-3 rounded-xl border border-gray-200 p-3">
