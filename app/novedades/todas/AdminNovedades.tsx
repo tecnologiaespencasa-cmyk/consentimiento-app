@@ -74,16 +74,25 @@ type Novedad = {
 };
 
 const ZONAS = [
-  "NORORIENTAL",
-  "NOROCCIDENTAL",
-  "CENTRO_ORIENTAL",
-  "CENTRO_OCCIDENTAL",
-  "SURORIENTAL",
-  "SUROCCIDENTAL",
+  { v: "NORORIENTAL", label: "Medellín" },
+  { v: "NOROCCIDENTAL", label: "Valle de Aburrá Norte" },
+  { v: "CENTRO_ORIENTAL", label: "Valle de Aburrá Sur" },
+  { v: "CENTRO_OCCIDENTAL", label: "Oriente antioqueño" },
+  { v: "SURORIENTAL", label: "Occidente / Noroccidente" },
+  { v: "SUROCCIDENTAL", label: "Suroeste" },
 ];
 
 const ESTADOS = ["PENDIENTE", "EN_PROCESO", "RESUELTA"];
 const PRIORIDADES = ["BAJA", "MEDIA", "ALTA"];
+
+function etiquetaZona(zona: string) {
+  return ZONAS.find((z) => z.v === zona)?.label ?? zona;
+}
+
+function etiquetaZonas(zonas: string[] | null | undefined) {
+  if (!zonas?.length) return "No aplica";
+  return zonas.map((z) => etiquetaZona(z)).join(", ");
+}
 
 function fmtDate(d: unknown) {
   if (d == null || d === "") return "-";
@@ -209,6 +218,7 @@ export default function AdminNovedades({
         n.usuario?.username,
         nombreCompleto(n.usuario),
         (n.zonas ?? []).join(" "),
+        etiquetaZonas(n.zonas),
       ]
         .filter(Boolean)
         .join(" ")
@@ -318,7 +328,7 @@ export default function AdminNovedades({
       n.prestadorCedula ?? "",
       n.prestadorProfesion ?? "",
       n.prestadorTelefono ?? "",
-      (n.zonas ?? []).join(", "),
+      etiquetaZonas(n.zonas),
       n.categoria ?? "",
       n.pacienteNombre ?? "",
       n.pacienteTipoDoc ?? "",
@@ -568,8 +578,8 @@ export default function AdminNovedades({
                 >
                   <option value="">Todas</option>
                   {ZONAS.map((x) => (
-                    <option key={x} value={x}>
-                      {x}
+                    <option key={x.v} value={x.v}>
+                      {x.label}
                     </option>
                   ))}
                 </select>
@@ -739,7 +749,7 @@ export default function AdminNovedades({
                           </div>
                         ) : null}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-700">{(n.zonas ?? []).join(", ")}</td>
+                      <td className="px-4 py-3 text-xs text-gray-700">{etiquetaZonas(n.zonas)}</td>
                       <td className="px-4 py-3 text-xs text-gray-700">
                         {n.asignadoA ? (
                           <span className="font-semibold text-gray-800">{n.asignadoA}</span>

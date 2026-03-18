@@ -15,12 +15,25 @@ const TIPOS_FARMACIA_LABEL: Record<string, string> = {
   ERROR_TODOS_LOS_DOCUMENTOS: "Error en todos los documentos",
 };
 
+const ZONAS_LABEL: Record<string, string> = {
+  NORORIENTAL: "Medellín",
+  NOROCCIDENTAL: "Valle de Aburrá Norte",
+  CENTRO_ORIENTAL: "Valle de Aburrá Sur",
+  CENTRO_OCCIDENTAL: "Oriente antioqueño",
+  SURORIENTAL: "Occidente / Noroccidente",
+  SUROCCIDENTAL: "Suroeste",
+};
+
 function normalizarTextoEnum(value: string) {
   return value
     .toLowerCase()
     .split("_")
     .map((p) => (p ? p[0].toUpperCase() + p.slice(1) : ""))
     .join(" ");
+}
+
+function etiquetaZona(zona: string) {
+  return ZONAS_LABEL[zona] ?? normalizarTextoEnum(zona);
 }
 
 function etiquetaTipoNovedad(n: {
@@ -43,7 +56,7 @@ function etiquetaTipoNovedad(n: {
 
 function etiquetaZonas(zonas: string[] | null | undefined) {
   if (!zonas?.length) return "No aplica";
-  return zonas.map((z) => normalizarTextoEnum(z)).join(", ");
+  return zonas.map((z) => etiquetaZona(z)).join(", ");
 }
 
 function badgeEstado(estado: string) {

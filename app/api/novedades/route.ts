@@ -29,6 +29,15 @@ const ZONAS_VALIDAS: Zona[] = [
   "SUROCCIDENTAL",
 ];
 
+const ZONAS_LABEL: Record<Zona, string> = {
+  NORORIENTAL: "Medellín",
+  NOROCCIDENTAL: "Valle de Aburrá Norte",
+  CENTRO_ORIENTAL: "Valle de Aburrá Sur",
+  CENTRO_OCCIDENTAL: "Oriente antioqueño",
+  SURORIENTAL: "Occidente / Noroccidente",
+  SUROCCIDENTAL: "Suroeste",
+};
+
 const CATEGORIA_FARMACIA: CategoriaNovedad = "PROCESO_FARMACEUTICO";
 const CATEGORIAS_VALIDAS: CategoriaNovedad[] = ["PACIENTE", "RUTA", CATEGORIA_FARMACIA];
 const ROLES_CON_ACCESO_FARMACIA = ["FARMACIA", "TECNICO", "ADMINISTRATIVO"];
@@ -49,11 +58,14 @@ const TIPOS_PACIENTE_VALIDOS: TipoNovedadPaciente[] = [
   "AGENDAMIENTO",
   "FALLECIMIENTO",
   "HOSPITALIZACION",
+  "ALTA_TARDIA",
+  "RETRASO_INICIO_TRATAMIENTO",
   "PROBABLE_REACCION_ALERGICA",
   "DOBLE_PRESTADOR",
   "RELACIONAMIENTO",
   "IMPOSIBILIDAD_CONTACTAR_PACIENTE",
   "IMPOSIBILIDAD_INGRESAR_DOMICILIO",
+  "OTRA",
 ];
 
 const TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA: TipoNovedadPaciente[] = [
@@ -106,6 +118,15 @@ function etiquetaCategoriaConIcono(categoria: CategoriaNovedad) {
   if (categoria === "PACIENTE") return "Categoria: Paciente";
   if (categoria === "RUTA") return "Categoria: Ruta";
   return "Categoria: Proceso farmaceutico";
+}
+
+function etiquetaZona(zona: Zona) {
+  return ZONAS_LABEL[zona] ?? zona;
+}
+
+function etiquetaZonas(zonas: Zona[] | null | undefined) {
+  if (!zonas?.length) return "No aplica";
+  return zonas.map((z) => etiquetaZona(z)).join(", ");
 }
 
 function formatDateForRadicado(date: Date) {
@@ -494,7 +515,7 @@ export async function POST(req: Request) {
     const linkAdmin = baseUrl ? `${baseUrl}/novedades/todas` : "/novedades/todas";
 
     const teamsUrl = process.env.TEAMS_WEBHOOK_URL;
-    const zonasTexto = (zonas ?? []).join(", ") || "No aplica";
+    const zonasTexto = etiquetaZonas(zonas);
 
     if (teamsUrl) {
       try {

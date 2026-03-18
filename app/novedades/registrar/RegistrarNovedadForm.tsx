@@ -27,12 +27,12 @@ type MeResp = {
 };
 
 const ZONAS = [
-  { v: "NORORIENTAL", label: "Zona Nororiental" },
-  { v: "NOROCCIDENTAL", label: "Zona Noroccidental" },
-  { v: "CENTRO_ORIENTAL", label: "Zona Centro Oriental" },
-  { v: "CENTRO_OCCIDENTAL", label: "Zona Centro Occidental" },
-  { v: "SURORIENTAL", label: "Zona Suroriental" },
-  { v: "SUROCCIDENTAL", label: "Zona Suroccidental" },
+  { v: "NORORIENTAL", label: "Medellín" },
+  { v: "NOROCCIDENTAL", label: "Valle de Aburrá Norte" },
+  { v: "CENTRO_ORIENTAL", label: "Valle de Aburrá Sur" },
+  { v: "CENTRO_OCCIDENTAL", label: "Oriente antioqueño" },
+  { v: "SURORIENTAL", label: "Occidente / Noroccidente" },
+  { v: "SUROCCIDENTAL", label: "Suroeste" },
 ];
 
 const TIPOS_DOC = [
@@ -51,11 +51,14 @@ const TIPOS_PACIENTE = [
   { v: "AGENDAMIENTO", label: "Agendamiento" },
   { v: "FALLECIMIENTO", label: "Fallecimientos" },
   { v: "HOSPITALIZACION", label: "Hospitalizacion" },
+  { v: "ALTA_TARDIA", label: "Alta tardia" },
+  { v: "RETRASO_INICIO_TRATAMIENTO", label: "Retraso en inicio de tratamiento" },
   { v: "PROBABLE_REACCION_ALERGICA", label: "Probable reaccion alergica" },
   { v: "DOBLE_PRESTADOR", label: "Doble prestador" },
   { v: "RELACIONAMIENTO", label: "Problemas de relacionamiento" },
   { v: "IMPOSIBILIDAD_CONTACTAR_PACIENTE", label: "Imposibilidad de contactar al paciente" },
   { v: "IMPOSIBILIDAD_INGRESAR_DOMICILIO", label: "Imposibilidad de ingresar al domicilio" },
+  { v: "OTRA", label: "Otra" },
 ];
 
 const TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA = [
