@@ -3,7 +3,7 @@ import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import { FaArrowLeft, FaListAlt, FaClock, FaCheckCircle, FaSpinner } from "react-icons/fa";
+import { FaArrowLeft, FaListAlt, FaClock, FaCheckCircle } from "react-icons/fa";
 import FarmaciaCorregidaToggle from "./FarmaciaCorregidaToggle";
 
 const TIPOS_FARMACIA_LABEL: Record<string, string> = {
@@ -42,6 +42,10 @@ function etiquetaTipoNovedad(n: {
   tipoRuta?: string | null;
   tipoFarmacia?: string | null;
 }) {
+  if (n.categoria === "LLAMADA_URGENTE") {
+    return "Llamada urgente";
+  }
+
   if (n.categoria === "PACIENTE") {
     return n.tipoPaciente ? normalizarTextoEnum(n.tipoPaciente) : "Sin tipo";
   }
@@ -62,7 +66,6 @@ function etiquetaZonas(zonas: string[] | null | undefined) {
 function badgeEstado(estado: string) {
   const map: Record<string, { cls: string; icon: any; label: string }> = {
     PENDIENTE: { cls: "bg-yellow-50 text-yellow-800 border-yellow-200", icon: FaClock, label: "Pendiente" },
-    EN_PROCESO: { cls: "bg-blue-50 text-blue-800 border-blue-200", icon: FaSpinner, label: "En proceso" },
     RESUELTA: { cls: "bg-green-50 text-green-800 border-green-200", icon: FaCheckCircle, label: "Resuelta" },
   };
   return map[estado] ?? { cls: "bg-gray-50 text-gray-700 border-gray-200", icon: FaClock, label: estado };
@@ -77,7 +80,7 @@ export default async function MisNovedadesPage() {
   const where: any = { usuarioId: u.id };
 
   if (esRolFarmacia) {
-    where.categoria = "PROCESO_FARMACEUTICO";
+    where.categoria = { in: ["PROCESO_FARMACEUTICO", "LLAMADA_URGENTE"] };
   } else if (u.rol === "ESPECIALISTA") {
     where.NOT = { categoria: "PROCESO_FARMACEUTICO" };
   }
@@ -125,6 +128,8 @@ export default async function MisNovedadesPage() {
                     ? "Paciente"
                     : n.categoria === "RUTA"
                     ? "Ruta"
+                    : n.categoria === "LLAMADA_URGENTE"
+                    ? "Llamada urgente"
                     : "Proceso farmaceutico";
                 const tipoLabel = etiquetaTipoNovedad({
                   categoria: n.categoria,

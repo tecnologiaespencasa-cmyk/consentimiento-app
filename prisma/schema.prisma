@@ -88,6 +88,7 @@ model Novedad {
   tipoFarmacia       TipoNovedadFarmacia?
 
   descripcion        String
+  esClinicaHeridas   Boolean        @default(false)
   ubicacionLatitud   Float?
   ubicacionLongitud  Float?
 
@@ -134,6 +135,7 @@ enum CategoriaNovedad {
   PACIENTE
   RUTA
   PROCESO_FARMACEUTICO
+  LLAMADA_URGENTE
 }
 
 enum TipoDocumento {
@@ -180,7 +182,6 @@ enum TipoNovedadFarmacia {
 
 enum EstadoNovedad {
   PENDIENTE
-  EN_PROCESO
   RESUELTA
 }
 

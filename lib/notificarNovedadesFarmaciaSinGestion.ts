@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { sendGraphMail } from "@/lib/sendGraphMail";
 
-const DESTINO_ALERTA_FARMACIA = "tecnologiaespencasa@gmail.com";
+const DESTINO_ALERTA_FARMACIA = "gerencia@especialistasencasa.com";
 const UMBRAL_MINUTOS_SIN_GESTION = 15;
 
 function truncarTexto(texto: string, limite: number) {

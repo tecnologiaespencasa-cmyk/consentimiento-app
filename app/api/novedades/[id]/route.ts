@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { sendGraphMail } from "@/lib/sendGraphMail";
 import { notificarNovedadesFarmaciaSinGestion } from "@/lib/notificarNovedadesFarmaciaSinGestion";
 
+const ESTADOS_GESTION_VALIDOS = new Set(["PENDIENTE", "RESUELTA"]);
+
 function nombreCompleto(u: any) {
   return `${u?.nombres ?? ""} ${u?.primerApellido ?? ""} ${u?.segundoApellido ?? ""}`
     .replace(/\s+/g, " ")
@@ -126,6 +128,15 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ? String(asignadoA || "").trim() || null
       : undefined;
     const asignadoFinal = typeof asignadoNuevo === "undefined" ? asignadoActual : asignadoNuevo;
+    const estadoNormalizado =
+      typeof estado !== "undefined" ? String(estado || "").trim().toUpperCase() : undefined;
+
+    if (typeof estadoNormalizado !== "undefined" && !ESTADOS_GESTION_VALIDOS.has(estadoNormalizado)) {
+      return NextResponse.json(
+        { error: "El estado solo puede ser PENDIENTE o RESUELTA" },
+        { status: 400 }
+      );
+    }
 
     if (!esAdmin) {
       if (!asignadoFinal) {
@@ -162,7 +173,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     }
 
     const data: any = {};
-    if (estado) data.estado = estado;
+    if (typeof estadoNormalizado !== "undefined") data.estado = estadoNormalizado;
     if (prioridad) data.prioridad = prioridad;
     if (typeof asignadoA !== "undefined") data.asignadoA = asignadoNuevo;
     if (typeof notasInternas !== "undefined") data.notasInternas = String(notasInternas || "").trim() || null;

@@ -139,7 +139,11 @@ export default async function HomePage() {
 
                 {/* Indicador de novedades - Solo para Tecnicos y Administrativos */}
                 {esTecnicoOAdministrativo && (
-                  <div className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg shadow-sm">
+                  <Link
+                    href="/novedades/todas"
+                    className="flex items-center gap-3 bg-white px-4 py-2 rounded-lg shadow-sm border border-transparent hover:border-red-200 hover:bg-red-50 transition-colors"
+                    aria-label="Ir a gestionar todas las novedades"
+                  >
                     <FaBell className="text-red-500" />
                     <span className="text-sm font-medium text-gray-700">
                       {novedadesPendientes > 0 ? (
@@ -149,7 +153,7 @@ export default async function HomePage() {
                         </span>
                       ) : "Sin novedades pendientes"}
                     </span>
-                  </div>
+                  </Link>
                 )}
               </div>
             </div>

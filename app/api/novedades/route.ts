@@ -16,9 +16,11 @@ import {
   TipoNovedadFarmacia,
 } from "@prisma/client";
 
-const DESTINOS_NOTIFICACION = [
-  "liderdetecnologia@especialistasencasa.com",
-];
+const DESTINO_NOTIFICACION_AUXILIAR = "admisiones@especialistasencasa.com";
+const DESTINO_NOTIFICACION_OTRAS_PROFESIONES = "analistaasistencial@especialistasencasa.com";
+const DESTINO_NOTIFICACION_LLAMADA_URGENTE_ANALISTA = "analistaasistencia@especialistasencasa.com";
+const DESTINO_NOTIFICACION_CLINICA_HERIDAS = "clinicadeheridas@especialistasencasa.com";
+const DESCRIPCION_LLAMADA_URGENTE = "Necesito una llamada urgente de apoyo.";
 
 const ZONAS_VALIDAS: Zona[] = [
   "NORORIENTAL",
@@ -39,7 +41,8 @@ const ZONAS_LABEL: Record<Zona, string> = {
 };
 
 const CATEGORIA_FARMACIA: CategoriaNovedad = "PROCESO_FARMACEUTICO";
-const CATEGORIAS_VALIDAS: CategoriaNovedad[] = ["PACIENTE", "RUTA", CATEGORIA_FARMACIA];
+const CATEGORIA_LLAMADA_URGENTE: CategoriaNovedad = "LLAMADA_URGENTE";
+const CATEGORIAS_VALIDAS: CategoriaNovedad[] = ["PACIENTE", "RUTA", CATEGORIA_FARMACIA, CATEGORIA_LLAMADA_URGENTE];
 const ROLES_CON_ACCESO_FARMACIA = ["FARMACIA", "TECNICO", "ADMINISTRATIVO"];
 
 const TIPOS_DOCUMENTO_VALIDOS: TipoDocumento[] = [
@@ -99,6 +102,12 @@ function safeStr(v: any) {
   return (v ?? "").toString().trim();
 }
 
+function toBool(v: unknown) {
+  if (typeof v === "boolean") return v;
+  const normalized = safeStr(v).toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "si" || normalized === "on";
+}
+
 function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")
@@ -111,12 +120,14 @@ function escapeHtml(s: string) {
 function etiquetaCategoria(categoria: CategoriaNovedad) {
   if (categoria === "PACIENTE") return "Paciente";
   if (categoria === "RUTA") return "Ruta";
+  if (categoria === CATEGORIA_LLAMADA_URGENTE) return "Llamada urgente";
   return "Proceso farmaceutico";
 }
 
 function etiquetaCategoriaConIcono(categoria: CategoriaNovedad) {
   if (categoria === "PACIENTE") return "Categoria: Paciente";
   if (categoria === "RUTA") return "Categoria: Ruta";
+  if (categoria === CATEGORIA_LLAMADA_URGENTE) return "Categoria: Llamada urgente";
   return "Categoria: Proceso farmaceutico";
 }
 
@@ -127,6 +138,54 @@ function etiquetaZona(zona: Zona) {
 function etiquetaZonas(zonas: Zona[] | null | undefined) {
   if (!zonas?.length) return "No aplica";
   return zonas.map((z) => etiquetaZona(z)).join(", ");
+}
+
+function resolverCanalNotificacion(
+  profesion: string,
+  categoria: CategoriaNovedad,
+  esClinicaHeridas: boolean
+) {
+  if (categoria === CATEGORIA_LLAMADA_URGENTE) {
+    return {
+      destinosCorreo: [DESTINO_NOTIFICACION_AUXILIAR, DESTINO_NOTIFICACION_LLAMADA_URGENTE_ANALISTA],
+      teamsCanales: [
+        { url: process.env.TEAMS_WEBHOOK_URL, label: "TEAMS_WEBHOOK_URL" },
+        { url: process.env.TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES, label: "TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES" },
+      ],
+      responsableLabel: "Admisiones y analista asistencial",
+    };
+  }
+
+  if (esClinicaHeridas) {
+    return {
+      destinosCorreo: [DESTINO_NOTIFICACION_CLINICA_HERIDAS],
+      teamsCanales: [
+        { url: process.env.TEAMS_WEBHOOK_URL_CLINICA_HERIDAS, label: "TEAMS_WEBHOOK_URL_CLINICA_HERIDAS" },
+      ],
+      responsableLabel: "Clinica de heridas",
+    };
+  }
+
+  const esAuxiliarEnfermeria = profesion === "AUXILIAR_ENFERMERIA";
+
+  return {
+    destinosCorreo: [
+      esAuxiliarEnfermeria
+        ? DESTINO_NOTIFICACION_AUXILIAR
+        : DESTINO_NOTIFICACION_OTRAS_PROFESIONES,
+    ],
+    teamsCanales: [
+      {
+        url: esAuxiliarEnfermeria
+          ? process.env.TEAMS_WEBHOOK_URL
+          : process.env.TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES,
+        label: esAuxiliarEnfermeria
+          ? "TEAMS_WEBHOOK_URL"
+          : "TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES",
+      },
+    ],
+    responsableLabel: esAuxiliarEnfermeria ? "Admisiones" : "Analista asistencial",
+  };
 }
 
 function formatDateForRadicado(date: Date) {
@@ -202,7 +261,7 @@ export async function GET(req: Request) {
   if (mine) where = { usuarioId: id };
 
   if (rol === "FARMACIA") {
-    where = { ...where, categoria: CATEGORIA_FARMACIA };
+    where = { ...where, categoria: { in: [CATEGORIA_FARMACIA, CATEGORIA_LLAMADA_URGENTE] } };
   } else if (rol === "ESPECIALISTA") {
     where = { ...where, NOT: { categoria: CATEGORIA_FARMACIA } };
   }
@@ -250,6 +309,7 @@ export async function POST(req: Request) {
     let tipoRuta = "";
     let tipoFarmacia = "";
     let descripcion = "";
+    let esClinicaHeridas = false;
     let ubicacionLatitudRaw = "";
     let ubicacionLongitudRaw = "";
     let fotoIngresoDomicilio: File | null = null;
@@ -266,6 +326,7 @@ export async function POST(req: Request) {
       tipoPaciente = safeStr(formData.get("tipoPaciente"));
       tipoRuta = safeStr(formData.get("tipoRuta"));
       tipoFarmacia = safeStr(formData.get("tipoFarmacia"));
+      esClinicaHeridas = toBool(formData.get("esClinicaHeridas"));
       descripcion = safeStr(formData.get("descripcion"));
       ubicacionLatitudRaw = safeStr(formData.get("ubicacionLatitud"));
       ubicacionLongitudRaw = safeStr(formData.get("ubicacionLongitud"));
@@ -284,6 +345,7 @@ export async function POST(req: Request) {
       tipoPaciente = safeStr(body?.tipoPaciente);
       tipoRuta = safeStr(body?.tipoRuta);
       tipoFarmacia = safeStr(body?.tipoFarmacia);
+      esClinicaHeridas = toBool(body?.esClinicaHeridas);
       descripcion = safeStr(body?.descripcion);
       ubicacionLatitudRaw = safeStr(body?.ubicacionLatitud);
       ubicacionLongitudRaw = safeStr(body?.ubicacionLongitud);
@@ -292,20 +354,25 @@ export async function POST(req: Request) {
     if (!categoria || !CATEGORIAS_VALIDAS.includes(categoria as CategoriaNovedad)) {
       return NextResponse.json({ error: "Seleccione el tipo de novedad" }, { status: 400 });
     }
+    const categoriaEnum = categoria as CategoriaNovedad;
+    const esLlamadaUrgente = categoriaEnum === CATEGORIA_LLAMADA_URGENTE;
+    const esClinicaHeridasAplicada = esLlamadaUrgente ? false : esClinicaHeridas;
+
     const puedeReportarProcesoFarmaceutico = ROLES_CON_ACCESO_FARMACIA.includes(String(u.rol));
-    if (u.rol === "FARMACIA" && categoria !== CATEGORIA_FARMACIA) {
+    if (u.rol === "FARMACIA" && !(categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente)) {
       return NextResponse.json(
-        { error: "El rol farmacia solo puede reportar novedades de proceso farmaceutico" },
+        { error: "El rol farmacia solo puede reportar novedades de proceso farmaceutico o llamada urgente" },
         { status: 403 }
       );
     }
-    if (categoria === CATEGORIA_FARMACIA && !puedeReportarProcesoFarmaceutico) {
+    if (categoriaEnum === CATEGORIA_FARMACIA && !puedeReportarProcesoFarmaceutico) {
       return NextResponse.json(
         { error: "Solo los roles farmacia, tecnico o administrativo pueden reportar esta novedad" },
         { status: 403 }
       );
     }
-    if (categoria !== CATEGORIA_FARMACIA && !rawZonas.length) {
+    const requiereZona = categoriaEnum === "PACIENTE" || categoriaEnum === "RUTA";
+    if (requiereZona && !rawZonas.length) {
       return NextResponse.json({ error: "Seleccione al menos una zona" }, { status: 400 });
     }
 
@@ -313,8 +380,11 @@ export async function POST(req: Request) {
     if (zonas.length !== rawZonas.length) {
       return NextResponse.json({ error: "Una o mas zonas no son validas" }, { status: 400 });
     }
-    if (categoria === CATEGORIA_FARMACIA) {
+    if (categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente) {
       zonas = [];
+    }
+    if (esLlamadaUrgente) {
+      descripcion = DESCRIPCION_LLAMADA_URGENTE;
     }
     if (!descripcion || !String(descripcion).trim()) {
       return NextResponse.json({ error: "La descripcion es obligatoria" }, { status: 400 });
@@ -343,8 +413,6 @@ export async function POST(req: Request) {
     if (ubicacionLongitud !== null && (ubicacionLongitud < -180 || ubicacionLongitud > 180)) {
       return NextResponse.json({ error: "La longitud esta fuera de rango" }, { status: 400 });
     }
-
-    const categoriaEnum = categoria as CategoriaNovedad;
 
     const pacienteTipoDocEnum = TIPOS_DOCUMENTO_VALIDOS.includes(pacienteTipoDoc as TipoDocumento)
       ? (pacienteTipoDoc as TipoDocumento)
@@ -405,13 +473,19 @@ export async function POST(req: Request) {
     const prestadorCedula = u.cedula;
     const prestadorProfesion = u.profesion;
     const prestadorTelefono = safeStr(telefono ?? u.telefono) || null;
+    if (esLlamadaUrgente && !prestadorTelefono) {
+      return NextResponse.json(
+        { error: "Debes confirmar tu numero de celular para reportar una llamada urgente" },
+        { status: 400 }
+      );
+    }
 
     const requiereFotoIngresoDomicilio =
       categoriaEnum === "PACIENTE" &&
       Boolean(tipoPacienteEnum && TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPacienteEnum));
     const requiereFotoRutaEvidencia =
       categoriaEnum === "RUTA" && (tipoRutaEnum === "ACCIDENTE" || tipoRutaEnum === "CIERRE_VIAL");
-    const prioridadPorDefecto = categoriaEnum === CATEGORIA_FARMACIA ? "ALTA" : "MEDIA";
+    const prioridadPorDefecto = categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente ? "ALTA" : "MEDIA";
 
     let fotoSubida: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
     if (requiereFotoIngresoDomicilio && fotoIngresoDomicilio) {
@@ -460,7 +534,9 @@ export async function POST(req: Request) {
         ? tipoPacienteEnum
         : categoriaEnum === "RUTA"
         ? tipoRutaEnum
-        : tipoFarmaciaEnum;
+        : categoriaEnum === CATEGORIA_FARMACIA
+        ? tipoFarmaciaEnum
+        : "LLAMADA_URGENTE";
 
     let novedad;
 
@@ -468,36 +544,40 @@ export async function POST(req: Request) {
       const radicado = await buildNovedadRadicado(prestadorCedula);
 
       try {
+        const dataNovedad: any = {
+          id: radicado,
+          prestadorNombre,
+          prestadorCedula,
+          prestadorProfesion,
+          prestadorTelefono,
+          zonas,
+          categoria: categoriaEnum,
+          pacienteNombre: categoriaEnum === "PACIENTE" ? safeStr(pacienteNombre) : null,
+          pacienteTipoDoc: categoriaEnum === "PACIENTE" ? pacienteTipoDocEnum : null,
+          pacienteDocumento: categoriaEnum === "PACIENTE" ? safeStr(pacienteDocumento) : null,
+          tipoPaciente: categoriaEnum === "PACIENTE" ? tipoPacienteEnum : null,
+          fotoIngresoDomicilioUrl: categoriaEnum === "PACIENTE" ? fotoSubida?.webUrl ?? null : null,
+          fotoIngresoDomicilioDriveItemId: categoriaEnum === "PACIENTE" ? fotoSubida?.id ?? null : null,
+          fotoIngresoDomicilioNombre: categoriaEnum === "PACIENTE" ? fotoSubida?.name ?? null : null,
+          fotoIngresoDomicilioMimeType: categoriaEnum === "PACIENTE" ? fotoSubida?.mimeType ?? null : null,
+          fotoRutaEvidenciaUrl: categoriaEnum === "RUTA" ? fotoRutaSubida?.webUrl ?? null : null,
+          fotoRutaEvidenciaDriveItemId: categoriaEnum === "RUTA" ? fotoRutaSubida?.id ?? null : null,
+          fotoRutaEvidenciaNombre: categoriaEnum === "RUTA" ? fotoRutaSubida?.name ?? null : null,
+          fotoRutaEvidenciaMimeType: categoriaEnum === "RUTA" ? fotoRutaSubida?.mimeType ?? null : null,
+          tipoRuta: categoriaEnum === "RUTA" ? tipoRutaEnum : null,
+          tipoFarmacia: categoriaEnum === CATEGORIA_FARMACIA ? tipoFarmaciaEnum : null,
+          descripcion: safeStr(descripcion),
+          esClinicaHeridas: esClinicaHeridasAplicada,
+          prioridad: prioridadPorDefecto,
+          ubicacionLatitud,
+          ubicacionLongitud,
+          usuarioId: u.id,
+        };
+
         novedad = await prisma.novedad.create({
-          data: {
-            id: radicado,
-            prestadorNombre,
-            prestadorCedula,
-            prestadorProfesion,
-            prestadorTelefono,
-            zonas,
-            categoria: categoriaEnum,
-            pacienteNombre: categoriaEnum === "PACIENTE" ? safeStr(pacienteNombre) : null,
-            pacienteTipoDoc: categoriaEnum === "PACIENTE" ? pacienteTipoDocEnum : null,
-            pacienteDocumento: categoriaEnum === "PACIENTE" ? safeStr(pacienteDocumento) : null,
-            tipoPaciente: categoriaEnum === "PACIENTE" ? tipoPacienteEnum : null,
-            fotoIngresoDomicilioUrl: categoriaEnum === "PACIENTE" ? fotoSubida?.webUrl ?? null : null,
-            fotoIngresoDomicilioDriveItemId: categoriaEnum === "PACIENTE" ? fotoSubida?.id ?? null : null,
-            fotoIngresoDomicilioNombre: categoriaEnum === "PACIENTE" ? fotoSubida?.name ?? null : null,
-            fotoIngresoDomicilioMimeType: categoriaEnum === "PACIENTE" ? fotoSubida?.mimeType ?? null : null,
-            fotoRutaEvidenciaUrl: categoriaEnum === "RUTA" ? fotoRutaSubida?.webUrl ?? null : null,
-            fotoRutaEvidenciaDriveItemId: categoriaEnum === "RUTA" ? fotoRutaSubida?.id ?? null : null,
-            fotoRutaEvidenciaNombre: categoriaEnum === "RUTA" ? fotoRutaSubida?.name ?? null : null,
-            fotoRutaEvidenciaMimeType: categoriaEnum === "RUTA" ? fotoRutaSubida?.mimeType ?? null : null,
-            tipoRuta: categoriaEnum === "RUTA" ? tipoRutaEnum : null,
-            tipoFarmacia: categoriaEnum === CATEGORIA_FARMACIA ? tipoFarmaciaEnum : null,
-            descripcion: safeStr(descripcion),
-            prioridad: prioridadPorDefecto,
-            ubicacionLatitud,
-            ubicacionLongitud,
-            usuarioId: u.id,
-          },
+          data: dataNovedad,
         });
+
         break;
       } catch (err) {
         if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -514,17 +594,38 @@ export async function POST(req: Request) {
     const baseUrl = process.env.NEXTAUTH_URL || "";
     const linkAdmin = baseUrl ? `${baseUrl}/novedades/todas` : "/novedades/todas";
 
-    const teamsUrl = process.env.TEAMS_WEBHOOK_URL;
+    const { destinosCorreo, teamsCanales, responsableLabel } =
+      resolverCanalNotificacion(prestadorProfesion, categoriaEnum, esClinicaHeridasAplicada);
     const zonasTexto = etiquetaZonas(zonas);
+    const clinicaHeridasTexto = esLlamadaUrgente
+      ? "No aplica (llamada urgente)"
+      : esClinicaHeridasAplicada
+      ? "Si"
+      : "No";
 
-    if (teamsUrl) {
+    const canalesTeamsUnicos = Array.from(
+      new Map(
+        teamsCanales
+          .map((c) => ({ ...c, url: safeStr(c.url) }))
+          .filter((c) => Boolean(c.url))
+          .map((c) => [c.url, c])
+      ).values()
+    );
+    for (const canal of teamsCanales) {
+      if (!safeStr(canal.url)) {
+        console.warn(`${canal.label} no configurado: no se envia alerta a Teams`);
+      }
+    }
+    for (const canal of canalesTeamsUnicos) {
       try {
         await sendTeamsWebhook(
-          teamsUrl,
+          canal.url,
           "Nueva novedad registrada",
           [
             `Prestador: ${prestadorNombre} (${prestadorProfesion})`,
             `Categoria: ${categoriaLabel}`,
+            `Responsable(s): ${responsableLabel}`,
+            `Clinica de heridas: ${clinicaHeridasTexto}`,
             `Zonas: ${zonasTexto}`,
             `ID: ${novedad.id}`,
             fotoEvidenciaUrl ? `Foto: ${fotoEvidenciaUrl}` : null,
@@ -536,8 +637,6 @@ export async function POST(req: Request) {
       } catch (e) {
         console.error("No se pudo notificar a Teams:", e);
       }
-    } else {
-      console.warn("TEAMS_WEBHOOK_URL no configurado: no se envia alerta a Teams");
     }
 
 
@@ -552,6 +651,8 @@ export async function POST(req: Request) {
       prestadorTelefono ? `Telefono: ${prestadorTelefono}` : null,
       `Zona(s): ${zonasTexto}`,
       `Categoria: ${categoriaLabel}`,
+      `Responsable(s): ${responsableLabel}`,
+      `Clinica de heridas: ${clinicaHeridasTexto}`,
       categoriaEnum === "PACIENTE"
         ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})`
         : null,
@@ -653,9 +754,10 @@ export async function POST(req: Request) {
     // Envio de correos (con manejo de errores independiente)
     // ===========================
     // 1) Correo al equipo encargado
+    const destinosCorreoUnicos = Array.from(new Set(destinosCorreo.map((d) => safeStr(d)).filter(Boolean)));
     try {
       await sendGraphMail({
-        to: DESTINOS_NOTIFICACION,
+        to: destinosCorreoUnicos,
         subject: `Nueva novedad registrada (portal) - ${categoriaLabel}`,
         text: `Se ha registrado una nueva novedad en el portal.
 

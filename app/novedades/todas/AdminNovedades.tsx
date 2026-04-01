@@ -11,7 +11,6 @@ import {
   FaFileExcel,
   FaExclamationTriangle,
   FaClock,
-  FaSpinner,
   FaCheckCircle,
   FaUser,
   FaMapMarkedAlt,
@@ -23,7 +22,7 @@ type CurrentUser = {
   nombre: string;
 };
 
-type CategoriaFiltro = "" | "PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO";
+type CategoriaFiltro = "" | "PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO" | "LLAMADA_URGENTE";
 type UsuarioNovedad = {
   username?: string | null;
   nombres?: string | null;
@@ -61,6 +60,7 @@ type Novedad = {
   tipoRuta?: string | null;
   tipoFarmacia?: string | null;
   descripcion?: string | null;
+  esClinicaHeridas?: boolean | null;
   ubicacionLatitud?: number | null;
   ubicacionLongitud?: number | null;
   estado: string;
@@ -82,8 +82,15 @@ const ZONAS = [
   { v: "SUROCCIDENTAL", label: "Suroeste" },
 ];
 
-const ESTADOS = ["PENDIENTE", "EN_PROCESO", "RESUELTA"];
+const ESTADOS_FILTRO = ["PENDIENTE", "RESUELTA"];
+const ESTADOS_GESTION = ["PENDIENTE", "RESUELTA"];
 const PRIORIDADES = ["BAJA", "MEDIA", "ALTA"];
+type ResponsableKey = "ADMISIONES" | "ANALISTA_ASISTENCIAL" | "CLINICA_HERIDAS";
+const RESPONSABLES: Array<{ v: ResponsableKey; label: string }> = [
+  { v: "ADMISIONES", label: "Admisiones" },
+  { v: "ANALISTA_ASISTENCIAL", label: "Analista asistencial" },
+  { v: "CLINICA_HERIDAS", label: "Clínica de heridas" },
+];
 
 function etiquetaZona(zona: string) {
   return ZONAS.find((z) => z.v === zona)?.label ?? zona;
@@ -109,7 +116,6 @@ function nombreCompleto(u: UsuarioNovedad | null | undefined) {
 function estadoBadge(estado: string) {
   const map: Record<string, { cls: string; icon: typeof FaClock; label: string }> = {
     PENDIENTE: { cls: "bg-yellow-50 text-yellow-800 border-yellow-200", icon: FaClock, label: "Pendiente" },
-    EN_PROCESO: { cls: "bg-blue-50 text-blue-800 border-blue-200", icon: FaSpinner, label: "En proceso" },
     RESUELTA: { cls: "bg-green-50 text-green-800 border-green-200", icon: FaCheckCircle, label: "Resuelta" },
   };
   return map[estado] ?? { cls: "bg-gray-50 text-gray-700 border-gray-200", icon: FaClock, label: estado };
@@ -132,7 +138,7 @@ function getErrorMessage(error: unknown, fallback = "Error") {
 }
 
 function toCategoriaFiltro(value: string): CategoriaFiltro {
-  if (value === "PACIENTE" || value === "RUTA" || value === "PROCESO_FARMACEUTICO") return value;
+  if (value === "PACIENTE" || value === "RUTA" || value === "PROCESO_FARMACEUTICO" || value === "LLAMADA_URGENTE") return value;
   return "";
 }
 
@@ -147,6 +153,44 @@ function buildGoogleMapsUrl(latitud: number, longitud: number) {
 
 function buildGoogleMapsEmbedUrl(latitud: number, longitud: number) {
   return `https://maps.google.com/maps?q=${encodeURIComponent(`${latitud},${longitud}`)}&z=16&output=embed`;
+}
+
+function resolverResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas">): ResponsableKey[] {
+  if (n.categoria === "LLAMADA_URGENTE") return ["ADMISIONES", "ANALISTA_ASISTENCIAL"];
+  if (Boolean(n.esClinicaHeridas)) return ["CLINICA_HERIDAS"];
+  return n.prestadorProfesion === "AUXILIAR_ENFERMERIA" ? ["ADMISIONES"] : ["ANALISTA_ASISTENCIAL"];
+}
+
+function etiquetaResponsables(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas">) {
+  const responsables = resolverResponsable(n);
+  if (responsables.length === 2) {
+    return "Admisiones y analista asistencial";
+  }
+  return etiquetaResponsable(responsables[0]);
+}
+
+function incluyeResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas">, responsable: ResponsableKey) {
+  return resolverResponsable(n).includes(responsable);
+}
+
+function etiquetaResponsable(responsable: ResponsableKey) {
+  return RESPONSABLES.find((x) => x.v === responsable)?.label ?? responsable;
+}
+
+function etiquetaCategoria(categoria: CategoriaFiltro) {
+  if (categoria === "PACIENTE") return "PACIENTE";
+  if (categoria === "RUTA") return "RUTA";
+  if (categoria === "PROCESO_FARMACEUTICO") return "PROCESO_FARMACEUTICO";
+  if (categoria === "LLAMADA_URGENTE") return "LLAMADA_URGENTE";
+  return "";
+}
+
+function etiquetaTipoNovedad(n: Pick<Novedad, "categoria" | "tipoPaciente" | "tipoRuta" | "tipoFarmacia">) {
+  if (n.categoria === "PACIENTE") return n.tipoPaciente ?? "SIN_TIPO";
+  if (n.categoria === "RUTA") return n.tipoRuta ?? "SIN_TIPO";
+  if (n.categoria === "PROCESO_FARMACEUTICO") return n.tipoFarmacia ?? "SIN_TIPO";
+  if (n.categoria === "LLAMADA_URGENTE") return "LLAMADA_URGENTE";
+  return "SIN_TIPO";
 }
 
 export default function AdminNovedades({
@@ -165,6 +209,7 @@ export default function AdminNovedades({
   const [categoria, setCategoria] = useState<CategoriaFiltro>("");
   const [estado, setEstado] = useState<string>("");
   const [prioridad, setPrioridad] = useState<string>("");
+  const [responsable, setResponsable] = useState<ResponsableKey | "">("");
   const [zona, setZona] = useState<string>("");
   const [desde, setDesde] = useState<string>("");
   const [hasta, setHasta] = useState<string>("");
@@ -190,6 +235,7 @@ export default function AdminNovedades({
       if (categoria && n.categoria !== categoria) return false;
       if (estado && n.estado !== estado) return false;
       if (prioridad && n.prioridad !== prioridad) return false;
+      if (responsable && !incluyeResponsable(n, responsable)) return false;
       if (zona && !(n.zonas ?? []).includes(zona)) return false;
 
       const ts = new Date(n.createdAt).getTime();
@@ -217,6 +263,8 @@ export default function AdminNovedades({
         n.asignadoA,
         n.usuario?.username,
         nombreCompleto(n.usuario),
+        etiquetaResponsables(n),
+        resolverResponsable(n).map((r) => etiquetaResponsable(r)).join(" "),
         (n.zonas ?? []).join(" "),
         etiquetaZonas(n.zonas),
       ]
@@ -226,15 +274,14 @@ export default function AdminNovedades({
 
       return fields.includes(query);
     });
-  }, [data, q, categoria, estado, prioridad, zona, desde, hasta]);
+  }, [data, q, categoria, estado, prioridad, responsable, zona, desde, hasta]);
 
   const stats = useMemo(() => {
     const total = filtered.length;
     const p = filtered.filter((x) => x.estado === "PENDIENTE").length;
-    const ep = filtered.filter((x) => x.estado === "EN_PROCESO").length;
     const r = filtered.filter((x) => x.estado === "RESUELTA").length;
     const altas = filtered.filter((x) => x.prioridad === "ALTA" && x.estado !== "RESUELTA").length;
-    return { total, p, ep, r, altas };
+    return { total, p, r, altas };
   }, [filtered]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -284,6 +331,7 @@ export default function AdminNovedades({
       "prestadorProfesion",
       "prestadorTelefono",
       "zonas",
+      "responsable",
       "categoria",
       "pacienteNombre",
       "pacienteTipoDoc",
@@ -329,6 +377,7 @@ export default function AdminNovedades({
       n.prestadorProfesion ?? "",
       n.prestadorTelefono ?? "",
       etiquetaZonas(n.zonas),
+      etiquetaResponsables(n),
       n.categoria ?? "",
       n.pacienteNombre ?? "",
       n.pacienteTipoDoc ?? "",
@@ -386,7 +435,7 @@ export default function AdminNovedades({
 
   function openEdit(n: Novedad) {
     setEdit(n);
-    setEditEstado(n.estado);
+    setEditEstado(n.estado === "RESUELTA" ? "RESUELTA" : "PENDIENTE");
     setEditPrioridad(n.prioridad);
     setEditAsignadoA(n.asignadoA ?? "");
     setEditNotas(n.notasInternas ?? "");
@@ -468,7 +517,7 @@ export default function AdminNovedades({
         </div>
 
         {/* KPIs */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
             <p className="text-xs text-gray-500">Total (filtrado)</p>
             <p className="text-2xl font-extrabold text-gray-900">{stats.total}</p>
@@ -476,10 +525,6 @@ export default function AdminNovedades({
           <div className="bg-white rounded-2xl shadow-sm border border-yellow-100 p-4">
             <p className="text-xs text-gray-500">Pendientes</p>
             <p className="text-2xl font-extrabold text-yellow-700">{stats.p}</p>
-          </div>
-          <div className="bg-white rounded-2xl shadow-sm border border-blue-100 p-4">
-            <p className="text-xs text-gray-500">En proceso</p>
-            <p className="text-2xl font-extrabold text-blue-700">{stats.ep}</p>
           </div>
           <div className="bg-white rounded-2xl shadow-sm border border-green-100 p-4">
             <p className="text-xs text-gray-500">Resueltas</p>
@@ -525,6 +570,7 @@ export default function AdminNovedades({
                   <option value="PACIENTE">Paciente</option>
                   <option value="RUTA">Ruta</option>
                   <option value="PROCESO_FARMACEUTICO">Proceso farmaceutico</option>
+                  <option value="LLAMADA_URGENTE">Llamada urgente</option>
                 </select>
               </div>
 
@@ -539,7 +585,7 @@ export default function AdminNovedades({
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl"
                 >
                   <option value="">Todos</option>
-                  {ESTADOS.map((x) => (
+                  {ESTADOS_FILTRO.map((x) => (
                     <option key={x} value={x}>
                       {x}
                     </option>
@@ -561,6 +607,25 @@ export default function AdminNovedades({
                   {PRIORIDADES.map((x) => (
                     <option key={x} value={x}>
                       {x}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-xs font-bold text-gray-600">Responsable(s)</label>
+                <select
+                  value={responsable}
+                  onChange={(e) => {
+                    setResponsable(e.target.value as ResponsableKey | "");
+                    setPage(1);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl"
+                >
+                  <option value="">Todos</option>
+                  {RESPONSABLES.map((x) => (
+                    <option key={x.v} value={x.v}>
+                      {x.label}
                     </option>
                   ))}
                 </select>
@@ -619,6 +684,7 @@ export default function AdminNovedades({
                     setCategoria("");
                     setEstado("");
                     setPrioridad("");
+                    setResponsable("");
                     setZona("");
                     setDesde("");
                     setHasta("");
@@ -654,7 +720,7 @@ export default function AdminNovedades({
                   <th className="px-4 py-3">Fecha</th>
                   <th className="px-4 py-3">Prestador</th>
                   <th className="px-4 py-3">Tipo</th>
-                  <th className="px-4 py-3">Zonas</th>
+                  <th className="px-4 py-3">Responsable(s)</th>
                   <th className="px-4 py-3">Asignado</th>
                   <th className="px-4 py-3">Estado</th>
                   <th className="px-4 py-3">Prioridad</th>
@@ -669,12 +735,15 @@ export default function AdminNovedades({
                       ? n.tipoPaciente
                       : n.categoria === "RUTA"
                       ? n.tipoRuta
-                      : n.tipoFarmacia;
+                      : n.categoria === "PROCESO_FARMACEUTICO"
+                      ? n.tipoFarmacia
+                      : "LLAMADA_URGENTE";
                   const fotoEvidenciaUrl = n.fotoIngresoDomicilioUrl ?? n.fotoRutaEvidenciaUrl;
                   const tieneUbicacion = coordenadasValidas(n.ubicacionLatitud, n.ubicacionLongitud);
                   const ubicacionGoogleMapsUrl = tieneUbicacion
                     ? buildGoogleMapsUrl(n.ubicacionLatitud as number, n.ubicacionLongitud as number)
                     : null;
+                  const responsableLabel = etiquetaResponsables(n);
                   const paciente = n.categoria === "PACIENTE"
                     ? ` • ${n.pacienteNombre ?? ""}${n.pacienteTipoDoc ? ` (${n.pacienteTipoDoc}${n.pacienteDocumento ? ` ${n.pacienteDocumento}` : ""})` : ""}`
                     : "";
@@ -749,7 +818,11 @@ export default function AdminNovedades({
                           </div>
                         ) : null}
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-700">{etiquetaZonas(n.zonas)}</td>
+                      <td className="px-4 py-3 text-xs text-gray-700">
+                        <span className="inline-flex items-center rounded-full border border-sky-200 bg-sky-50 px-3 py-1 font-semibold text-sky-800">
+                          {responsableLabel}
+                        </span>
+                      </td>
                       <td className="px-4 py-3 text-xs text-gray-700">
                         {n.asignadoA ? (
                           <span className="font-semibold text-gray-800">{n.asignadoA}</span>
@@ -843,6 +916,12 @@ export default function AdminNovedades({
                 </p>
                 <p className="text-sm text-gray-700 mt-1">
                   <span className="font-semibold">Categoria:</span> {edit.categoria || "No registrada"}
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  <span className="font-semibold">Zonas:</span> {etiquetaZonas(edit.zonas)}
+                </p>
+                <p className="text-sm text-gray-700 mt-1">
+                  <span className="font-semibold">Responsable(s):</span> {etiquetaResponsables(edit)}
                 </p>
                 <p className="text-sm text-gray-700 mt-1">
                   <span className="font-semibold">Tipo:</span> {(
@@ -963,7 +1042,7 @@ export default function AdminNovedades({
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl"
                   disabled={saving}
                 >
-                  {ESTADOS.map((x) => (
+                  {ESTADOS_GESTION.map((x) => (
                     <option key={x} value={x}>
                       {x}
                     </option>

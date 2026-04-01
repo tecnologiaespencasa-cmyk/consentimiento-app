@@ -36,11 +36,11 @@ const ZONAS = [
 ];
 
 const TIPOS_DOC = [
-  { v: "CC", label: "Cedula de ciudadania (CC)" },
+  { v: "CC", label: "Cédula de ciudadanía (CC)" },
   { v: "TI", label: "Tarjeta de identidad (TI)" },
-  { v: "CE", label: "Cedula de extranjeria (CE)" },
+  { v: "CE", label: "Cédula de extranjería (CE)" },
   { v: "PA", label: "Pasaporte (PA)" },
-  { v: "PPT", label: "Permiso por Proteccion Temporal (PPT)" },
+  { v: "PPT", label: "Permiso por Protección Temporal (PPT)" },
   { v: "RC", label: "Registro civil (RC)" },
   { v: "NUIP", label: "NUIP" },
 ];
@@ -50,10 +50,10 @@ const TIPOS_PACIENTE = [
   { v: "DATOS_ERRADOS", label: "Datos errados" },
   { v: "AGENDAMIENTO", label: "Agendamiento" },
   { v: "FALLECIMIENTO", label: "Fallecimientos" },
-  { v: "HOSPITALIZACION", label: "Hospitalizacion" },
-  { v: "ALTA_TARDIA", label: "Alta tardia" },
+  { v: "HOSPITALIZACION", label: "Hospitalización" },
+  { v: "ALTA_TARDIA", label: "Alta tardía" },
   { v: "RETRASO_INICIO_TRATAMIENTO", label: "Retraso en inicio de tratamiento" },
-  { v: "PROBABLE_REACCION_ALERGICA", label: "Probable reaccion alergica" },
+  { v: "PROBABLE_REACCION_ALERGICA", label: "Probable reacción alérgica" },
   { v: "DOBLE_PRESTADOR", label: "Doble prestador" },
   { v: "RELACIONAMIENTO", label: "Problemas de relacionamiento" },
   { v: "IMPOSIBILIDAD_CONTACTAR_PACIENTE", label: "Imposibilidad de contactar al paciente" },
@@ -70,17 +70,20 @@ const TIPOS_RUTA = [
   { v: "INCAPACIDAD", label: "Incapacidad" },
   { v: "ACCIDENTE", label: "Accidente" },
   { v: "CIERRE_VIAL", label: "Cierre vial" },
-  { v: "NO_REALIZO_RUTA", label: "No realizo ruta" },
+  { v: "NO_REALIZO_RUTA", label: "No realizó ruta" },
 ];
 
 const TIPOS_FARMACIA = [
   { v: "ERROR_KARDEX", label: "Error en Kardex" },
-  { v: "ERROR_REQUISICION", label: "Error en requisicion" },
-  { v: "ERROR_AUTORIZACION", label: "Error en autorizacion" },
+  { v: "ERROR_REQUISICION", label: "Error en requisición" },
+  { v: "ERROR_AUTORIZACION", label: "Error en autorización" },
   { v: "ERROR_AUXILIAR_ASIGNADO", label: "Error en auxiliar asignado" },
-  { v: "ERROR_FORMULA", label: "Error en la formula" },
+  { v: "ERROR_FORMULA", label: "Error en la fórmula" },
   { v: "ERROR_TODOS_LOS_DOCUMENTOS", label: "Error en todos los documentos" },
 ];
+
+const CATEGORIA_LLAMADA_URGENTE = "LLAMADA_URGENTE";
+const DESCRIPCION_LLAMADA_URGENTE = "Necesito una llamada urgente de apoyo.";
 
 function nombreCompleto(me: MeResp | null) {
   if (!me) return "";
@@ -128,16 +131,16 @@ function mensajeErrorGeolocalizacion(
     : null;
 
   if (code === 1) {
-    if (!origenSeguro) return "No fue posible solicitar tu ubicacion.";
-    if (estadoPermiso === "denied") return "No fue posible obtener tu ubicacion.";
-    return "No autorizaste compartir tu ubicacion.";
+    if (!origenSeguro) return "No fue posible solicitar tu ubicación.";
+    if (estadoPermiso === "denied") return "No fue posible obtener tu ubicación.";
+    return "No autorizaste compartir tu ubicación.";
   }
-  if (code === 2) return "No fue posible obtener tu ubicacion.";
+  if (code === 2) return "No fue posible obtener tu ubicación.";
   if (code === 3) {
-    if (estadoPermiso === "prompt" || estadoPermiso === "UNKNOWN") return "No recibimos respuesta de ubicacion a tiempo.";
-    return "No fue posible obtener tu ubicacion a tiempo.";
+    if (estadoPermiso === "prompt" || estadoPermiso === "UNKNOWN") return "No recibimos respuesta de ubicación a tiempo.";
+    return "No fue posible obtener tu ubicación a tiempo.";
   }
-  return "No fue posible obtener tu ubicacion.";
+  return "No fue posible obtener tu ubicación.";
 }
 
 async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
@@ -146,7 +149,7 @@ async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
   }
 
   if (!("geolocation" in navigator)) {
-    toast.error("No fue posible obtener tu ubicacion. La novedad se guardara sin ubicacion.");
+    toast.error("No fue posible obtener tu ubicación. La novedad se guardará sin ubicación.");
     return null;
   }
 
@@ -154,7 +157,7 @@ async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
   const estadoPermiso = await obtenerEstadoPermisoGeolocalizacion();
 
   if (!origenSeguro) {
-    toast.error("No fue posible solicitar tu ubicacion. La novedad se guardara sin ubicacion.");
+    toast.error("No fue posible solicitar tu ubicación. La novedad se guardará sin ubicación.");
     return null;
   }
 
@@ -177,7 +180,7 @@ async function obtenerUbicacionActual(): Promise<Coordenadas | null> {
       longitud: Number(position.coords.longitude.toFixed(8)),
     };
   } catch (error: unknown) {
-    toast.error(`${mensajeErrorGeolocalizacion(error, estadoPermiso, origenSeguro)} La novedad se guardara sin ubicacion.`);
+    toast.error(`${mensajeErrorGeolocalizacion(error, estadoPermiso, origenSeguro)} La novedad se guardará sin ubicación.`);
     return null;
   }
 }
@@ -189,7 +192,8 @@ export default function RegistrarNovedadForm() {
 
   const [telefono, setTelefono] = useState("");
   const [zonas, setZonas] = useState<string[]>([]);
-  const [categoria, setCategoria] = useState<"PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO">("PACIENTE");
+  const [categoria, setCategoria] = useState<"PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO" | "LLAMADA_URGENTE">("PACIENTE");
+  const [esClinicaHeridas, setEsClinicaHeridas] = useState(false);
 
   // paciente
   const [pacienteNombre, setPacienteNombre] = useState("");
@@ -229,7 +233,7 @@ export default function RegistrarNovedadForm() {
   useEffect(() => {
     if (!me) return;
 
-    if (esRolFarmacia && categoria !== "PROCESO_FARMACEUTICO") {
+    if (esRolFarmacia && categoria !== "PROCESO_FARMACEUTICO" && categoria !== CATEGORIA_LLAMADA_URGENTE) {
       setCategoria("PROCESO_FARMACEUTICO");
       return;
     }
@@ -238,6 +242,12 @@ export default function RegistrarNovedadForm() {
       setCategoria("PACIENTE");
     }
   }, [me, esRolFarmacia, puedeReportarProcesoFarmaceutico, categoria]);
+
+  useEffect(() => {
+    if (categoria === CATEGORIA_LLAMADA_URGENTE && esClinicaHeridas) {
+      setEsClinicaHeridas(false);
+    }
+  }, [categoria, esClinicaHeridas]);
 
   useEffect(() => {
     if (!(categoria === "PACIENTE" && TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPaciente))) {
@@ -255,9 +265,9 @@ export default function RegistrarNovedadForm() {
     const p = me?.profesion;
     if (!p) return "";
     const map: Record<string, string> = {
-      AUXILIAR_ENFERMERIA: "Auxiliar de enfermeria",
-      ENFERMERIA: "Enfermeria",
-      MEDICO: "Medico",
+      AUXILIAR_ENFERMERIA: "Auxiliar de enfermería",
+      ENFERMERIA: "Enfermería",
+      MEDICO: "Médico",
       ESPECIALISTA: "Especialista",
     };
     return map[p] ?? p;
@@ -268,11 +278,13 @@ export default function RegistrarNovedadForm() {
       categoria === "PACIENTE" && TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPaciente);
     const requiereFotoRuta =
       categoria === "RUTA" && (tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL");
-    const requiereZona = categoria !== "PROCESO_FARMACEUTICO";
+    const requiereZona = categoria === "PACIENTE" || categoria === "RUTA";
+    const esLlamadaUrgente = categoria === CATEGORIA_LLAMADA_URGENTE;
 
     if (!me) return false;
     if (requiereZona && zonas.length === 0) return false;
-    if (!descripcion.trim()) return false;
+    if (!esLlamadaUrgente && !descripcion.trim()) return false;
+    if (esLlamadaUrgente) return !!telefono.trim();
     if (categoria === "PACIENTE") {
       return !!pacienteNombre.trim() && !!pacienteDocumento.trim() && (!requiereFotoDomicilio || !!fotoIngresoDomicilio);
     }
@@ -296,13 +308,15 @@ export default function RegistrarNovedadForm() {
     const t = toast.loading("Guardando novedad...");
     try {
       const coordenadas = await obtenerUbicacionActual();
+      const esLlamadaUrgente = categoria === CATEGORIA_LLAMADA_URGENTE;
       const payload = new FormData();
       payload.append("telefono", telefono.trim());
-      if (categoria !== "PROCESO_FARMACEUTICO") {
+      if (categoria === "PACIENTE" || categoria === "RUTA") {
         zonas.forEach((z) => payload.append("zonas", z));
       }
       payload.append("categoria", categoria);
-      payload.append("descripcion", descripcion.trim());
+      payload.append("esClinicaHeridas", !esLlamadaUrgente && esClinicaHeridas ? "true" : "false");
+      payload.append("descripcion", esLlamadaUrgente ? DESCRIPCION_LLAMADA_URGENTE : descripcion.trim());
       if (coordenadas) {
         payload.append("ubicacionLatitud", String(coordenadas.latitud));
         payload.append("ubicacionLongitud", String(coordenadas.longitud));
@@ -322,7 +336,7 @@ export default function RegistrarNovedadForm() {
         if ((tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL") && fotoRutaEvidencia) {
           payload.append("fotoRutaEvidencia", fotoRutaEvidencia);
         }
-      } else {
+      } else if (categoria === "PROCESO_FARMACEUTICO") {
         payload.append("tipoFarmacia", tipoFarmacia);
       }
 
@@ -341,6 +355,7 @@ export default function RegistrarNovedadForm() {
       // reset parcial
       setZonas([]);
       setCategoria(esRolFarmacia ? "PROCESO_FARMACEUTICO" : "PACIENTE");
+      setEsClinicaHeridas(false);
       setPacienteNombre("");
       setPacienteTipoDoc("CC");
       setPacienteDocumento("");
@@ -382,7 +397,7 @@ export default function RegistrarNovedadForm() {
             </div>
           ) : !me ? (
             <div className="p-6 bg-red-50 border border-red-200 rounded-2xl text-red-700">
-              No se pudo cargar tu informacion. Intenta recargar la pagina.
+              No se pudo cargar tu información. Intenta recargar la página.
             </div>
           ) : (
             <form onSubmit={onSubmit} className="space-y-6">
@@ -403,7 +418,7 @@ export default function RegistrarNovedadForm() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     <FaIdCard className="inline-block mr-2 text-red-500" />
-                    Cedula
+                    Cédula
                   </label>
                   <input
                     value={me.cedula}
@@ -415,7 +430,7 @@ export default function RegistrarNovedadForm() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     <FaUserMd className="inline-block mr-2 text-red-500" />
-                    Profesion
+                    Profesión
                   </label>
                   <input
                     value={profesionLabel}
@@ -427,7 +442,7 @@ export default function RegistrarNovedadForm() {
                 <div className="md:col-span-2">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
                     <FaPhone className="inline-block mr-2 text-red-500" />
-                    Telefono (editable)
+                    Teléfono (editable)
                   </label>
                   <input
                     value={telefono}
@@ -441,20 +456,58 @@ export default function RegistrarNovedadForm() {
 
               {/* Categoria */}
               <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
-                  <FaClipboardList className="inline-block mr-2 text-red-500" />
-                  Datos de la novedad
-                </label>
+                <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    <FaClipboardList className="inline-block mr-2 text-red-500" />
+                    Datos de la novedad
+                  </label>
+                  {categoria !== CATEGORIA_LLAMADA_URGENTE ? (
+                    <label className="inline-flex items-center gap-2 rounded-2xl border-2 border-red-200 bg-red-50 px-3 py-2.5 text-sm font-bold text-red-800 shadow-sm">
+                      <input
+                        type="checkbox"
+                        checked={esClinicaHeridas}
+                        onChange={(e) => setEsClinicaHeridas(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-2 focus:ring-red-500"
+                        disabled={saving}
+                      />
+                      ¿Esta novedad es de clínica de heridas?
+                    </label>
+                  ) : null}
+                </div>
                 <div className="flex flex-col md:flex-row gap-3">
                   {esRolFarmacia ? (
-                    <button
-                      type="button"
-                      onClick={() => setCategoria("PROCESO_FARMACEUTICO")}
-                      className="px-4 py-3 rounded-2xl border border-red-300 bg-white shadow-sm text-left"
-                    >
-                      <p className="font-extrabold text-gray-900">Novedad en proceso farmaceutico</p>
-                      <p className="text-xs text-gray-600">Error en documentos trazadores en farmacia.</p>
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => setCategoria("PROCESO_FARMACEUTICO")}
+                        className={`px-4 py-3 rounded-2xl border transition-all text-left ${
+                          categoria === "PROCESO_FARMACEUTICO"
+                            ? "bg-white border-red-300 shadow-sm"
+                            : "bg-white/60 border-gray-200 hover:bg-white"
+                        }`}
+                      >
+                        <p className="font-extrabold text-gray-900 flex items-center gap-2">
+                          <FaClipboardList className="text-red-500" />
+                          Novedad en proceso farmacéutico
+                        </p>
+                        <p className="text-xs text-gray-600">Error en documentos trazadores en farmacia.</p>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCategoria(CATEGORIA_LLAMADA_URGENTE)}
+                        className={`px-4 py-3 rounded-2xl border transition-all text-left ${
+                          categoria === CATEGORIA_LLAMADA_URGENTE
+                            ? "bg-white border-red-300 shadow-sm"
+                            : "bg-white/60 border-gray-200 hover:bg-white"
+                        }`}
+                      >
+                        <p className="font-extrabold text-gray-900 flex items-center gap-2">
+                          <FaPhone className="text-red-500" />
+                          Llamada urgente
+                        </p>
+                        <p className="text-xs text-gray-600">Necesito una llamada urgente de apoyo.</p>
+                      </button>
+                    </>
                   ) : (
                     <>
                       <button
@@ -466,7 +519,10 @@ export default function RegistrarNovedadForm() {
                             : "bg-white/60 border-gray-200 hover:bg-white"
                         }`}
                       >
-                        <p className="font-extrabold text-gray-900">Novedad con un paciente</p>
+                        <p className="font-extrabold text-gray-900 flex items-center gap-2">
+                          <FaUser className="text-red-500" />
+                          Novedad con un paciente
+                        </p>
                         <p className="text-xs text-gray-600">Incluye datos del paciente y tipo de novedad.</p>
                       </button>
 
@@ -479,7 +535,10 @@ export default function RegistrarNovedadForm() {
                             : "bg-white/60 border-gray-200 hover:bg-white"
                         }`}
                       >
-                        <p className="font-extrabold text-gray-900">Novedad en la ruta</p>
+                        <p className="font-extrabold text-gray-900 flex items-center gap-2">
+                          <FaMapMarkedAlt className="text-red-500" />
+                          Novedad en la ruta
+                        </p>
                         <p className="text-xs text-gray-600">Incapacidad, accidente, cierre vial, etc.</p>
                       </button>
 
@@ -493,15 +552,34 @@ export default function RegistrarNovedadForm() {
                               : "bg-white/60 border-gray-200 hover:bg-white"
                           }`}
                         >
-                          <p className="font-extrabold text-gray-900">Novedad en proceso farmaceutico</p>
+                          <p className="font-extrabold text-gray-900 flex items-center gap-2">
+                            <FaClipboardList className="text-red-500" />
+                            Novedad en proceso farmacéutico
+                          </p>
                           <p className="text-xs text-gray-600">Error en documentos trazadores en farmacia.</p>
                         </button>
                       ) : null}
+
+                      <button
+                        type="button"
+                        onClick={() => setCategoria(CATEGORIA_LLAMADA_URGENTE)}
+                        className={`px-4 py-3 rounded-2xl border transition-all text-left ${
+                          categoria === CATEGORIA_LLAMADA_URGENTE
+                            ? "bg-white border-red-300 shadow-sm"
+                            : "bg-white/60 border-gray-200 hover:bg-white"
+                        }`}
+                      >
+                        <p className="font-extrabold text-gray-900 flex items-center gap-2">
+                          <FaPhone className="text-red-500" />
+                          Llamada urgente
+                        </p>
+                        <p className="text-xs text-gray-600">Necesito una llamada urgente de apoyo.</p>
+                      </button>
                     </>
                   )}
                 </div>
 
-                {categoria !== "PROCESO_FARMACEUTICO" ? (
+                {categoria === "PACIENTE" || categoria === "RUTA" ? (
                   <div className="mt-4">
                     <label className="block text-sm font-semibold text-gray-700 mb-3">
                       <FaMapMarkedAlt className="inline-block mr-2 text-red-500" />
@@ -571,7 +649,7 @@ export default function RegistrarNovedadForm() {
                       </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Numero de documento</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Número de documento</label>
                       <input
                         value={pacienteDocumento}
                         onChange={(e) => setPacienteDocumento(e.target.value)}
@@ -652,6 +730,10 @@ export default function RegistrarNovedadForm() {
                       </div>
                     ) : null}
                   </div>
+                ) : categoria === CATEGORIA_LLAMADA_URGENTE ? (
+                  <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+                    Comprueba que tu número de celular sea el correcto en la parte superior o, en caso contrario, puedes editarlo.
+                  </div>
                 ) : (
                   <div className="mt-4">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de novedad</label>
@@ -676,20 +758,22 @@ export default function RegistrarNovedadForm() {
               </div>
 
               {/* Descripcion */}
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Descripcion de la novedad</label>
-                <textarea
-                  value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value)}
-                  rows={5}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
-                  placeholder="Describe lo ocurrido con el mayor detalle posible..."
-                  disabled={saving}
-                />
-                <div className="mt-2 text-xs text-gray-500">
-                  Se enviara el detalle de la novedad al personal administrativo encargado para su gestion.
+              {categoria !== CATEGORIA_LLAMADA_URGENTE ? (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción de la novedad</label>
+                  <textarea
+                    value={descripcion}
+                    onChange={(e) => setDescripcion(e.target.value)}
+                    rows={5}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                    placeholder="Describe lo ocurrido con el mayor detalle posible..."
+                    disabled={saving}
+                  />
+                  <div className="mt-2 text-xs text-gray-500">
+                    Se enviará el detalle de la novedad al personal administrativo encargado para su gestión.
+                  </div>
                 </div>
-              </div>
+              ) : null}
 
               <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
                 <Link

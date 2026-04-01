@@ -1,0 +1,2 @@
+ALTER TABLE "Novedad"
+ADD COLUMN "esClinicaHeridas" BOOLEAN NOT NULL DEFAULT false;
