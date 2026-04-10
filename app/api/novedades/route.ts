@@ -298,7 +298,6 @@ export async function POST(req: Request) {
 
     let telefono = "";
     let rawZona = "";
-    let zonasRecibidas: string[] = [];
     let zona: Zona | null = null;
     let categoria = "";
     let pacienteNombre = "";
@@ -317,8 +316,7 @@ export async function POST(req: Request) {
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       telefono = safeStr(formData.get("telefono"));
-      zonasRecibidas = formData.getAll("zonas").map((z) => safeStr(z)).filter(Boolean);
-      rawZona = safeStr(formData.get("zona")) || zonasRecibidas[0] || "";
+      rawZona = safeStr(formData.get("zona"));
       categoria = safeStr(formData.get("categoria"));
       pacienteNombre = safeStr(formData.get("pacienteNombre"));
       pacienteTipoDoc = safeStr(formData.get("pacienteTipoDoc"));
@@ -337,8 +335,7 @@ export async function POST(req: Request) {
     } else {
       const body = await req.json();
       telefono = safeStr(body?.telefono);
-      zonasRecibidas = Array.isArray(body?.zonas) ? body.zonas.map((z: unknown) => safeStr(z)).filter(Boolean) : [];
-      rawZona = safeStr(body?.zona) || zonasRecibidas[0] || "";
+      rawZona = safeStr(body?.zona);
       categoria = safeStr(body?.categoria);
       pacienteNombre = safeStr(body?.pacienteNombre);
       pacienteTipoDoc = safeStr(body?.pacienteTipoDoc);
@@ -375,9 +372,6 @@ export async function POST(req: Request) {
     const requiereZona = categoriaEnum === "PACIENTE" || categoriaEnum === "RUTA";
     if (requiereZona && !rawZona) {
       return NextResponse.json({ error: "Seleccione una zona" }, { status: 400 });
-    }
-    if (requiereZona && zonasRecibidas.length > 1) {
-      return NextResponse.json({ error: "Solo puede seleccionar una zona" }, { status: 400 });
     }
     if (requiereZona && rawZona && !ZONAS_VALIDAS.includes(rawZona as Zona)) {
       return NextResponse.json({ error: "La zona seleccionada no es valida" }, { status: 400 });
