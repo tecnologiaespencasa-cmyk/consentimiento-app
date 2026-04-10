@@ -16,12 +16,11 @@ const TIPOS_FARMACIA_LABEL: Record<string, string> = {
 };
 
 const ZONAS_LABEL: Record<string, string> = {
-  NORORIENTAL: "Medellín",
-  NOROCCIDENTAL: "Valle de Aburrá Norte",
-  CENTRO_ORIENTAL: "Valle de Aburrá Sur",
-  CENTRO_OCCIDENTAL: "Oriente antioqueño",
-  SURORIENTAL: "Occidente / Noroccidente",
-  SUROCCIDENTAL: "Suroeste",
+  NORTE: "Norte",
+  SUR: "Sur",
+  OCCIDENTE: "Occidente",
+  ORIENTE: "Oriente",
+  ORIENTE_ANTIOQUENO: "Oriente Antioqueño",
 };
 
 function normalizarTextoEnum(value: string) {
@@ -58,9 +57,9 @@ function etiquetaTipoNovedad(n: {
   return TIPOS_FARMACIA_LABEL[n.tipoFarmacia] ?? normalizarTextoEnum(n.tipoFarmacia);
 }
 
-function etiquetaZonas(zonas: string[] | null | undefined) {
-  if (!zonas?.length) return "No aplica";
-  return zonas.map((z) => etiquetaZona(z)).join(", ");
+function etiquetaZonaTexto(zona: string | null | undefined) {
+  if (!zona) return "No aplica";
+  return etiquetaZona(zona);
 }
 
 function badgeEstado(estado: string) {
@@ -172,7 +171,7 @@ export default async function MisNovedadesPage() {
                         <div className="mt-3 flex flex-wrap gap-2 text-xs">
                           {!esRolFarmacia ? (
                             <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-gray-700">
-                              Zonas: {etiquetaZonas(n.zonas as string[] | undefined)}
+                              Zona: {etiquetaZonaTexto((n as { zona?: string | null }).zona)}
                             </span>
                           ) : null}
                           <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-gray-700">
@@ -207,3 +206,4 @@ export default async function MisNovedadesPage() {
     </div>
   );
 }
+

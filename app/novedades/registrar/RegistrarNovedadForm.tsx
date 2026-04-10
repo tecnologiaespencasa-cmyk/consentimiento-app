@@ -27,12 +27,11 @@ type MeResp = {
 };
 
 const ZONAS = [
-  { v: "NORORIENTAL", label: "Medellín" },
-  { v: "NOROCCIDENTAL", label: "Valle de Aburrá Norte" },
-  { v: "CENTRO_ORIENTAL", label: "Valle de Aburrá Sur" },
-  { v: "CENTRO_OCCIDENTAL", label: "Oriente antioqueño" },
-  { v: "SURORIENTAL", label: "Occidente / Noroccidente" },
-  { v: "SUROCCIDENTAL", label: "Suroeste" },
+  { v: "NORTE", label: "Norte" },
+  { v: "SUR", label: "Sur" },
+  { v: "OCCIDENTE", label: "Occidente" },
+  { v: "ORIENTE", label: "Oriente" },
+  { v: "ORIENTE_ANTIOQUENO", label: "Oriente Antioqueño" },
 ];
 
 const TIPOS_DOC = [
@@ -191,7 +190,7 @@ export default function RegistrarNovedadForm() {
   const [saving, setSaving] = useState(false);
 
   const [telefono, setTelefono] = useState("");
-  const [zonas, setZonas] = useState<string[]>([]);
+  const [zona, setZona] = useState("");
   const [categoria, setCategoria] = useState<"PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO" | "LLAMADA_URGENTE">("PACIENTE");
   const [esClinicaHeridas, setEsClinicaHeridas] = useState(false);
 
@@ -282,7 +281,7 @@ export default function RegistrarNovedadForm() {
     const esLlamadaUrgente = categoria === CATEGORIA_LLAMADA_URGENTE;
 
     if (!me) return false;
-    if (requiereZona && zonas.length === 0) return false;
+    if (requiereZona && !zona) return false;
     if (!esLlamadaUrgente && !descripcion.trim()) return false;
     if (esLlamadaUrgente) return !!telefono.trim();
     if (categoria === "PACIENTE") {
@@ -295,7 +294,7 @@ export default function RegistrarNovedadForm() {
       return !!tipoFarmacia;
     }
     return true;
-  }, [me, zonas, descripcion, categoria, pacienteNombre, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia]);
+  }, [me, zona, descripcion, categoria, pacienteNombre, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -311,8 +310,8 @@ export default function RegistrarNovedadForm() {
       const esLlamadaUrgente = categoria === CATEGORIA_LLAMADA_URGENTE;
       const payload = new FormData();
       payload.append("telefono", telefono.trim());
-      if (categoria === "PACIENTE" || categoria === "RUTA") {
-        zonas.forEach((z) => payload.append("zonas", z));
+      if ((categoria === "PACIENTE" || categoria === "RUTA") && zona) {
+        payload.append("zona", zona);
       }
       payload.append("categoria", categoria);
       payload.append("esClinicaHeridas", !esLlamadaUrgente && esClinicaHeridas ? "true" : "false");
@@ -353,7 +352,7 @@ export default function RegistrarNovedadForm() {
       toast.success("Novedad guardada correctamente.", { id: t });
 
       // reset parcial
-      setZonas([]);
+      setZona("");
       setCategoria(esRolFarmacia ? "PROCESO_FARMACEUTICO" : "PACIENTE");
       setEsClinicaHeridas(false);
       setPacienteNombre("");
@@ -583,20 +582,16 @@ export default function RegistrarNovedadForm() {
                   <div className="mt-4">
                     <label className="block text-sm font-semibold text-gray-700 mb-3">
                       <FaMapMarkedAlt className="inline-block mr-2 text-red-500" />
-                      Zona (puedes seleccionar varias)
+                      Zona (selecciona una)
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       {ZONAS.map((z) => {
-                        const checked = zonas.includes(z.v);
+                        const checked = zona === z.v;
                         return (
                           <button
                             type="button"
                             key={z.v}
-                            onClick={() =>
-                              setZonas((prev) =>
-                                checked ? prev.filter((x) => x !== z.v) : [...prev, z.v]
-                              )
-                            }
+                            onClick={() => setZona(checked ? "" : z.v)}
                             className={`text-left px-4 py-3 rounded-2xl border transition-all ${
                               checked
                                 ? "bg-red-50 border-red-300 text-red-700"

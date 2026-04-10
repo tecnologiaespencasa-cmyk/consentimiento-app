@@ -43,7 +43,7 @@ type Novedad = {
   prestadorCedula: string;
   prestadorProfesion: string;
   prestadorTelefono?: string | null;
-  zonas?: string[] | null;
+  zona?: string | null;
   categoria: CategoriaFiltro;
   pacienteNombre?: string | null;
   pacienteTipoDoc?: string | null;
@@ -74,12 +74,11 @@ type Novedad = {
 };
 
 const ZONAS = [
-  { v: "NORORIENTAL", label: "Medellín" },
-  { v: "NOROCCIDENTAL", label: "Valle de Aburrá Norte" },
-  { v: "CENTRO_ORIENTAL", label: "Valle de Aburrá Sur" },
-  { v: "CENTRO_OCCIDENTAL", label: "Oriente antioqueño" },
-  { v: "SURORIENTAL", label: "Occidente / Noroccidente" },
-  { v: "SUROCCIDENTAL", label: "Suroeste" },
+  { v: "NORTE", label: "Norte" },
+  { v: "SUR", label: "Sur" },
+  { v: "OCCIDENTE", label: "Occidente" },
+  { v: "ORIENTE", label: "Oriente" },
+  { v: "ORIENTE_ANTIOQUENO", label: "Oriente Antioqueño" },
 ];
 
 const ESTADOS_FILTRO = ["PENDIENTE", "RESUELTA"];
@@ -95,10 +94,9 @@ const RESPONSABLES: Array<{ v: ResponsableKey; label: string }> = [
 function etiquetaZona(zona: string) {
   return ZONAS.find((z) => z.v === zona)?.label ?? zona;
 }
-
-function etiquetaZonas(zonas: string[] | null | undefined) {
-  if (!zonas?.length) return "No aplica";
-  return zonas.map((z) => etiquetaZona(z)).join(", ");
+function etiquetaZonaTexto(zona: string | null | undefined) {
+  if (!zona) return "No aplica";
+  return etiquetaZona(zona);
 }
 
 function fmtDate(d: unknown) {
@@ -236,7 +234,7 @@ export default function AdminNovedades({
       if (estado && n.estado !== estado) return false;
       if (prioridad && n.prioridad !== prioridad) return false;
       if (responsable && !incluyeResponsable(n, responsable)) return false;
-      if (zona && !(n.zonas ?? []).includes(zona)) return false;
+      if (zona && n.zona !== zona) return false;
 
       const ts = new Date(n.createdAt).getTime();
       if (d0 !== null && ts < d0) return false;
@@ -265,8 +263,8 @@ export default function AdminNovedades({
         nombreCompleto(n.usuario),
         etiquetaResponsables(n),
         resolverResponsable(n).map((r) => etiquetaResponsable(r)).join(" "),
-        (n.zonas ?? []).join(" "),
-        etiquetaZonas(n.zonas),
+        n.zona,
+        etiquetaZonaTexto(n.zona),
       ]
         .filter(Boolean)
         .join(" ")
@@ -330,7 +328,7 @@ export default function AdminNovedades({
       "prestadorCedula",
       "prestadorProfesion",
       "prestadorTelefono",
-      "zonas",
+      "zona",
       "responsable",
       "categoria",
       "pacienteNombre",
@@ -376,7 +374,7 @@ export default function AdminNovedades({
       n.prestadorCedula ?? "",
       n.prestadorProfesion ?? "",
       n.prestadorTelefono ?? "",
-      etiquetaZonas(n.zonas),
+      etiquetaZonaTexto(n.zona),
       etiquetaResponsables(n),
       n.categoria ?? "",
       n.pacienteNombre ?? "",
@@ -918,7 +916,7 @@ export default function AdminNovedades({
                   <span className="font-semibold">Categoria:</span> {edit.categoria || "No registrada"}
                 </p>
                 <p className="text-sm text-gray-700 mt-1">
-                  <span className="font-semibold">Zonas:</span> {etiquetaZonas(edit.zonas)}
+                  <span className="font-semibold">Zona:</span> {etiquetaZonaTexto(edit.zona)}
                 </p>
                 <p className="text-sm text-gray-700 mt-1">
                   <span className="font-semibold">Responsable(s):</span> {etiquetaResponsables(edit)}
@@ -1153,4 +1151,3 @@ export default function AdminNovedades({
     </div>
   );
 }
-

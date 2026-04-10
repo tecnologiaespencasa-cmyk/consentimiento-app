@@ -23,21 +23,19 @@ const DESTINO_NOTIFICACION_CLINICA_HERIDAS = "clinicadeheridas@especialistasenca
 const DESCRIPCION_LLAMADA_URGENTE = "Necesito una llamada urgente de apoyo.";
 
 const ZONAS_VALIDAS: Zona[] = [
-  "NORORIENTAL",
-  "NOROCCIDENTAL",
-  "CENTRO_ORIENTAL",
-  "CENTRO_OCCIDENTAL",
-  "SURORIENTAL",
-  "SUROCCIDENTAL",
+  "NORTE",
+  "SUR",
+  "OCCIDENTE",
+  "ORIENTE",
+  "ORIENTE_ANTIOQUENO",
 ];
 
 const ZONAS_LABEL: Record<Zona, string> = {
-  NORORIENTAL: "Medellín",
-  NOROCCIDENTAL: "Valle de Aburrá Norte",
-  CENTRO_ORIENTAL: "Valle de Aburrá Sur",
-  CENTRO_OCCIDENTAL: "Oriente antioqueño",
-  SURORIENTAL: "Occidente / Noroccidente",
-  SUROCCIDENTAL: "Suroeste",
+  NORTE: "Norte",
+  SUR: "Sur",
+  OCCIDENTE: "Occidente",
+  ORIENTE: "Oriente",
+  ORIENTE_ANTIOQUENO: "Oriente Antioqueño",
 };
 
 const CATEGORIA_FARMACIA: CategoriaNovedad = "PROCESO_FARMACEUTICO";
@@ -135,9 +133,9 @@ function etiquetaZona(zona: Zona) {
   return ZONAS_LABEL[zona] ?? zona;
 }
 
-function etiquetaZonas(zonas: Zona[] | null | undefined) {
-  if (!zonas?.length) return "No aplica";
-  return zonas.map((z) => etiquetaZona(z)).join(", ");
+function etiquetaZonaTexto(zona: Zona | null | undefined) {
+  if (!zona) return "No aplica";
+  return etiquetaZona(zona);
 }
 
 function resolverCanalNotificacion(
@@ -299,8 +297,9 @@ export async function POST(req: Request) {
     const contentType = req.headers.get("content-type") || "";
 
     let telefono = "";
-    let rawZonas: string[] = [];
-    let zonas: Zona[] = [];
+    let rawZona = "";
+    let zonasRecibidas: string[] = [];
+    let zona: Zona | null = null;
     let categoria = "";
     let pacienteNombre = "";
     let pacienteTipoDoc = "";
@@ -318,7 +317,8 @@ export async function POST(req: Request) {
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       telefono = safeStr(formData.get("telefono"));
-      rawZonas = formData.getAll("zonas").map((z) => safeStr(z)).filter(Boolean);
+      zonasRecibidas = formData.getAll("zonas").map((z) => safeStr(z)).filter(Boolean);
+      rawZona = safeStr(formData.get("zona")) || zonasRecibidas[0] || "";
       categoria = safeStr(formData.get("categoria"));
       pacienteNombre = safeStr(formData.get("pacienteNombre"));
       pacienteTipoDoc = safeStr(formData.get("pacienteTipoDoc"));
@@ -337,7 +337,8 @@ export async function POST(req: Request) {
     } else {
       const body = await req.json();
       telefono = safeStr(body?.telefono);
-      rawZonas = Array.isArray(body?.zonas) ? body.zonas.map((z: unknown) => safeStr(z)).filter(Boolean) : [];
+      zonasRecibidas = Array.isArray(body?.zonas) ? body.zonas.map((z: unknown) => safeStr(z)).filter(Boolean) : [];
+      rawZona = safeStr(body?.zona) || zonasRecibidas[0] || "";
       categoria = safeStr(body?.categoria);
       pacienteNombre = safeStr(body?.pacienteNombre);
       pacienteTipoDoc = safeStr(body?.pacienteTipoDoc);
@@ -372,16 +373,18 @@ export async function POST(req: Request) {
       );
     }
     const requiereZona = categoriaEnum === "PACIENTE" || categoriaEnum === "RUTA";
-    if (requiereZona && !rawZonas.length) {
-      return NextResponse.json({ error: "Seleccione al menos una zona" }, { status: 400 });
+    if (requiereZona && !rawZona) {
+      return NextResponse.json({ error: "Seleccione una zona" }, { status: 400 });
     }
-
-    zonas = rawZonas.filter((z): z is Zona => ZONAS_VALIDAS.includes(z as Zona));
-    if (zonas.length !== rawZonas.length) {
-      return NextResponse.json({ error: "Una o mas zonas no son validas" }, { status: 400 });
+    if (requiereZona && zonasRecibidas.length > 1) {
+      return NextResponse.json({ error: "Solo puede seleccionar una zona" }, { status: 400 });
     }
+    if (requiereZona && rawZona && !ZONAS_VALIDAS.includes(rawZona as Zona)) {
+      return NextResponse.json({ error: "La zona seleccionada no es valida" }, { status: 400 });
+    }
+    zona = rawZona ? (rawZona as Zona) : null;
     if (categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente) {
-      zonas = [];
+      zona = null;
     }
     if (esLlamadaUrgente) {
       descripcion = DESCRIPCION_LLAMADA_URGENTE;
@@ -550,7 +553,7 @@ export async function POST(req: Request) {
           prestadorCedula,
           prestadorProfesion,
           prestadorTelefono,
-          zonas,
+          zona,
           categoria: categoriaEnum,
           pacienteNombre: categoriaEnum === "PACIENTE" ? safeStr(pacienteNombre) : null,
           pacienteTipoDoc: categoriaEnum === "PACIENTE" ? pacienteTipoDocEnum : null,
@@ -596,7 +599,7 @@ export async function POST(req: Request) {
 
     const { destinosCorreo, teamsCanales, responsableLabel } =
       resolverCanalNotificacion(prestadorProfesion, categoriaEnum, esClinicaHeridasAplicada);
-    const zonasTexto = etiquetaZonas(zonas);
+    const zonaTexto = etiquetaZonaTexto(zona);
     const clinicaHeridasTexto = esLlamadaUrgente
       ? "No aplica (llamada urgente)"
       : esClinicaHeridasAplicada
@@ -626,7 +629,7 @@ export async function POST(req: Request) {
             `Categoria: ${categoriaLabel}`,
             `Responsable(s): ${responsableLabel}`,
             `Clinica de heridas: ${clinicaHeridasTexto}`,
-            `Zonas: ${zonasTexto}`,
+            `Zona: ${zonaTexto}`,
             `ID: ${novedad.id}`,
             fotoEvidenciaUrl ? `Foto: ${fotoEvidenciaUrl}` : null,
             ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
@@ -649,7 +652,7 @@ export async function POST(req: Request) {
       `Prestador: ${prestadorNombre} (${prestadorProfesion})`,
       `Cedula: ${prestadorCedula}`,
       prestadorTelefono ? `Telefono: ${prestadorTelefono}` : null,
-      `Zona(s): ${zonasTexto}`,
+      `Zona: ${zonaTexto}`,
       `Categoria: ${categoriaLabel}`,
       `Responsable(s): ${responsableLabel}`,
       `Clinica de heridas: ${clinicaHeridasTexto}`,

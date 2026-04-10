@@ -132,8 +132,8 @@ export default function LoginPage() {
               {/* Información de Soporte */}
               <div className={styles.supportInfo}>
                 <p className={styles.supportText}>
-                  ¿Necesita ayuda? Contacta al lider de tecnología{" "}
-                  <span className={styles.supportNumber}>ESPECIALISTAS EN CASA</span>
+                  ¿Necesita ayuda? Contactanos a {" "}
+                  <span className={styles.supportNumber}>info@especialistasencasa.com</span>
                 </p>
               </div>
             </form>
@@ -198,7 +198,7 @@ export default function LoginPage() {
           {/* Footer */}
           <div className={styles.footer}>
             <p className={styles.footerText}>
-              © 2026 Especialistas en Casa IPS.<br className="md:hidden" /> Salud Domiciliaria Profesional.
+              © 2026 Especialistas en Casa IPS.<br className="md:hidden" /> Salud Domiciliaria.
             </p>
           </div>
         </div>
