@@ -97,7 +97,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       );
     }
 
-    const { estado, prioridad, asignadoA, notasInternas } = body ?? {};
+    const { estado, prioridad, asignadoA, notasInternas, respuestaPrestador } = body ?? {};
     const esAdmin = rol === "ADMINISTRATIVO";
     const nombreUsuarioActual = nombreCompleto(usuarioActual) || usuarioActual?.username || "";
 
@@ -177,6 +177,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (prioridad) data.prioridad = prioridad;
     if (typeof asignadoA !== "undefined") data.asignadoA = asignadoNuevo;
     if (typeof notasInternas !== "undefined") data.notasInternas = String(notasInternas || "").trim() || null;
+    if (typeof respuestaPrestador !== "undefined") {
+      data.respuestaPrestador = String(respuestaPrestador || "").trim() || null;
+    }
 
     const updated = await prisma.novedad.update({ where: { id }, data });
 
@@ -188,6 +191,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       const emailPrestador = safeStr(novedadActual.usuario?.email);
       if (emailPrestador) {
         const prestadorNombre = safeStr(novedadActual.prestadorNombre) || "prestador";
+        const respuestaPrestadorFinal = safeStr(data.respuestaPrestador) || "Sin respuesta registrada.";
         const tipoNovedad =
           novedadActual.categoria === "PACIENTE"
             ? novedadActual.tipoPaciente
@@ -203,6 +207,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           `Numero de radicado: ${updated.id}`,
           `Estado final: RESUELTA`,
           tipoNovedad ? `Tipo: ${tipoNovedad}` : null,
+          `Respuesta al prestador de salud: ${respuestaPrestadorFinal}`,
           ``,
           `Gracias.`,
         ]
@@ -232,6 +237,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
               <p style="margin:0 0 15px 0; font-size:16px; color:#2c3e50;">
                 Tu novedad fue gestionada por el equipo encargado y ya se encuentra en estado <strong>RESUELTA</strong>.
               </p>
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f6fbff; border-left:5px solid #1a7faa; border-radius:12px; margin:20px 0;">
+                <tr>
+                  <td style="padding:16px 18px;">
+                    <span style="font-size:15px; color:#0a4b7a; font-weight:600;">Respuesta al prestador de salud</span>
+                    <div style="font-size:15px; color:#2c3e50; margin-top:6px; white-space:pre-wrap;">${escapeHtml(respuestaPrestadorFinal)}</div>
+                  </td>
+                </tr>
+              </table>
               <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f0f8ff; border-left:5px solid #e80214; border-radius:12px; margin:25px 0;">
                 <tr>
                   <td style="padding:18px 20px;">

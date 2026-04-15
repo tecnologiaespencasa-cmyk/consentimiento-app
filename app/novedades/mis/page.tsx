@@ -168,6 +168,15 @@ export default async function MisNovedadesPage() {
                           </p>
                         </div>
 
+                        <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/50 p-3">
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-blue-700">
+                            Respuesta al prestador de salud
+                          </p>
+                          <p className="mt-1 text-sm text-gray-800 whitespace-pre-wrap">
+                            {(n as { respuestaPrestador?: string | null }).respuestaPrestador || "Aun no registran una respuesta para esta novedad."}
+                          </p>
+                        </div>
+
                         <div className="mt-3 flex flex-wrap gap-2 text-xs">
                           {!esRolFarmacia ? (
                             <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-gray-700">

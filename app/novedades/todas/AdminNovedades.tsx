@@ -67,6 +67,7 @@ type Novedad = {
   prioridad: string;
   asignadoA?: string | null;
   notasInternas?: string | null;
+  respuestaPrestador?: string | null;
   farmaciaCorregida?: boolean;
   farmaciaCorregidaAt?: string | Date | null;
   usuarioId?: string | null;
@@ -222,6 +223,7 @@ export default function AdminNovedades({
   const [editPrioridad, setEditPrioridad] = useState("MEDIA");
   const [editAsignadoA, setEditAsignadoA] = useState("");
   const [editNotas, setEditNotas] = useState("");
+  const [editRespuestaPrestador, setEditRespuestaPrestador] = useState("");
   const [saving, setSaving] = useState(false);
 
   const filtered = useMemo(() => {
@@ -259,6 +261,8 @@ export default function AdminNovedades({
         n.ubicacionLatitud,
         n.ubicacionLongitud,
         n.asignadoA,
+        n.notasInternas,
+        n.respuestaPrestador,
         n.usuario?.username,
         nombreCompleto(n.usuario),
         etiquetaResponsables(n),
@@ -352,6 +356,7 @@ export default function AdminNovedades({
       "prioridad",
       "asignadoA",
       "notasInternas",
+      "respuestaPrestador",
       "farmaciaCorregida",
       "farmaciaCorregidaAt",
       "usuarioId",
@@ -398,6 +403,7 @@ export default function AdminNovedades({
       n.prioridad ?? "",
       n.asignadoA ?? "",
       n.notasInternas ?? "",
+      n.respuestaPrestador ?? "",
       n.farmaciaCorregida ? "SI" : "NO",
       isoDate(n.farmaciaCorregidaAt),
       n.usuarioId ?? "",
@@ -437,6 +443,7 @@ export default function AdminNovedades({
     setEditPrioridad(n.prioridad);
     setEditAsignadoA(n.asignadoA ?? "");
     setEditNotas(n.notasInternas ?? "");
+    setEditRespuestaPrestador(n.respuestaPrestador ?? "");
   }
 
   async function saveEdit() {
@@ -457,6 +464,7 @@ export default function AdminNovedades({
           prioridad: editPrioridad,
           asignadoA: editAsignadoA,
           notasInternas: editNotas,
+          respuestaPrestador: editRespuestaPrestador,
         }),
       });
       if (!res.ok) {
@@ -1120,6 +1128,17 @@ export default function AdminNovedades({
                   rows={4}
                   className="w-full px-3 py-2 border border-gray-300 rounded-xl"
                   placeholder="Acciones realizadas, seguimiento, decisiones..."
+                  disabled={saving}
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="text-xs font-bold text-gray-600">Respuesta al prestador de salud</label>
+                <textarea
+                  value={editRespuestaPrestador}
+                  onChange={(e) => setEditRespuestaPrestador(e.target.value)}
+                  rows={4}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl"
+                  placeholder="Mensaje para el prestador cuando la novedad se cierre..."
                   disabled={saving}
                 />
               </div>
