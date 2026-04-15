@@ -19,6 +19,7 @@ import {
 const DESTINO_NOTIFICACION_AUXILIAR = "admisiones@especialistasencasa.com";
 const DESTINO_NOTIFICACION_OTRAS_PROFESIONES = "analistaasistencial@especialistasencasa.com";
 const DESTINO_NOTIFICACION_LLAMADA_URGENTE_ANALISTA = "analistaasistencia@especialistasencasa.com";
+const DESTINO_NOTIFICACION_LLAMADA_URGENTE_DIRECCION = "direccionasistencial@especialistasencasa.com";
 const DESTINO_NOTIFICACION_CLINICA_HERIDAS = "clinicadeheridas@especialistasencasa.com";
 const DESCRIPCION_LLAMADA_URGENTE = "Necesito una llamada urgente de apoyo.";
 
@@ -141,30 +142,66 @@ function etiquetaZonaTexto(zona: Zona | null | undefined) {
 function resolverCanalNotificacion(
   profesion: string,
   categoria: CategoriaNovedad,
-  esClinicaHeridas: boolean
+  esClinicaHeridas: boolean,
+  rolReporta: string
 ) {
+  const esRolFarmacia = String(rolReporta || "").toUpperCase() === "FARMACIA";
+  const esAuxiliarEnfermeria = profesion === "AUXILIAR_ENFERMERIA";
+  const teamsCanalFarmacia = [
+    { url: process.env.TEAMS_WEBHOOK_URL_FARMACIA, label: "TEAMS_WEBHOOK_URL_FARMACIA" },
+  ];
+
   if (categoria === CATEGORIA_LLAMADA_URGENTE) {
     return {
-      destinosCorreo: [DESTINO_NOTIFICACION_AUXILIAR, DESTINO_NOTIFICACION_LLAMADA_URGENTE_ANALISTA],
-      teamsCanales: [
-        { url: process.env.TEAMS_WEBHOOK_URL, label: "TEAMS_WEBHOOK_URL" },
-        { url: process.env.TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES, label: "TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES" },
+      destinosCorreo: [
+        DESTINO_NOTIFICACION_AUXILIAR,
+        DESTINO_NOTIFICACION_LLAMADA_URGENTE_ANALISTA,
+        DESTINO_NOTIFICACION_LLAMADA_URGENTE_DIRECCION,
       ],
+      teamsCanales: esRolFarmacia
+        ? teamsCanalFarmacia
+        : [
+            { url: process.env.TEAMS_WEBHOOK_URL, label: "TEAMS_WEBHOOK_URL" },
+            { url: process.env.TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES, label: "TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES" },
+          ],
       responsableLabel: "Admisiones y analista asistencial",
+    };
+  }
+
+  if (categoria === CATEGORIA_FARMACIA) {
+    return {
+      destinosCorreo: [
+        DESTINO_NOTIFICACION_AUXILIAR,
+        DESTINO_NOTIFICACION_OTRAS_PROFESIONES,
+        DESTINO_NOTIFICACION_LLAMADA_URGENTE_DIRECCION,
+      ],
+      teamsCanales: esRolFarmacia
+        ? teamsCanalFarmacia
+        : [
+            {
+              url: esAuxiliarEnfermeria
+                ? process.env.TEAMS_WEBHOOK_URL
+                : process.env.TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES,
+              label: esAuxiliarEnfermeria
+                ? "TEAMS_WEBHOOK_URL"
+                : "TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES",
+            },
+          ],
+      responsableLabel: "Admisiones, analista asistencial y direccion asistencial",
     };
   }
 
   if (esClinicaHeridas) {
     return {
       destinosCorreo: [DESTINO_NOTIFICACION_CLINICA_HERIDAS],
-      teamsCanales: [
-        { url: process.env.TEAMS_WEBHOOK_URL_CLINICA_HERIDAS, label: "TEAMS_WEBHOOK_URL_CLINICA_HERIDAS" },
-      ],
+      teamsCanales: esRolFarmacia
+        ? teamsCanalFarmacia
+        : [
+            { url: process.env.TEAMS_WEBHOOK_URL_CLINICA_HERIDAS, label: "TEAMS_WEBHOOK_URL_CLINICA_HERIDAS" },
+          ],
       responsableLabel: "Clinica de heridas",
     };
   }
-
-  const esAuxiliarEnfermeria = profesion === "AUXILIAR_ENFERMERIA";
 
   return {
     destinosCorreo: [
@@ -172,16 +209,18 @@ function resolverCanalNotificacion(
         ? DESTINO_NOTIFICACION_AUXILIAR
         : DESTINO_NOTIFICACION_OTRAS_PROFESIONES,
     ],
-    teamsCanales: [
-      {
-        url: esAuxiliarEnfermeria
-          ? process.env.TEAMS_WEBHOOK_URL
-          : process.env.TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES,
-        label: esAuxiliarEnfermeria
-          ? "TEAMS_WEBHOOK_URL"
-          : "TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES",
-      },
-    ],
+    teamsCanales: esRolFarmacia
+      ? teamsCanalFarmacia
+      : [
+          {
+            url: esAuxiliarEnfermeria
+              ? process.env.TEAMS_WEBHOOK_URL
+              : process.env.TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES,
+            label: esAuxiliarEnfermeria
+              ? "TEAMS_WEBHOOK_URL"
+              : "TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES",
+          },
+        ],
     responsableLabel: esAuxiliarEnfermeria ? "Admisiones" : "Analista asistencial",
   };
 }
@@ -592,7 +631,7 @@ export async function POST(req: Request) {
     const linkAdmin = baseUrl ? `${baseUrl}/novedades/todas` : "/novedades/todas";
 
     const { destinosCorreo, teamsCanales, responsableLabel } =
-      resolverCanalNotificacion(prestadorProfesion, categoriaEnum, esClinicaHeridasAplicada);
+      resolverCanalNotificacion(prestadorProfesion, categoriaEnum, esClinicaHeridasAplicada, String(u.rol || ""));
     const zonaTexto = etiquetaZonaTexto(zona);
     const clinicaHeridasTexto = esLlamadaUrgente
       ? "No aplica (llamada urgente)"
