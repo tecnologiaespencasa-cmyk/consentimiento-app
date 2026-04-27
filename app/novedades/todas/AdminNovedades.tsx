@@ -85,6 +85,11 @@ const ZONAS = [
 const ESTADOS_FILTRO = ["PENDIENTE", "RESUELTA"];
 const ESTADOS_GESTION = ["PENDIENTE", "RESUELTA"];
 const PRIORIDADES = ["BAJA", "MEDIA", "ALTA"];
+const TIPOS_PACIENTE_LABEL: Record<string, string> = {
+  DATOS_ERRADOS: "Datos errados de ubicación",
+  ACTUALIZACION_DATOS: "Actualización de datos",
+  INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",
+};
 type ResponsableKey = "ADMISIONES" | "ANALISTA_ASISTENCIAL" | "CLINICA_HERIDAS";
 const RESPONSABLES: Array<{ v: ResponsableKey; label: string }> = [
   { v: "ADMISIONES", label: "Admisiones" },
@@ -185,7 +190,10 @@ function etiquetaCategoria(categoria: CategoriaFiltro) {
 }
 
 function etiquetaTipoNovedad(n: Pick<Novedad, "categoria" | "tipoPaciente" | "tipoRuta" | "tipoFarmacia">) {
-  if (n.categoria === "PACIENTE") return n.tipoPaciente ?? "SIN_TIPO";
+  if (n.categoria === "PACIENTE") {
+    if (!n.tipoPaciente) return "SIN_TIPO";
+    return TIPOS_PACIENTE_LABEL[n.tipoPaciente] ?? n.tipoPaciente;
+  }
   if (n.categoria === "RUTA") return n.tipoRuta ?? "SIN_TIPO";
   if (n.categoria === "PROCESO_FARMACEUTICO") return n.tipoFarmacia ?? "SIN_TIPO";
   if (n.categoria === "LLAMADA_URGENTE") return "LLAMADA_URGENTE";
@@ -385,7 +393,7 @@ export default function AdminNovedades({
       n.pacienteNombre ?? "",
       n.pacienteTipoDoc ?? "",
       n.pacienteDocumento ?? "",
-      n.tipoPaciente ?? "",
+      etiquetaTipoNovedad(n),
       n.fotoIngresoDomicilioUrl ?? "",
       n.fotoIngresoDomicilioDriveItemId ?? "",
       n.fotoIngresoDomicilioNombre ?? "",
@@ -736,14 +744,7 @@ export default function AdminNovedades({
                 {pageData.map((n) => {
                   const b = estadoBadge(n.estado);
                   const Icon = b.icon;
-                  const tipo =
-                    n.categoria === "PACIENTE"
-                      ? n.tipoPaciente
-                      : n.categoria === "RUTA"
-                      ? n.tipoRuta
-                      : n.categoria === "PROCESO_FARMACEUTICO"
-                      ? n.tipoFarmacia
-                      : "LLAMADA_URGENTE";
+                  const tipo = etiquetaTipoNovedad(n);
                   const fotoEvidenciaUrl = n.fotoIngresoDomicilioUrl ?? n.fotoRutaEvidenciaUrl;
                   const tieneUbicacion = coordenadasValidas(n.ubicacionLatitud, n.ubicacionLongitud);
                   const ubicacionGoogleMapsUrl = tieneUbicacion
@@ -930,13 +931,7 @@ export default function AdminNovedades({
                   <span className="font-semibold">Responsable(s):</span> {etiquetaResponsables(edit)}
                 </p>
                 <p className="text-sm text-gray-700 mt-1">
-                  <span className="font-semibold">Tipo:</span> {(
-                    edit.categoria === "PACIENTE"
-                      ? edit.tipoPaciente
-                      : edit.categoria === "RUTA"
-                      ? edit.tipoRuta
-                      : edit.tipoFarmacia
-                  ) || "No registrado"}
+                  <span className="font-semibold">Tipo:</span> {etiquetaTipoNovedad(edit) || "No registrado"}
                 </p>
                 <p className="text-sm text-gray-700 mt-1">
                   <span className="font-semibold">Fecha:</span> {fmtDate(edit.createdAt)}

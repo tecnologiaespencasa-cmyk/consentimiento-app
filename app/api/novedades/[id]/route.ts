@@ -7,6 +7,12 @@ import { notificarNovedadesFarmaciaSinGestion } from "@/lib/notificarNovedadesFa
 
 const ESTADOS_GESTION_VALIDOS = new Set(["PENDIENTE", "RESUELTA"]);
 
+const TIPOS_PACIENTE_LABEL: Record<string, string> = {
+  DATOS_ERRADOS: "Datos errados de ubicación",
+  ACTUALIZACION_DATOS: "Actualización de datos",
+  INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",
+};
+
 function nombreCompleto(u: any) {
   return `${u?.nombres ?? ""} ${u?.primerApellido ?? ""} ${u?.segundoApellido ?? ""}`
     .replace(/\s+/g, " ")
@@ -24,6 +30,10 @@ function escapeHtml(s: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function etiquetaTipoPaciente(tipo: string | null) {
+  return tipo ? TIPOS_PACIENTE_LABEL[tipo] ?? tipo : null;
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -194,7 +204,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         const respuestaPrestadorFinal = safeStr(data.respuestaPrestador) || "Sin respuesta registrada.";
         const tipoNovedad =
           novedadActual.categoria === "PACIENTE"
-            ? novedadActual.tipoPaciente
+            ? etiquetaTipoPaciente(novedadActual.tipoPaciente)
             : novedadActual.categoria === "RUTA"
             ? novedadActual.tipoRuta
             : novedadActual.tipoFarmacia;

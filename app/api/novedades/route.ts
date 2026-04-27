@@ -57,10 +57,12 @@ const TIPOS_DOCUMENTO_VALIDOS: TipoDocumento[] = [
 const TIPOS_PACIENTE_VALIDOS: TipoNovedadPaciente[] = [
   "ERCA",
   "DATOS_ERRADOS",
+  "ACTUALIZACION_DATOS",
   "AGENDAMIENTO",
   "FALLECIMIENTO",
   "HOSPITALIZACION",
   "ALTA_TARDIA",
+  "INICIO_TRATAMIENTO_PRIORITARIO",
   "RETRASO_INICIO_TRATAMIENTO",
   "PROBABLE_REACCION_ALERGICA",
   "DOBLE_PRESTADOR",
@@ -69,6 +71,12 @@ const TIPOS_PACIENTE_VALIDOS: TipoNovedadPaciente[] = [
   "IMPOSIBILIDAD_INGRESAR_DOMICILIO",
   "OTRA",
 ];
+
+const TIPOS_PACIENTE_LABEL: Partial<Record<TipoNovedadPaciente, string>> = {
+  DATOS_ERRADOS: "Datos errados de ubicación",
+  ACTUALIZACION_DATOS: "Actualización de datos",
+  INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",
+};
 
 const TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA: TipoNovedadPaciente[] = [
   "IMPOSIBILIDAD_INGRESAR_DOMICILIO",
@@ -121,6 +129,10 @@ function etiquetaCategoria(categoria: CategoriaNovedad) {
   if (categoria === "RUTA") return "Ruta";
   if (categoria === CATEGORIA_LLAMADA_URGENTE) return "Llamada urgente";
   return "Proceso farmaceutico";
+}
+
+function etiquetaTipoPaciente(tipo: TipoNovedadPaciente | null) {
+  return tipo ? TIPOS_PACIENTE_LABEL[tipo] ?? tipo : null;
 }
 
 function etiquetaCategoriaConIcono(categoria: CategoriaNovedad) {
@@ -567,7 +579,7 @@ export async function POST(req: Request) {
     const categoriaLabel = etiquetaCategoria(categoriaEnum);
     const tipoNovedadSeleccionada =
       categoriaEnum === "PACIENTE"
-        ? tipoPacienteEnum
+        ? etiquetaTipoPaciente(tipoPacienteEnum)
         : categoriaEnum === "RUTA"
         ? tipoRutaEnum
         : categoriaEnum === CATEGORIA_FARMACIA

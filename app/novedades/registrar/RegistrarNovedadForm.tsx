@@ -46,11 +46,13 @@ const TIPOS_DOC = [
 
 const TIPOS_PACIENTE = [
   { v: "ERCA", label: "ERCA" },
-  { v: "DATOS_ERRADOS", label: "Datos errados" },
+  { v: "DATOS_ERRADOS", label: "Datos errados de ubicación" },
+  { v: "ACTUALIZACION_DATOS", label: "Actualización de datos" },
   { v: "AGENDAMIENTO", label: "Agendamiento" },
   { v: "FALLECIMIENTO", label: "Fallecimientos" },
   { v: "HOSPITALIZACION", label: "Hospitalización" },
   { v: "ALTA_TARDIA", label: "Alta tardía" },
+  { v: "INICIO_TRATAMIENTO_PRIORITARIO", label: "Inicio de tratamiento prioritario" },
   { v: "RETRASO_INICIO_TRATAMIENTO", label: "Retraso en inicio de tratamiento" },
   { v: "PROBABLE_REACCION_ALERGICA", label: "Probable reacción alérgica" },
   { v: "DOBLE_PRESTADOR", label: "Doble prestador" },
