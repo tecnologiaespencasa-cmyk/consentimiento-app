@@ -195,7 +195,7 @@ export default function LoginPage() {
             </div>
           </div>
           
-          {/* Footer */}
+          {/* Footer  */}
           <div className={styles.footer}>
             <p className={styles.footerText}>
               © 2026 Especialistas en Casa IPS.<br className="md:hidden" /> Salud Domiciliaria.
