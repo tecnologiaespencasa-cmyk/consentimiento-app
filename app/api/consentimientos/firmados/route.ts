@@ -5,13 +5,32 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
-import { uploadToSharePoint } from "@/lib/uploadToSharePoint";
+import { uploadToSharePoint, uploadToSharePointWithInfo } from "@/lib/uploadToSharePoint";
 
 import path from "path";
 import fs from "fs/promises";
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { Buffer } from "buffer";
+
+const FORMATO_DERECHOS_DEBERES = "DERECHOS-DEBERES-USUARIO";
+const SHAREPOINT_FOLDER_DERECHOS_DEBERES = "DerechosDeberes";
+
+const DERECHOS_USUARIO = [
+  "Recibir durante todo el proceso de la enfermedad la mejor asistencia posible. Un trato digno, humanizado y respetando sus creencias y costumbres.",
+  "Disfrutar de una comunicación plena y clara con el médico tratante.",
+  "Derecho a que todos los informes de la historia clínica sean tratados de manera confidencial y solo con su autorización puedan ser conocidos.",
+  "Derecho a recibir información completa y adecuada sobre su proceso individual de salud de parte del profesional tratante.",
+  "Derecho a ser escuchado y obtener respuestas a sus reclamos o inquietudes, además derecho a ser informado sobre sus derechos y deberes.",
+] as const;
+
+const DEBERES_USUARIO = [
+  "Propender por su cuidado personal, adoptando y siguiendo las indicaciones de los diversos profesionales que le realizan la atención.",
+  "Suministrar información veraz, clara y completa sobre su estado de salud.",
+  "Cumplir las normas, reglamentos e instrucciones de la institución y profesionales que le prestan la atención en salud.",
+  "Brindar un trato digno, respetuoso y amable al personal humano que lo atiende. Comprometerse con los horarios de atención establecidos.",
+  "Firmar consentimiento para las atenciones que lo requieran, firmar los documentos de alta voluntaria o no aceptación de tratamiento cuando haya tomado esa opción.",
+] as const;
 
 /**
  * Helpers
@@ -72,6 +91,192 @@ function drawWrappedLines(page: any, font: any, text: string, cfg: { x: number; 
       color: rgb(0, 0, 0),
     });
   }
+}
+
+async function buildDerechosDeberesPdf(input: {
+  cedula: string;
+  pacienteNombreCompleto: string;
+  espNombreCompleto: string;
+  aceptado: boolean;
+  firmaPacientePngBase64: string;
+  firmaEspecialistaPngBase64: string;
+  now: Date;
+}) {
+  const pdfDoc = await PDFDocument.create();
+  const page = pdfDoc.addPage([612, 1008]);
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const bold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+  const firmaPacienteBytes = dataUrlToUint8Array(input.firmaPacientePngBase64);
+  const firmaEspecialistaBytes = dataUrlToUint8Array(input.firmaEspecialistaPngBase64);
+  const firmaPacienteImg = await pdfDoc.embedPng(firmaPacienteBytes);
+  const firmaEspecialistaImg = await pdfDoc.embedPng(firmaEspecialistaBytes);
+
+  const marginX = 32;
+  const pageWidth = page.getSize().width;
+  const contentWidth = pageWidth - marginX * 2;
+
+  const fecha = `${String(input.now.getDate()).padStart(2, "0")}/${String(input.now.getMonth() + 1).padStart(2, "0")}/${input.now.getFullYear()} ${String(input.now.getHours()).padStart(2, "0")}:${String(input.now.getMinutes()).padStart(2, "0")}`;
+
+  const logoPath = path.join(process.cwd(), "public", "login", "logo.png");
+  try {
+    const logoBytes = await fs.readFile(logoPath);
+    const logoImage = await pdfDoc.embedPng(logoBytes);
+    const logoWidth = 220;
+    const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
+    const logoTop = 988;
+    page.drawImage(logoImage, {
+      x: marginX,
+      y: logoTop - logoHeight,
+      width: logoWidth,
+      height: logoHeight,
+    });
+  } catch {
+    page.drawText("Especialistas en Casa", {
+      x: marginX,
+      y: 972,
+      size: 22,
+      font: bold,
+      color: rgb(0.82, 0.05, 0.12),
+    });
+  }
+
+  page.drawText("Consentimiento informado - Derechos y deberes del usuario", {
+    x: marginX,
+    y: 885,
+    size: 13,
+    font: bold,
+    color: rgb(0.1, 0.1, 0.1),
+  });
+
+  page.drawText(`Fecha: ${fecha}`, { x: marginX, y: 865, size: 10, font, color: rgb(0, 0, 0) });
+  page.drawText(`Paciente/acudiente: ${input.pacienteNombreCompleto}`, { x: marginX, y: 849, size: 10, font, color: rgb(0, 0, 0) });
+  page.drawText(`Documento: ${input.cedula}`, { x: marginX, y: 833, size: 10, font, color: rgb(0, 0, 0) });
+  page.drawText(`Personal de la salud: ${input.espNombreCompleto}`, { x: marginX, y: 817, size: 10, font, color: rgb(0, 0, 0) });
+
+  const sectionTop = 795;
+  const sectionHeight = 482;
+  const sectionGap = 14;
+  const sectionWidth = (contentWidth - sectionGap) / 2;
+
+  const drawSection = (
+    x: number,
+    title: string,
+    subtitle: string,
+    items: readonly string[],
+    tint: { r: number; g: number; b: number }
+  ) => {
+    page.drawRectangle({
+      x,
+      y: sectionTop - sectionHeight,
+      width: sectionWidth,
+      height: sectionHeight,
+      color: rgb(tint.r, tint.g, tint.b),
+      borderWidth: 1,
+      borderColor: rgb(0.85, 0.85, 0.85),
+    });
+
+    page.drawText(title, {
+      x: x + 12,
+      y: sectionTop - 24,
+      size: 14,
+      font: bold,
+      color: rgb(0.55, 0.08, 0.1),
+    });
+    const subtitleLines = wrapText(font, subtitle, 9, sectionWidth - 24);
+    const subtitleStartY = sectionTop - 43;
+    for (let i = 0; i < subtitleLines.length; i++) {
+      page.drawText(subtitleLines[i], {
+        x: x + 12,
+        y: subtitleStartY - i * 10,
+        size: 9,
+        font,
+        color: rgb(0.25, 0.25, 0.25),
+      });
+    }
+
+    let y = subtitleStartY - subtitleLines.length * 10 - 10;
+    const textWidth = sectionWidth - 32;
+    for (let i = 0; i < items.length; i++) {
+      const lines = wrapText(font, items[i], 9.2, textWidth).slice(0, 8);
+      page.drawText(`${i + 1}.`, { x: x + 12, y, size: 9.2, font: bold, color: rgb(0, 0, 0) });
+      for (let j = 0; j < lines.length; j++) {
+        page.drawText(lines[j], { x: x + 26, y: y - j * 11, size: 9.2, font, color: rgb(0, 0, 0) });
+      }
+      y -= lines.length * 11 + 8;
+    }
+  };
+
+  drawSection(
+    marginX,
+    "Derechos del usuario",
+    "¿Cuáles son tus derechos como usuario de Especialistas en Casa?",
+    DERECHOS_USUARIO,
+    { r: 1, g: 0.97, b: 0.93 }
+  );
+
+  drawSection(
+    marginX + sectionWidth + sectionGap,
+    "Deberes del usuario",
+    "¿Cuáles son tus deberes como usuario de Especialistas en Casa?",
+    DEBERES_USUARIO,
+    { r: 1, g: 0.93, b: 0.94 }
+  );
+
+  const firmaTop = 305;
+  page.drawText("Firmas", { x: marginX, y: firmaTop, size: 13, font: bold, color: rgb(0.1, 0.1, 0.1) });
+  page.drawText(`Decisión registrada: ${input.aceptado ? "ACEPTA" : "NO ACEPTA"} el consentimiento`, {
+    x: marginX,
+    y: firmaTop - 16,
+    size: 10,
+    font: bold,
+    color: input.aceptado ? rgb(0.02, 0.5, 0.2) : rgb(0.72, 0.1, 0.1),
+  });
+
+  const firmaY = 206;
+  const lineY = firmaY - 6;
+  const pacienteX = marginX + 24;
+  const especialistaX = marginX + 322;
+
+  page.drawLine({
+    start: { x: pacienteX, y: lineY },
+    end: { x: pacienteX + 220, y: lineY },
+    thickness: 1,
+    color: rgb(0.3, 0.3, 0.3),
+  });
+  page.drawLine({
+    start: { x: especialistaX, y: lineY },
+    end: { x: especialistaX + 220, y: lineY },
+    thickness: 1,
+    color: rgb(0.3, 0.3, 0.3),
+  });
+
+  page.drawImage(firmaPacienteImg, { x: pacienteX + 18, y: firmaY, width: 185, height: 52 });
+  page.drawImage(firmaEspecialistaImg, { x: especialistaX + 18, y: firmaY, width: 185, height: 52 });
+
+  page.drawText("Firma del paciente o acudiente", { x: pacienteX + 34, y: lineY - 16, size: 9.5, font, color: rgb(0, 0, 0) });
+  page.drawText(`CC: ${input.cedula}`, { x: pacienteX + 78, y: lineY - 30, size: 9.5, font, color: rgb(0, 0, 0) });
+
+  page.drawText("Firma del personal de la salud", { x: especialistaX + 30, y: lineY - 16, size: 9.5, font, color: rgb(0, 0, 0) });
+  page.drawText(input.espNombreCompleto, { x: especialistaX + 30, y: lineY - 30, size: 9.5, font, color: rgb(0, 0, 0), maxWidth: 205 });
+
+  page.drawText("Contacto atención al usuario: 604 322 2498 | 305 457 3413 | analistaatencionusuario@especialistasencasa.com", {
+    x: marginX,
+    y: 48,
+    size: 8.6,
+    font,
+    color: rgb(0.25, 0.25, 0.25),
+    maxWidth: contentWidth,
+  });
+  page.drawText("#SiempreCuidandoDeTi", {
+    x: marginX,
+    y: 32,
+    size: 10,
+    font: bold,
+    color: rgb(0.78, 0.03, 0.1),
+  });
+
+  return pdfDoc.save();
 }
 
 
@@ -789,21 +994,18 @@ export async function POST(req: Request) {
     // Debug
     const debugGrid = String(formData.get("debugGrid") || "") === "true";
 
-    if (!TEMPLATE_MAP[formatoId]) {
+    const esFormatoDerechosDeberes = formatoId === FORMATO_DERECHOS_DEBERES;
+
+    if (!esFormatoDerechosDeberes && !TEMPLATE_MAP[formatoId]) {
       return NextResponse.json({ error: "Formato no soportado" }, { status: 400 });
     }
 
-    if (
-      !cedula ||
-      !pacientePrimerApellido ||
-      !pacienteSegundoApellido ||
-      !pacienteNombres ||
-      !pacienteEdad ||
-      !pacienteTelefono ||
-      !firmaPacientePngBase64 ||
-      !firmaEspecialistaPngBase64
-    ) {
+    if (!cedula || !pacientePrimerApellido || !pacienteSegundoApellido || !pacienteNombres || !firmaPacientePngBase64 || !firmaEspecialistaPngBase64) {
       return NextResponse.json({ error: "Datos incompletos" }, { status: 400 });
+    }
+
+    if (!esFormatoDerechosDeberes && (!pacienteEdad || !pacienteTelefono)) {
+      return NextResponse.json({ error: "Faltan edad o teléfono del paciente" }, { status: 400 });
     }
 
     if (formatoId === "FO-HCR-01") {
@@ -838,6 +1040,51 @@ export async function POST(req: Request) {
 
     // Para "Yo, ____"
     const pacienteNombreCompleto = `${pacientePrimerApellido} ${pacienteSegundoApellido} ${pacienteNombres}`.trim();
+    const espNombreCompleto = `${espNombres} ${espPrimerApellido} ${espSegundoApellido}`.replace(/\s+/g, " ").trim();
+
+    if (esFormatoDerechosDeberes) {
+      const finalPdfBytes = await buildDerechosDeberesPdf({
+        cedula,
+        pacienteNombreCompleto,
+        espNombreCompleto,
+        aceptado,
+        firmaPacientePngBase64,
+        firmaEspecialistaPngBase64,
+        now,
+      });
+
+      const estadoTexto = aceptado ? "aceptado" : "rechazado";
+      const fileName = `${formatoId}-${cedula}-${now.toISOString().slice(0, 10)}-${estadoTexto}.pdf`;
+
+      const upload = await uploadToSharePointWithInfo(
+        {
+          bytes: finalPdfBytes,
+          fileName,
+          contentType: "application/pdf",
+        },
+        cedula,
+        { folder: SHAREPOINT_FOLDER_DERECHOS_DEBERES }
+      );
+
+      const archivoUrl = upload.webUrl || "";
+
+      await prisma.consentimiento.create({
+        data: {
+          cedula,
+          fechaHora: now,
+          archivoUrl,
+          usuarioId: session.user.id,
+          aceptado,
+        },
+      });
+
+      return NextResponse.json({
+        ok: true,
+        archivoUrl,
+        aceptado,
+        mensaje: aceptado ? "Consentimiento aceptado" : "Consentimiento rechazado",
+      });
+    }
 
     const templateCfg = TEMPLATE_MAP[formatoId];
     const templatePath = path.join(process.cwd(), "public", templateCfg.templatePublicPath);

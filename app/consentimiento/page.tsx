@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import styles from "./Consentimiento.module.css";
 
 type Modo = "adjuntar" | "firmar" | null;
@@ -10,8 +10,10 @@ type Formato = {
   id: string;
   nombre: string;
   descripcionCorta: string;
-  pdfPath: string;
+  pdfPath?: string;
 };
+
+const FORMATO_DERECHOS_DEBERES = "DERECHOS-DEBERES-USUARIO";
 
 const PROCEDIMIENTOS_ENFERMERIA = [
   "Cateterismo Venoso Periférico",
@@ -21,6 +23,22 @@ const PROCEDIMIENTOS_ENFERMERIA = [
   "Retiro de puntos",
   "Toma de un electrocardiograma (EKG)",
   "Retiro de Catéter PICC en Domicilio",
+] as const;
+
+const DERECHOS_USUARIO = [
+  "Recibir durante todo el proceso de la enfermedad la mejor asistencia posible. Un trato digno, humanizado y respetando sus creencias y costumbres.",
+  "Disfrutar de una comunicación plena y clara con el médico tratante.",
+  "Derecho a que todos los informes de la historia clínica sean tratados de manera confidencial y solo con su autorización puedan ser conocidos.",
+  "Derecho a recibir información completa y adecuada sobre su proceso individual de salud de parte del profesional tratante.",
+  "Derecho a ser escuchado y obtener respuestas a sus reclamos o inquietudes, además derecho a ser informado sobre sus derechos y deberes.",
+] as const;
+
+const DEBERES_USUARIO = [
+  "Propender por su cuidado personal, adoptando y siguiendo las indicaciones de los diversos profesionales que le realizan la atención.",
+  "Suministrar información veraz, clara y completa sobre su estado de salud.",
+  "Cumplir las normas, reglamentos e instrucciones de la institución y profesionales que le prestan la atención en salud.",
+  "Brindar un trato digno, respetuoso y amable al personal humano que lo atiende. Comprometerse con los horarios de atención establecidos.",
+  "Firmar consentimiento para las atenciones que lo requieran, firmar los documentos de alta voluntaria o no aceptación de tratamiento cuando haya tomado esa opción.",
 ] as const;
 
 type Me = {
@@ -165,6 +183,7 @@ function SignaturePad({
 
 export default function ConsentimientoPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [modo, setModo] = useState<Modo>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -177,6 +196,7 @@ export default function ConsentimientoPage() {
   const [formatoSeleccionado, setFormatoSeleccionado] = useState<Formato | null>(null);
   const esFO18 = formatoSeleccionado?.id === "FO-HCR-18";
   const esFO11 = formatoSeleccionado?.id === "FO-HCR-11";
+  const esDerechosDeberes = formatoSeleccionado?.id === FORMATO_DERECHOS_DEBERES;
 
 
   type TerapiaKey = "fisica" | "fonoaudiologia" | "respiratoria" | "ocupacional";
@@ -257,6 +277,11 @@ export default function ConsentimientoPage() {
   const formatos: Formato[] = useMemo(
     () => [
       {
+        id: FORMATO_DERECHOS_DEBERES,
+        nombre: "Derechos y deberes del usuario",
+        descripcionCorta: "Consentimiento informado de derechos y deberes del usuario",
+      },
+      {
         id: "FO-HCR-01",
         nombre: "Procedimientos de Enfermería",
         descripcionCorta: "Consentimiento Informado Procedimientos de Enfermería",
@@ -319,6 +344,23 @@ export default function ConsentimientoPage() {
     ],
     []
   );
+
+  useEffect(() => {
+    const modoParam = searchParams.get("modo");
+    const formatoParam = searchParams.get("formato");
+
+    if (modoParam === "firmar") {
+      setModo("firmar");
+    }
+
+    if (!formatoParam) return;
+
+    const formato = formatos.find((f) => f.id === formatoParam);
+    if (!formato) return;
+
+    setModo("firmar");
+    setFormatoSeleccionado(formato);
+  }, [formatos, searchParams]);
 
   useEffect(() => {
     (async () => {
@@ -666,17 +708,27 @@ export default function ConsentimientoPage() {
             </div>
 
             <div className={styles.pdfBody}>
-              <iframe
-                className={styles.pdfFrame}
-                src={formatoSeleccionado.pdfPath}
-                title="Consentimiento PDF"
-              />
+              {formatoSeleccionado.pdfPath ? (
+                <iframe
+                  className={styles.pdfFrame}
+                  src={formatoSeleccionado.pdfPath}
+                  title="Consentimiento PDF"
+                />
+              ) : (
+                <div className={styles.pdfNoPreview}>
+                  Esta plantilla no tiene PDF base. Su contenido se visualiza directamente en pantalla.
+                </div>
+              )}
             </div>
 
             <div className={styles.pdfFooter}>
-              <a className={styles.pdfDownload} href={formatoSeleccionado.pdfPath} target="_blank" rel="noreferrer">
-                Abrir en pestaña nueva
-              </a>
+              {formatoSeleccionado.pdfPath ? (
+                <a className={styles.pdfDownload} href={formatoSeleccionado.pdfPath} target="_blank" rel="noreferrer">
+                  Abrir en pestaña nueva
+                </a>
+              ) : (
+                <span className={styles.pdfDownloadMuted}>Vista previa no disponible para esta plantilla</span>
+              )}
               <button type="button" className={styles.primaryButton} onClick={() => setPdfModalOpen(false)}>
                 Continuar
               </button>
@@ -782,13 +834,19 @@ export default function ConsentimientoPage() {
                       </div>
                     </div>
 
-                    <button
-                      type="button"
-                      className={styles.secondaryButton}
-                      onClick={() => setPdfModalOpen(true)}
-                    >
-                      Ver consentimiento (PDF)
-                    </button>
+                    {formatoSeleccionado.pdfPath ? (
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={() => setPdfModalOpen(true)}
+                      >
+                        Ver consentimiento (PDF)
+                      </button>
+                    ) : (
+                      <div className={styles.templateScreenOnly}>
+                        Esta plantilla se diligencia y revisa directamente en pantalla.
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -859,15 +917,19 @@ export default function ConsentimientoPage() {
                       <input type="text" name="cedula" required className={styles.input} />
                     </div>
 
-                    <div className={styles.field}>
-                      <label>Edad</label>
-                      <input type="number" name="pacienteEdad" required className={styles.input} min={0} max={150} />
-                    </div>
+                    {!esDerechosDeberes && (
+                      <div className={styles.field}>
+                        <label>Edad</label>
+                        <input type="number" name="pacienteEdad" required className={styles.input} min={0} max={150} />
+                      </div>
+                    )}
 
-                    <div className={styles.field}>
-                      <label>Teléfono</label>
-                      <input type="tel" name="pacienteTelefono" required className={styles.input} />
-                    </div>
+                    {!esDerechosDeberes && (
+                      <div className={styles.field}>
+                        <label>Teléfono</label>
+                        <input type="tel" name="pacienteTelefono" required className={styles.input} />
+                      </div>
+                    )}
                   </div>
                 </div>
                 {esFO18 && (
@@ -1265,6 +1327,51 @@ export default function ConsentimientoPage() {
                         rows={6}
                       />
                     </div>
+                  </section>
+                )}
+
+
+                {esDerechosDeberes && (
+                  <section className={styles.rightsCard}>
+                    <div className={styles.rightsGrid}>
+                      <article className={styles.rightsPanel}>
+                        <h3 className={styles.rightsTitle}>Derechos del usuario</h3>
+                        <p className={styles.rightsSubtitle}>
+                          ¿Cuáles son tus derechos como usuario de Especialistas en Casa?
+                        </p>
+                        <ol className={styles.rightsList}>
+                          {DERECHOS_USUARIO.map((item, i) => (
+                            <li key={i} className={styles.rightsListItem}>
+                              <span className={styles.rightsItemIcon} aria-hidden="true">
+                                {i + 1}
+                              </span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </article>
+
+                      <article className={`${styles.rightsPanel} ${styles.rightsPanelDuty}`}>
+                        <h3 className={styles.rightsTitle}>Deberes del usuario</h3>
+                        <p className={styles.rightsSubtitle}>
+                          ¿Cuáles son tus deberes como usuario de Especialistas en Casa?
+                        </p>
+                        <ol className={styles.rightsList}>
+                          {DEBERES_USUARIO.map((item, i) => (
+                            <li key={i} className={styles.rightsListItem}>
+                              <span className={`${styles.rightsItemIcon} ${styles.rightsItemIconDuty}`} aria-hidden="true">
+                                {i + 1}
+                              </span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      </article>
+                    </div>
+
+                    <p className={styles.rightsFooterInfo}>
+                      Contacto: 604 322 2498 | 305 457 3413 | analistaatencionusuario@especialistasencasa.com
+                    </p>
                   </section>
                 )}
 
