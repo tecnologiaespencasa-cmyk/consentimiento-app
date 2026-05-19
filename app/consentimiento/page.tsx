@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import styles from "./Consentimiento.module.css";
 
 type Modo = "adjuntar" | "firmar" | null;
@@ -183,7 +183,6 @@ function SignaturePad({
 
 export default function ConsentimientoPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [modo, setModo] = useState<Modo>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -346,8 +345,9 @@ export default function ConsentimientoPage() {
   );
 
   useEffect(() => {
-    const modoParam = searchParams.get("modo");
-    const formatoParam = searchParams.get("formato");
+    const params = new URLSearchParams(window.location.search);
+    const modoParam = params.get("modo");
+    const formatoParam = params.get("formato");
 
     if (modoParam === "firmar") {
       setModo("firmar");
@@ -360,7 +360,7 @@ export default function ConsentimientoPage() {
 
     setModo("firmar");
     setFormatoSeleccionado(formato);
-  }, [formatos, searchParams]);
+  }, [formatos]);
 
   useEffect(() => {
     (async () => {
