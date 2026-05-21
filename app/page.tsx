@@ -218,34 +218,32 @@ export default async function HomePage() {
               </div>
             </Link>
 
-            {/* Gestion de Consentimientos - Solo Administrativos */}
-            {esTecnicoOAdministrativo && (
-              <Link
-                href="/consentimiento?modo=firmar&formato=DERECHOS-DEBERES-USUARIO"
-                className="group transform hover:-translate-y-1 transition-all duration-300"
-              >
-                <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl overflow-hidden border-2 border-transparent hover:border-green-200 h-full">
-                  <div className="p-6 bg-gradient-to-br from-green-500 to-green-600">
-                    <div className="flex items-center justify-between">
-                      <FaClipboardList className="text-4xl text-white" />
-                      <span className="px-3 py-1 bg-white/20 rounded-full text-white text-xs font-medium backdrop-blur-sm">
-                        Gestion
-                      </span>
-                    </div>
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">Diligenciar derechos y deberes del usuario</h3>
-                    <p className="text-gray-600 text-sm mb-4">
-                      Abre directamente la plantilla de derechos y deberes para diligenciar y firmar.
-                    </p>
-                    <div className="flex items-center text-green-600 font-medium text-sm">
-                      <span>Diligenciar ahora</span>
-                      <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
-                    </div>
+            {/* Diligenciar derechos y deberes - Todos los roles */}
+            <Link
+              href="/consentimiento?modo=firmar&formato=DERECHOS-DEBERES-USUARIO"
+              className="group transform hover:-translate-y-1 transition-all duration-300"
+            >
+              <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl overflow-hidden border-2 border-transparent hover:border-green-200 h-full">
+                <div className="p-6 bg-gradient-to-br from-green-500 to-green-600">
+                  <div className="flex items-center justify-between">
+                    <FaClipboardList className="text-4xl text-white" />
+                    <span className="px-3 py-1 bg-white/20 rounded-full text-white text-xs font-medium backdrop-blur-sm">
+                      Gestion
+                    </span>
                   </div>
                 </div>
-              </Link>
-            )}
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-gray-800 mb-2">Diligenciar derechos y deberes del usuario</h3>
+                  <p className="text-gray-600 text-sm mb-4">
+                    Abre directamente la plantilla de derechos y deberes para diligenciar y firmar.
+                  </p>
+                  <div className="flex items-center text-green-600 font-medium text-sm">
+                    <span>Diligenciar ahora</span>
+                    <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              </div>
+            </Link>
           </div>
         </div>
 
