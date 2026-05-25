@@ -115,6 +115,15 @@ function toBool(v: unknown) {
   return normalized === "true" || normalized === "1" || normalized === "si" || normalized === "on";
 }
 
+function esAdjuntoFarmaciaPermitido(file: File) {
+  const mime = safeStr(file.type).toLowerCase();
+  const nombre = safeStr(file.name).toLowerCase();
+  if (mime.startsWith("image/")) return true;
+  if (mime === "application/pdf") return true;
+  if (!mime && nombre.endsWith(".pdf")) return true;
+  return false;
+}
+
 function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")
@@ -363,6 +372,7 @@ export async function POST(req: Request) {
     let ubicacionLongitudRaw = "";
     let fotoIngresoDomicilio: File | null = null;
     let fotoRutaEvidencia: File | null = null;
+    let adjuntoFarmacia: File | null = null;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
@@ -383,6 +393,8 @@ export async function POST(req: Request) {
       fotoIngresoDomicilio = fotoRaw instanceof File && fotoRaw.size > 0 ? fotoRaw : null;
       const fotoRutaRaw = formData.get("fotoRutaEvidencia");
       fotoRutaEvidencia = fotoRutaRaw instanceof File && fotoRutaRaw.size > 0 ? fotoRutaRaw : null;
+      const adjuntoFarmaciaRaw = formData.get("adjuntoFarmacia");
+      adjuntoFarmacia = adjuntoFarmaciaRaw instanceof File && adjuntoFarmaciaRaw.size > 0 ? adjuntoFarmaciaRaw : null;
     } else {
       const body = await req.json();
       telefono = safeStr(body?.telefono);
@@ -571,6 +583,27 @@ export async function POST(req: Request) {
       );
     }
 
+    let adjuntoFarmaciaSubido: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
+    if (categoriaEnum === CATEGORIA_FARMACIA && adjuntoFarmacia) {
+      if (!esAdjuntoFarmaciaPermitido(adjuntoFarmacia)) {
+        return NextResponse.json(
+          { error: "El adjunto de farmacia debe ser una imagen o un archivo PDF" },
+          { status: 400 }
+        );
+      }
+
+      const maxBytes = 10 * 1024 * 1024; // 10 MB
+      if (adjuntoFarmacia.size > maxBytes) {
+        return NextResponse.json({ error: "El adjunto no puede superar 10MB" }, { status: 400 });
+      }
+
+      adjuntoFarmaciaSubido = await uploadToSharePointWithInfo(
+        adjuntoFarmacia,
+        prestadorCedula,
+        { folder: "EvidenciasFarmacia" }
+      );
+    }
+
     const fotoEvidenciaUrl = fotoSubida?.webUrl ?? fotoRutaSubida?.webUrl ?? null;
     const ubicacionGoogleMapsUrl =
       ubicacionLatitud !== null && ubicacionLongitud !== null
@@ -612,6 +645,10 @@ export async function POST(req: Request) {
           fotoRutaEvidenciaDriveItemId: categoriaEnum === "RUTA" ? fotoRutaSubida?.id ?? null : null,
           fotoRutaEvidenciaNombre: categoriaEnum === "RUTA" ? fotoRutaSubida?.name ?? null : null,
           fotoRutaEvidenciaMimeType: categoriaEnum === "RUTA" ? fotoRutaSubida?.mimeType ?? null : null,
+          adjuntoFarmaciaUrl: categoriaEnum === CATEGORIA_FARMACIA ? adjuntoFarmaciaSubido?.webUrl ?? null : null,
+          adjuntoFarmaciaDriveItemId: categoriaEnum === CATEGORIA_FARMACIA ? adjuntoFarmaciaSubido?.id ?? null : null,
+          adjuntoFarmaciaNombre: categoriaEnum === CATEGORIA_FARMACIA ? adjuntoFarmaciaSubido?.name ?? null : null,
+          adjuntoFarmaciaMimeType: categoriaEnum === CATEGORIA_FARMACIA ? adjuntoFarmaciaSubido?.mimeType ?? null : null,
           tipoRuta: categoriaEnum === "RUTA" ? tipoRutaEnum : null,
           tipoFarmacia: categoriaEnum === CATEGORIA_FARMACIA ? tipoFarmaciaEnum : null,
           descripcion: safeStr(descripcion),
@@ -677,6 +714,7 @@ export async function POST(req: Request) {
             `Zona: ${zonaTexto}`,
             `ID: ${novedad.id}`,
             fotoEvidenciaUrl ? `Foto: ${fotoEvidenciaUrl}` : null,
+            adjuntoFarmaciaSubido?.webUrl ? `Adjunto farmacia: ${adjuntoFarmaciaSubido.webUrl}` : null,
             ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
             ``,
             `Gestionar en: ${linkAdmin}`,
@@ -706,6 +744,7 @@ export async function POST(req: Request) {
         : null,
       tipoNovedadSeleccionada ? `Tipo: ${tipoNovedadSeleccionada}` : null,
       fotoEvidenciaUrl ? `Foto evidencia: ${fotoEvidenciaUrl}` : null,
+      adjuntoFarmaciaSubido?.webUrl ? `Adjunto farmacia: ${adjuntoFarmaciaSubido.webUrl}` : null,
       ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
       `Descripcion: ${descripcionCorta}`,
       `ID: ${novedad.id}`,

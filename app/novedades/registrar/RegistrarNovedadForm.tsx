@@ -209,6 +209,8 @@ export default function RegistrarNovedadForm() {
   const [fotoRutaEvidencia, setFotoRutaEvidencia] = useState<File | null>(null);
   const fotoRutaInputRef = useRef<HTMLInputElement | null>(null);
   const [tipoFarmacia, setTipoFarmacia] = useState("ERROR_KARDEX");
+  const [adjuntoFarmacia, setAdjuntoFarmacia] = useState<File | null>(null);
+  const adjuntoFarmaciaInputRef = useRef<HTMLInputElement | null>(null);
 
   const [descripcion, setDescripcion] = useState("");
   const esRolFarmacia = me?.rol === "FARMACIA";
@@ -234,7 +236,7 @@ export default function RegistrarNovedadForm() {
   useEffect(() => {
     if (!me) return;
 
-    if (esRolFarmacia && categoria !== "PROCESO_FARMACEUTICO" && categoria !== CATEGORIA_LLAMADA_URGENTE) {
+    if (esRolFarmacia && categoria !== "PROCESO_FARMACEUTICO") {
       setCategoria("PROCESO_FARMACEUTICO");
       return;
     }
@@ -259,6 +261,11 @@ export default function RegistrarNovedadForm() {
     if (!(categoria === "RUTA" && (tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL"))) {
       setFotoRutaEvidencia(null);
       if (fotoRutaInputRef.current) fotoRutaInputRef.current.value = "";
+    }
+
+    if (categoria !== "PROCESO_FARMACEUTICO") {
+      setAdjuntoFarmacia(null);
+      if (adjuntoFarmaciaInputRef.current) adjuntoFarmaciaInputRef.current.value = "";
     }
   }, [categoria, tipoPaciente, tipoRuta]);
 
@@ -296,7 +303,7 @@ export default function RegistrarNovedadForm() {
       return !!tipoFarmacia;
     }
     return true;
-  }, [me, zona, descripcion, categoria, pacienteNombre, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia]);
+  }, [me, zona, descripcion, categoria, telefono, pacienteNombre, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -339,6 +346,9 @@ export default function RegistrarNovedadForm() {
         }
       } else if (categoria === "PROCESO_FARMACEUTICO") {
         payload.append("tipoFarmacia", tipoFarmacia);
+        if (adjuntoFarmacia) {
+          payload.append("adjuntoFarmacia", adjuntoFarmacia);
+        }
       }
 
       const res = await fetch("/api/novedades", {
@@ -365,6 +375,8 @@ export default function RegistrarNovedadForm() {
       if (fotoInputRef.current) fotoInputRef.current.value = "";
       setTipoRuta("INCAPACIDAD");
       setTipoFarmacia("ERROR_KARDEX");
+      setAdjuntoFarmacia(null);
+      if (adjuntoFarmaciaInputRef.current) adjuntoFarmaciaInputRef.current.value = "";
       setFotoRutaEvidencia(null);
       if (fotoRutaInputRef.current) fotoRutaInputRef.current.value = "";
       setDescripcion("");
@@ -422,7 +434,7 @@ export default function RegistrarNovedadForm() {
                     Cédula
                   </label>
                   <input
-                    value={me.cedula}
+                    value={me.cedula ?? ""}
                     readOnly
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50"
                   />
@@ -434,7 +446,7 @@ export default function RegistrarNovedadForm() {
                     Profesión
                   </label>
                   <input
-                    value={profesionLabel}
+                    value={profesionLabel ?? ""}
                     readOnly
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50"
                   />
@@ -446,7 +458,7 @@ export default function RegistrarNovedadForm() {
                     Teléfono (editable)
                   </label>
                   <input
-                    value={telefono}
+                    value={telefono ?? ""}
                     onChange={(e) => setTelefono(e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                     placeholder="ej: 3001234567"
@@ -492,21 +504,6 @@ export default function RegistrarNovedadForm() {
                           Novedad en proceso farmacéutico
                         </p>
                         <p className="text-xs text-gray-600">Error en documentos trazadores en farmacia.</p>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setCategoria(CATEGORIA_LLAMADA_URGENTE)}
-                        className={`px-4 py-3 rounded-2xl border transition-all text-left ${
-                          categoria === CATEGORIA_LLAMADA_URGENTE
-                            ? "bg-white border-red-300 shadow-sm"
-                            : "bg-white/60 border-gray-200 hover:bg-white"
-                        }`}
-                      >
-                        <p className="font-extrabold text-gray-900 flex items-center gap-2">
-                          <FaPhone className="text-red-500" />
-                          Llamada urgente
-                        </p>
-                        <p className="text-xs text-gray-600">Necesito una llamada urgente de apoyo.</p>
                       </button>
                     </>
                   ) : (
@@ -623,7 +620,7 @@ export default function RegistrarNovedadForm() {
                     <div className="md:col-span-2">
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del paciente</label>
                       <input
-                        value={pacienteNombre}
+                        value={pacienteNombre ?? ""}
                         onChange={(e) => setPacienteNombre(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                         placeholder="Ej: Maria Gomez"
@@ -633,7 +630,7 @@ export default function RegistrarNovedadForm() {
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de documento</label>
                       <select
-                        value={pacienteTipoDoc}
+                        value={pacienteTipoDoc ?? "CC"}
                         onChange={(e) => setPacienteTipoDoc(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                         disabled={saving}
@@ -648,7 +645,7 @@ export default function RegistrarNovedadForm() {
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Número de documento</label>
                       <input
-                        value={pacienteDocumento}
+                        value={pacienteDocumento ?? ""}
                         onChange={(e) => setPacienteDocumento(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                         placeholder="Ej: 43830559"
@@ -750,6 +747,19 @@ export default function RegistrarNovedadForm() {
                         </button>
                       ))}
                     </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Adjunto (opcional: imagen o PDF)
+                      </label>
+                      <input
+                        ref={adjuntoFarmaciaInputRef}
+                        type="file"
+                        accept="image/*,application/pdf,.pdf"
+                        onChange={(e) => setAdjuntoFarmacia(e.target.files?.[0] ?? null)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                        disabled={saving}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -759,7 +769,7 @@ export default function RegistrarNovedadForm() {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Descripción de la novedad</label>
                   <textarea
-                    value={descripcion}
+                    value={descripcion ?? ""}
                     onChange={(e) => setDescripcion(e.target.value)}
                     rows={5}
                     className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"

@@ -57,6 +57,10 @@ type Novedad = {
   fotoRutaEvidenciaDriveItemId?: string | null;
   fotoRutaEvidenciaNombre?: string | null;
   fotoRutaEvidenciaMimeType?: string | null;
+  adjuntoFarmaciaUrl?: string | null;
+  adjuntoFarmaciaDriveItemId?: string | null;
+  adjuntoFarmaciaNombre?: string | null;
+  adjuntoFarmaciaMimeType?: string | null;
   tipoRuta?: string | null;
   tipoFarmacia?: string | null;
   descripcion?: string | null;
@@ -264,6 +268,8 @@ export default function AdminNovedades({
         n.pacienteDocumento,
         n.fotoIngresoDomicilioUrl,
         n.fotoRutaEvidenciaUrl,
+        n.adjuntoFarmaciaUrl,
+        n.adjuntoFarmaciaNombre,
         n.prestadorNombre,
         n.prestadorCedula,
         n.ubicacionLatitud,
@@ -300,7 +306,13 @@ export default function AdminNovedades({
     const start = (safePage - 1) * PAGE_SIZE;
     return filtered.slice(start, start + PAGE_SIZE);
   }, [filtered, safePage]);
-  const fotoEditEvidenciaUrl = edit?.fotoIngresoDomicilioUrl ?? edit?.fotoRutaEvidenciaUrl ?? null;
+  const adjuntoEditEvidenciaUrl =
+    edit?.fotoIngresoDomicilioUrl ??
+    edit?.fotoRutaEvidenciaUrl ??
+    edit?.adjuntoFarmaciaUrl ??
+    null;
+  const etiquetaAdjuntoEdit =
+    edit?.categoria === "PROCESO_FARMACEUTICO" ? "Ver adjunto de farmacia" : "Ver foto de evidencia";
   const editTieneUbicacion = coordenadasValidas(edit?.ubicacionLatitud, edit?.ubicacionLongitud);
   const editGoogleMapsUrl = editTieneUbicacion
     ? buildGoogleMapsUrl(edit!.ubicacionLatitud as number, edit!.ubicacionLongitud as number)
@@ -355,6 +367,10 @@ export default function AdminNovedades({
       "fotoRutaEvidenciaDriveItemId",
       "fotoRutaEvidenciaNombre",
       "fotoRutaEvidenciaMimeType",
+      "adjuntoFarmaciaUrl",
+      "adjuntoFarmaciaDriveItemId",
+      "adjuntoFarmaciaNombre",
+      "adjuntoFarmaciaMimeType",
       "tipoRuta",
       "tipoFarmacia",
       "descripcion",
@@ -402,6 +418,10 @@ export default function AdminNovedades({
       n.fotoRutaEvidenciaDriveItemId ?? "",
       n.fotoRutaEvidenciaNombre ?? "",
       n.fotoRutaEvidenciaMimeType ?? "",
+      n.adjuntoFarmaciaUrl ?? "",
+      n.adjuntoFarmaciaDriveItemId ?? "",
+      n.adjuntoFarmaciaNombre ?? "",
+      n.adjuntoFarmaciaMimeType ?? "",
       n.tipoRuta ?? "",
       n.tipoFarmacia ?? "",
       n.descripcion ?? "",
@@ -745,7 +765,13 @@ export default function AdminNovedades({
                   const b = estadoBadge(n.estado);
                   const Icon = b.icon;
                   const tipo = etiquetaTipoNovedad(n);
-                  const fotoEvidenciaUrl = n.fotoIngresoDomicilioUrl ?? n.fotoRutaEvidenciaUrl;
+                  const evidenciaVisualUrl = n.fotoIngresoDomicilioUrl ?? n.fotoRutaEvidenciaUrl;
+                  const enlaceAdjuntoUrl = n.categoria === "PROCESO_FARMACEUTICO"
+                    ? n.adjuntoFarmaciaUrl ?? evidenciaVisualUrl
+                    : evidenciaVisualUrl;
+                  const textoAdjunto = n.categoria === "PROCESO_FARMACEUTICO"
+                    ? "Ver adjunto de farmacia"
+                    : "Ver foto de evidencia";
                   const tieneUbicacion = coordenadasValidas(n.ubicacionLatitud, n.ubicacionLongitud);
                   const ubicacionGoogleMapsUrl = tieneUbicacion
                     ? buildGoogleMapsUrl(n.ubicacionLatitud as number, n.ubicacionLongitud as number)
@@ -798,16 +824,16 @@ export default function AdminNovedades({
                             </span>
                           </div>
                         ) : null}
-                        {fotoEvidenciaUrl ? (
+                        {enlaceAdjuntoUrl ? (
                           <div className="mt-1">
                             <a
-                              href={fotoEvidenciaUrl}
+                              href={enlaceAdjuntoUrl}
                               target="_blank"
                               rel="noreferrer"
                               className="text-xs text-blue-700 underline"
                               onClick={(e) => e.stopPropagation()}
                             >
-                              Ver foto de evidencia
+                              {textoAdjunto}
                             </a>
                           </div>
                         ) : null}
@@ -961,15 +987,15 @@ export default function AdminNovedades({
             <div className="mt-3 rounded-xl border border-gray-200 p-3">
               <p className="text-xs font-bold text-gray-600 mb-1">Descripcion reportada</p>
               <p className="text-sm text-gray-700">{edit.descripcion || "Sin descripcion"}</p>
-              {fotoEditEvidenciaUrl ? (
+              {adjuntoEditEvidenciaUrl ? (
                 <p className="text-sm mt-2">
                   <a
-                    href={fotoEditEvidenciaUrl}
+                    href={adjuntoEditEvidenciaUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-blue-700 underline"
                   >
-                    Ver foto de evidencia
+                    {etiquetaAdjuntoEdit}
                   </a>
                 </p>
               ) : null}

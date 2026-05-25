@@ -184,6 +184,24 @@ export default async function MisNovedadesPage() {
                           </p>
                         </div>
 
+                        {esRolFarmacia && (n as { adjuntoFarmaciaUrl?: string | null }).adjuntoFarmaciaUrl ? (
+                          <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50/50 p-3">
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                              Adjunto de farmacia
+                            </p>
+                            <p className="mt-1 text-sm">
+                              <a
+                                href={(n as { adjuntoFarmaciaUrl?: string | null }).adjuntoFarmaciaUrl ?? "#"}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-blue-700 underline"
+                              >
+                                Ver adjunto
+                              </a>
+                            </p>
+                          </div>
+                        ) : null}
+
                         <div className="mt-3 flex flex-wrap gap-2 text-xs">
                           {!esRolFarmacia ? (
                             <span className="inline-flex items-center rounded-full border border-gray-200 bg-white px-3 py-1 text-gray-700">

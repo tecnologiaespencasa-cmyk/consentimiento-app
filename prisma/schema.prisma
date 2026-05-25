@@ -82,6 +82,10 @@ model Novedad {
   fotoRutaEvidenciaDriveItemId  String?
   fotoRutaEvidenciaNombre       String?
   fotoRutaEvidenciaMimeType     String?
+  adjuntoFarmaciaUrl            String?
+  adjuntoFarmaciaDriveItemId    String?
+  adjuntoFarmaciaNombre         String?
+  adjuntoFarmaciaMimeType       String?
 
   // Campos para novedad en ruta
   tipoRuta           TipoNovedadRuta?
