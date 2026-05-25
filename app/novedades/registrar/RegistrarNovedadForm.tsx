@@ -300,10 +300,10 @@ export default function RegistrarNovedadForm() {
       return !requiereFotoRuta || !!fotoRutaEvidencia;
     }
     if (categoria === "PROCESO_FARMACEUTICO") {
-      return !!tipoFarmacia;
+      return !!pacienteNombre.trim() && !!pacienteDocumento.trim() && !!pacienteTipoDoc && !!tipoFarmacia;
     }
     return true;
-  }, [me, zona, descripcion, categoria, telefono, pacienteNombre, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia]);
+  }, [me, zona, descripcion, categoria, telefono, pacienteNombre, pacienteTipoDoc, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -345,6 +345,9 @@ export default function RegistrarNovedadForm() {
           payload.append("fotoRutaEvidencia", fotoRutaEvidencia);
         }
       } else if (categoria === "PROCESO_FARMACEUTICO") {
+        payload.append("pacienteNombre", pacienteNombre.trim());
+        payload.append("pacienteTipoDoc", pacienteTipoDoc);
+        payload.append("pacienteDocumento", pacienteDocumento.trim());
         payload.append("tipoFarmacia", tipoFarmacia);
         if (adjuntoFarmacia) {
           payload.append("adjuntoFarmacia", adjuntoFarmacia);
@@ -730,6 +733,43 @@ export default function RegistrarNovedadForm() {
                   </div>
                 ) : (
                   <div className="mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del paciente</label>
+                        <input
+                          value={pacienteNombre ?? ""}
+                          onChange={(e) => setPacienteNombre(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                          placeholder="Ej: Maria Gomez"
+                          disabled={saving}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de documento</label>
+                        <select
+                          value={pacienteTipoDoc ?? "CC"}
+                          onChange={(e) => setPacienteTipoDoc(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                          disabled={saving}
+                        >
+                          {TIPOS_DOC.map((t) => (
+                            <option key={t.v} value={t.v}>
+                              {t.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Número de documento</label>
+                        <input
+                          value={pacienteDocumento ?? ""}
+                          onChange={(e) => setPacienteDocumento(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                          placeholder="Ej: 43830559"
+                          disabled={saving}
+                        />
+                      </div>
+                    </div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de novedad</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {TIPOS_FARMACIA.map((t) => (

@@ -777,7 +777,7 @@ export default function AdminNovedades({
                     ? buildGoogleMapsUrl(n.ubicacionLatitud as number, n.ubicacionLongitud as number)
                     : null;
                   const responsableLabel = etiquetaResponsables(n);
-                  const paciente = n.categoria === "PACIENTE"
+                  const paciente = (n.categoria === "PACIENTE" || n.categoria === "PROCESO_FARMACEUTICO")
                     ? ` • ${n.pacienteNombre ?? ""}${n.pacienteTipoDoc ? ` (${n.pacienteTipoDoc}${n.pacienteDocumento ? ` ${n.pacienteDocumento}` : ""})` : ""}`
                     : "";
                   return (
@@ -966,7 +966,7 @@ export default function AdminNovedades({
 
               <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
                 <p className="text-xs font-bold text-gray-600 mb-2">Datos del paciente</p>
-                {edit.categoria === "PACIENTE" ? (
+                {edit.categoria === "PACIENTE" || edit.categoria === "PROCESO_FARMACEUTICO" ? (
                   <>
                     <p className="text-sm text-gray-700">
                       <span className="font-semibold">Nombre:</span> {edit.pacienteNombre || "No registrado"}

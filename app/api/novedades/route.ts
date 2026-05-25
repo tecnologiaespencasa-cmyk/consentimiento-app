@@ -520,6 +520,15 @@ export async function POST(req: Request) {
     }
 
     if (categoriaEnum === CATEGORIA_FARMACIA) {
+      if (!pacienteNombre || !String(pacienteNombre).trim()) {
+        return NextResponse.json({ error: "Nombre del paciente es obligatorio" }, { status: 400 });
+      }
+      if (!pacienteTipoDocEnum) {
+        return NextResponse.json({ error: "Tipo de documento del paciente es obligatorio" }, { status: 400 });
+      }
+      if (!pacienteDocumento || !String(pacienteDocumento).trim()) {
+        return NextResponse.json({ error: "Numero de documento del paciente es obligatorio" }, { status: 400 });
+      }
       if (!tipoFarmaciaEnum) {
         return NextResponse.json(
           { error: "Tipo de novedad de proceso farmaceutico es obligatorio" },
@@ -633,9 +642,9 @@ export async function POST(req: Request) {
           prestadorTelefono,
           zona,
           categoria: categoriaEnum,
-          pacienteNombre: categoriaEnum === "PACIENTE" ? safeStr(pacienteNombre) : null,
-          pacienteTipoDoc: categoriaEnum === "PACIENTE" ? pacienteTipoDocEnum : null,
-          pacienteDocumento: categoriaEnum === "PACIENTE" ? safeStr(pacienteDocumento) : null,
+          pacienteNombre: categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA ? safeStr(pacienteNombre) : null,
+          pacienteTipoDoc: categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA ? pacienteTipoDocEnum : null,
+          pacienteDocumento: categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA ? safeStr(pacienteDocumento) : null,
           tipoPaciente: categoriaEnum === "PACIENTE" ? tipoPacienteEnum : null,
           fotoIngresoDomicilioUrl: categoriaEnum === "PACIENTE" ? fotoSubida?.webUrl ?? null : null,
           fotoIngresoDomicilioDriveItemId: categoriaEnum === "PACIENTE" ? fotoSubida?.id ?? null : null,
@@ -740,6 +749,8 @@ export async function POST(req: Request) {
       `Responsable(s): ${responsableLabel}`,
       `Clinica de heridas: ${clinicaHeridasTexto}`,
       categoriaEnum === "PACIENTE"
+        ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})`
+        : categoriaEnum === CATEGORIA_FARMACIA
         ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})`
         : null,
       tipoNovedadSeleccionada ? `Tipo: ${tipoNovedadSeleccionada}` : null,
