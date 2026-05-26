@@ -99,6 +99,7 @@ model Novedad {
   // Gestión (solo técnico/administrativo)
   estado             EstadoNovedad  @default(PENDIENTE)
   prioridad          Prioridad      @default(MEDIA)
+  responsableGestion ResponsableGestion?
   asignadoA          String?
   notasInternas      String?
   respuestaPrestador String?
@@ -195,6 +196,12 @@ enum Prioridad {
   BAJA
   MEDIA
   ALTA
+}
+
+enum ResponsableGestion {
+  ADMISIONES
+  ANALISTA_ASISTENCIAL
+  CLINICA_HERIDAS
 }
 
 enum BoletinAdjuntoTipo {

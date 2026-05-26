@@ -193,22 +193,17 @@ function resolverCanalNotificacion(
     return {
       destinosCorreo: [
         DESTINO_NOTIFICACION_AUXILIAR,
-        DESTINO_NOTIFICACION_OTRAS_PROFESIONES,
         DESTINO_NOTIFICACION_LLAMADA_URGENTE_DIRECCION,
       ],
       teamsCanales: esRolFarmacia
         ? teamsCanalFarmacia
         : [
             {
-              url: esAuxiliarEnfermeria
-                ? process.env.TEAMS_WEBHOOK_URL
-                : process.env.TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES,
-              label: esAuxiliarEnfermeria
-                ? "TEAMS_WEBHOOK_URL"
-                : "TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES",
+              url: process.env.TEAMS_WEBHOOK_URL,
+              label: "TEAMS_WEBHOOK_URL",
             },
           ],
-      responsableLabel: "Admisiones, analista asistencial y direccion asistencial",
+      responsableLabel: "Admisiones",
     };
   }
 

@@ -15,6 +15,7 @@ import {
   FaUser,
   FaMapMarkedAlt,
   FaTimes,
+  FaRandom,
 } from "react-icons/fa";
 
 type CurrentUser = {
@@ -67,6 +68,7 @@ type Novedad = {
   esClinicaHeridas?: boolean | null;
   ubicacionLatitud?: number | null;
   ubicacionLongitud?: number | null;
+  responsableGestion?: ResponsableKey | null;
   estado: string;
   prioridad: string;
   asignadoA?: string | null;
@@ -163,13 +165,15 @@ function buildGoogleMapsEmbedUrl(latitud: number, longitud: number) {
   return `https://maps.google.com/maps?q=${encodeURIComponent(`${latitud},${longitud}`)}&z=16&output=embed`;
 }
 
-function resolverResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas">): ResponsableKey[] {
+function resolverResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion">): ResponsableKey[] {
+  if (n.responsableGestion) return [n.responsableGestion];
   if (n.categoria === "LLAMADA_URGENTE") return ["ADMISIONES", "ANALISTA_ASISTENCIAL"];
+  if (n.categoria === "PROCESO_FARMACEUTICO") return ["ADMISIONES"];
   if (Boolean(n.esClinicaHeridas)) return ["CLINICA_HERIDAS"];
   return n.prestadorProfesion === "AUXILIAR_ENFERMERIA" ? ["ADMISIONES"] : ["ANALISTA_ASISTENCIAL"];
 }
 
-function etiquetaResponsables(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas">) {
+function etiquetaResponsables(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion">) {
   const responsables = resolverResponsable(n);
   if (responsables.length === 2) {
     return "Admisiones y analista asistencial";
@@ -177,7 +181,7 @@ function etiquetaResponsables(n: Pick<Novedad, "categoria" | "prestadorProfesion
   return etiquetaResponsable(responsables[0]);
 }
 
-function incluyeResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas">, responsable: ResponsableKey) {
+function incluyeResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion">, responsable: ResponsableKey) {
   return resolverResponsable(n).includes(responsable);
 }
 
@@ -234,6 +238,8 @@ export default function AdminNovedades({
   const [editEstado, setEditEstado] = useState("PENDIENTE");
   const [editPrioridad, setEditPrioridad] = useState("MEDIA");
   const [editAsignadoA, setEditAsignadoA] = useState("");
+  const [editResponsableGestion, setEditResponsableGestion] = useState<ResponsableKey | "">("");
+  const [showRedirigirResponsable, setShowRedirigirResponsable] = useState(false);
   const [editNotas, setEditNotas] = useState("");
   const [editRespuestaPrestador, setEditRespuestaPrestador] = useState("");
   const [saving, setSaving] = useState(false);
@@ -470,6 +476,8 @@ export default function AdminNovedades({
     setEditEstado(n.estado === "RESUELTA" ? "RESUELTA" : "PENDIENTE");
     setEditPrioridad(n.prioridad);
     setEditAsignadoA(n.asignadoA ?? "");
+    setEditResponsableGestion((n.responsableGestion as ResponsableKey | null) ?? "");
+    setShowRedirigirResponsable(false);
     setEditNotas(n.notasInternas ?? "");
     setEditRespuestaPrestador(n.respuestaPrestador ?? "");
   }
@@ -491,6 +499,7 @@ export default function AdminNovedades({
           estado: editEstado,
           prioridad: editPrioridad,
           asignadoA: editAsignadoA,
+          responsableGestion: editResponsableGestion || null,
           notasInternas: editNotas,
           respuestaPrestador: editRespuestaPrestador,
         }),
@@ -953,9 +962,44 @@ export default function AdminNovedades({
                 <p className="text-sm text-gray-700 mt-1">
                   <span className="font-semibold">Zona:</span> {etiquetaZonaTexto(edit.zona)}
                 </p>
-                <p className="text-sm text-gray-700 mt-1">
-                  <span className="font-semibold">Responsable(s):</span> {etiquetaResponsables(edit)}
-                </p>
+                <div className="mt-1">
+                  <div className="flex min-w-0 items-center gap-2 text-sm text-gray-700">
+                    <span className="shrink-0 font-semibold">Responsable(s):</span>
+                    <span className="min-w-0 truncate">
+                      {etiquetaResponsables({
+                        ...edit,
+                        responsableGestion: (editResponsableGestion || edit.responsableGestion || null) as ResponsableKey | null,
+                      })}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowRedirigirResponsable((v) => !v)}
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                      disabled={saving}
+                      title={showRedirigirResponsable ? "Ocultar redireccion" : "Redirigir responsable"}
+                      aria-label={showRedirigirResponsable ? "Ocultar redireccion" : "Redirigir responsable"}
+                    >
+                      <FaRandom className="text-xs" />
+                    </button>
+                  </div>
+                  {showRedirigirResponsable ? (
+                    <div className="mt-2">
+                      <select
+                        value={editResponsableGestion}
+                        onChange={(e) => setEditResponsableGestion(e.target.value as ResponsableKey | "")}
+                        className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm"
+                        disabled={saving}
+                      >
+                        <option value="">Automático por regla</option>
+                        {RESPONSABLES.map((r) => (
+                          <option key={r.v} value={r.v}>
+                            {r.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : null}
+                </div>
                 <p className="text-sm text-gray-700 mt-1">
                   <span className="font-semibold">Tipo:</span> {etiquetaTipoNovedad(edit) || "No registrado"}
                 </p>

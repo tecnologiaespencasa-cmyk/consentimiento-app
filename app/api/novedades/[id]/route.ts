@@ -6,6 +6,7 @@ import { sendGraphMail } from "@/lib/sendGraphMail";
 import { notificarNovedadesFarmaciaSinGestion } from "@/lib/notificarNovedadesFarmaciaSinGestion";
 
 const ESTADOS_GESTION_VALIDOS = new Set(["PENDIENTE", "RESUELTA"]);
+const RESPONSABLES_GESTION_VALIDOS = new Set(["ADMISIONES", "ANALISTA_ASISTENCIAL", "CLINICA_HERIDAS"]);
 
 const TIPOS_PACIENTE_LABEL: Record<string, string> = {
   DATOS_ERRADOS: "Datos errados de ubicación",
@@ -107,7 +108,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       );
     }
 
-    const { estado, prioridad, asignadoA, notasInternas, respuestaPrestador } = body ?? {};
+    const { estado, prioridad, asignadoA, notasInternas, respuestaPrestador, responsableGestion } = body ?? {};
     const esAdmin = rol === "ADMINISTRATIVO";
     const nombreUsuarioActual = nombreCompleto(usuarioActual) || usuarioActual?.username || "";
 
@@ -140,10 +141,25 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const asignadoFinal = typeof asignadoNuevo === "undefined" ? asignadoActual : asignadoNuevo;
     const estadoNormalizado =
       typeof estado !== "undefined" ? String(estado || "").trim().toUpperCase() : undefined;
+    const responsableGestionNormalizado =
+      typeof responsableGestion !== "undefined"
+        ? String(responsableGestion || "").trim().toUpperCase()
+        : undefined;
 
     if (typeof estadoNormalizado !== "undefined" && !ESTADOS_GESTION_VALIDOS.has(estadoNormalizado)) {
       return NextResponse.json(
         { error: "El estado solo puede ser PENDIENTE o RESUELTA" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      typeof responsableGestionNormalizado !== "undefined" &&
+      responsableGestionNormalizado !== "" &&
+      !RESPONSABLES_GESTION_VALIDOS.has(responsableGestionNormalizado)
+    ) {
+      return NextResponse.json(
+        { error: "El responsable debe ser ADMISIONES, ANALISTA_ASISTENCIAL o CLINICA_HERIDAS" },
         { status: 400 }
       );
     }
@@ -186,6 +202,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     if (typeof estadoNormalizado !== "undefined") data.estado = estadoNormalizado;
     if (prioridad) data.prioridad = prioridad;
     if (typeof asignadoA !== "undefined") data.asignadoA = asignadoNuevo;
+    if (typeof responsableGestionNormalizado !== "undefined") {
+      data.responsableGestion = responsableGestionNormalizado || null;
+    }
     if (typeof notasInternas !== "undefined") data.notasInternas = String(notasInternas || "").trim() || null;
     if (typeof respuestaPrestador !== "undefined") {
       data.respuestaPrestador = String(respuestaPrestador || "").trim() || null;
