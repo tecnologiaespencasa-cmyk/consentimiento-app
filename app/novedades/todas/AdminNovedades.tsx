@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
+import { formatBogotaDateTime, parseBogotaDateInputEnd, parseBogotaDateInputStart } from "@/lib/bogotaDate";
 import {
   FaArrowLeft,
   FaFilter,
@@ -113,8 +114,15 @@ function etiquetaZonaTexto(zona: string | null | undefined) {
 
 function fmtDate(d: unknown) {
   if (d == null || d === "") return "-";
-  const date = d instanceof Date ? d : new Date(String(d));
-  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString();
+  return formatBogotaDateTime(d as string | Date, "es-CO", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
 }
 
 function nombreCompleto(u: UsuarioNovedad | null | undefined) {
@@ -246,8 +254,8 @@ export default function AdminNovedades({
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
-    const d0 = desde ? new Date(desde + "T00:00:00").getTime() : null;
-    const d1 = hasta ? new Date(hasta + "T23:59:59").getTime() : null;
+    const d0 = desde ? parseBogotaDateInputStart(desde)?.getTime() ?? null : null;
+    const d1 = hasta ? parseBogotaDateInputEnd(hasta)?.getTime() ?? null : null;
 
     return (data ?? []).filter((n) => {
       if (categoria && n.categoria !== categoria) return false;

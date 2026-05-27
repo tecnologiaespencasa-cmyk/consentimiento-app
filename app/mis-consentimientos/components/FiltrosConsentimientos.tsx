@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
+import { addUtcDays, addUtcMonths, formatBogotaDate, formatBogotaTime, getBogotaDateKey, getStartOfBogotaDayUtc } from "@/lib/bogotaDate"
 import { 
   FaSearch, 
   FaCalendarAlt, 
@@ -50,21 +51,18 @@ export default function FiltrosConsentimientos({ consentimientos }: FiltrosConse
     }
 
     // Filtrar por fecha
-    const hoy = new Date()
-    hoy.setHours(0, 0, 0, 0)
+    const now = new Date()
+    const hoyKey = getBogotaDateKey(now)
+    const inicioHoy = getStartOfBogotaDayUtc(now)
+    const semanaAtras = addUtcDays(inicioHoy, -7)
+    const mesAtras = addUtcMonths(inicioHoy, -1)
     
     switch (filtroFecha) {
       case "hoy":
-        resultado = resultado.filter(c => {
-          const fechaConsentimiento = new Date(c.fechaHora)
-          fechaConsentimiento.setHours(0, 0, 0, 0)
-          return fechaConsentimiento.getTime() === hoy.getTime()
-        })
+        resultado = resultado.filter(c => getBogotaDateKey(c.fechaHora) === hoyKey)
         break
       
       case "semana":
-        const semanaAtras = new Date(hoy)
-        semanaAtras.setDate(semanaAtras.getDate() - 7)
         resultado = resultado.filter(c => {
           const fechaConsentimiento = new Date(c.fechaHora)
           return fechaConsentimiento >= semanaAtras
@@ -72,8 +70,6 @@ export default function FiltrosConsentimientos({ consentimientos }: FiltrosConse
         break
       
       case "mes":
-        const mesAtras = new Date(hoy)
-        mesAtras.setMonth(mesAtras.getMonth() - 1)
         resultado = resultado.filter(c => {
           const fechaConsentimiento = new Date(c.fechaHora)
           return fechaConsentimiento >= mesAtras
@@ -361,17 +357,18 @@ export default function FiltrosConsentimientos({ consentimientos }: FiltrosConse
                         <FaCalendarAlt className="text-green-600 text-sm" />
                       </div>
                       <div className="flex-1">
-                        <p className="font-medium text-gray-800 text-xs">
-                          {new Date(c.fechaHora).toLocaleDateString('es-ES', {
+                          <p className="font-medium text-gray-800 text-xs">
+                          {formatBogotaDate(c.fechaHora, 'es-CO', {
                             year: 'numeric',
                             month: 'short',
                             day: 'numeric'
                           })}
                         </p>
                         <p className="text-xs text-gray-600">
-                          {new Date(c.fechaHora).toLocaleTimeString('es-ES', {
+                          {formatBogotaTime(c.fechaHora, 'es-CO', {
                             hour: '2-digit',
-                            minute: '2-digit'
+                            minute: '2-digit',
+                            hour12: false
                           })}
                         </p>
                       </div>
@@ -401,16 +398,17 @@ export default function FiltrosConsentimientos({ consentimientos }: FiltrosConse
                         </div>
                         <div>
                           <p className="font-medium text-gray-800">
-                            {new Date(c.fechaHora).toLocaleDateString('es-ES', {
+                            {formatBogotaDate(c.fechaHora, 'es-CO', {
                               year: 'numeric',
                               month: 'long',
                               day: 'numeric'
                             })}
                           </p>
                           <p className="text-sm text-gray-600">
-                            {new Date(c.fechaHora).toLocaleTimeString('es-ES', {
+                            {formatBogotaTime(c.fechaHora, 'es-CO', {
                               hour: '2-digit',
-                              minute: '2-digit'
+                              minute: '2-digit',
+                              hour12: false
                             })}
                           </p>
                         </div>

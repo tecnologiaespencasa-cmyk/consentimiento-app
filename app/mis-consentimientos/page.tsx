@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/authOptions"
 import { prisma } from "@/lib/prisma"
+import { isSameBogotaDay } from "@/lib/bogotaDate"
 import { 
   FaFilePdf, 
   FaClipboardCheck,
@@ -47,13 +48,7 @@ export default async function MisConsentimientosPage() {
   const aceptados = consentimientos.filter(c => c.aceptado).length
   const rechazados = consentimientos.filter(c => !c.aceptado).length
   
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
-  const consentimientosHoy = consentimientos.filter(c => {
-    const fechaConsentimiento = new Date(c.fechaHora)
-    fechaConsentimiento.setHours(0, 0, 0, 0)
-    return fechaConsentimiento.getTime() === hoy.getTime()
-  }).length
+  const consentimientosHoy = consentimientos.filter(c => isSameBogotaDay(c.fechaHora)).length
 
   // Mapear consentimientos para incluir el campo aceptado
   const consentimientosConEstado = consentimientos.map(c => ({

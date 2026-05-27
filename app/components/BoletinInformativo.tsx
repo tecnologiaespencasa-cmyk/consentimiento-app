@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { FaBullhorn, FaFilePdf, FaImage, FaPen, FaSpinner, FaTimes } from "react-icons/fa";
+import { formatBogotaDateTime } from "@/lib/bogotaDate";
 
 type Boletin = {
   id: string;
@@ -24,13 +25,13 @@ type Boletin = {
 
 function formatDateTime(iso?: string) {
   if (!iso) return "";
-  const d = new Date(iso);
-  return d.toLocaleString("es-CO", {
+  return formatBogotaDateTime(iso, "es-CO", {
     year: "numeric",
     month: "short",
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
+    hour12: false,
   });
 }
 

@@ -1,6 +1,7 @@
 ﻿import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
+import { formatBogotaDateTime } from "@/lib/bogotaDate";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { FaArrowLeft, FaListAlt, FaClock, FaCheckCircle } from "react-icons/fa";
@@ -152,7 +153,15 @@ export default async function MisNovedadesPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap gap-2 text-xs text-gray-600">
                           <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1">
-                            Fecha: {new Date(n.createdAt).toLocaleString()}
+                            Fecha: {formatBogotaDateTime(n.createdAt, "es-CO", {
+                              year: "numeric",
+                              month: "2-digit",
+                              day: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                              second: "2-digit",
+                              hour12: false,
+                            })}
                           </span>
                           <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1">
                             ID: {n.id}

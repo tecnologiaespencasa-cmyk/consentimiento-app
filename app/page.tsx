@@ -3,6 +3,7 @@ import { authOptions } from "@/lib/authOptions"
 import Link from "next/link"
 import { prisma } from "@/lib/prisma"
 import BoletinInformativo from "@/app/components/BoletinInformativo"
+import { APP_TIMEZONE, getStartOfBogotaDayUtc, getStartOfBogotaMonthUtc } from "@/lib/bogotaDate"
 import {
   FaFileSignature,
   FaClipboardList,
@@ -28,20 +29,14 @@ export default async function HomePage() {
     weekday: "long",
     year: "numeric",
     month: "long",
-    day: "numeric"
+    day: "numeric",
+    timeZone: APP_TIMEZONE
   }
-  const currentDate = now.toLocaleDateString("es-ES", options)
+  const currentDate = now.toLocaleDateString("es-CO", options)
 
-  // Fechas de calculo
-  const startOfToday = new Date()
-  startOfToday.setHours(0, 0, 0, 0)
-
-  const startOfMonth = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    1,
-    0, 0, 0, 0
-  )
+  // Fechas de calculo en zona horaria de operacion (Colombia)
+  const startOfToday = getStartOfBogotaDayUtc(now)
+  const startOfMonth = getStartOfBogotaMonthUtc(now)
 
   // Verificar roles
   const esTecnicoOAdministrativo = session?.user.rol === "TECNICO" || session?.user.rol === "ADMINISTRATIVO"

@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/authOptions"
 import { prisma } from "@/lib/prisma"
+import { isSameBogotaDay } from "@/lib/bogotaDate"
 import { redirect } from "next/navigation"
 import { FaClipboardCheck, FaUserMd, FaShieldAlt, FaHome, FaCheckCircle } from "react-icons/fa"
 import ConsentimientosFiltros from "../components/ConsentimientosFiltros"
@@ -53,14 +54,7 @@ export default async function TodosLosConsentimientosPage() {
   const rechazados = consentimientos.filter((c) => c.aceptado === false).length
   const usuariosUnicos = new Set(consentimientos.map((c) => c.usuarioId)).size
 
-  const hoy = new Date()
-  hoy.setHours(0, 0, 0, 0)
-  const consentimientosHoy =
-    consentimientos.filter((c) => {
-      const fechaConsentimiento = new Date(c.fechaHora)
-      fechaConsentimiento.setHours(0, 0, 0, 0)
-      return fechaConsentimiento.getTime() === hoy.getTime()
-    }).length || 0
+  const consentimientosHoy = consentimientos.filter((c) => isSameBogotaDay(c.fechaHora)).length || 0
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
