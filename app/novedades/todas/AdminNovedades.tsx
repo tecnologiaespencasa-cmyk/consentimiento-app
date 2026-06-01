@@ -51,6 +51,9 @@ type Novedad = {
   pacienteTipoDoc?: string | null;
   pacienteDocumento?: string | null;
   tipoPaciente?: string | null;
+  medicamentoNombre1?: string | null;
+  medicamentoNombre2?: string | null;
+  medicamentoNombre3?: string | null;
   fotoIngresoDomicilioUrl?: string | null;
   fotoIngresoDomicilioDriveItemId?: string | null;
   fotoIngresoDomicilioNombre?: string | null;
@@ -96,6 +99,7 @@ const TIPOS_PACIENTE_LABEL: Record<string, string> = {
   DATOS_ERRADOS: "Datos errados de ubicación",
   ACTUALIZACION_DATOS: "Actualización de datos",
   INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",
+  PRORROGA_CAMBIO_ADICION_TRATAMIENTO: "Prórroga, cambio o adición de tratamiento",
 };
 type ResponsableKey = "ADMISIONES" | "ANALISTA_ASISTENCIAL" | "CLINICA_HERIDAS";
 const RESPONSABLES: Array<{ v: ResponsableKey; label: string }> = [
@@ -280,6 +284,9 @@ export default function AdminNovedades({
         n.pacienteNombre,
         n.pacienteTipoDoc,
         n.pacienteDocumento,
+        n.medicamentoNombre1,
+        n.medicamentoNombre2,
+        n.medicamentoNombre3,
         n.fotoIngresoDomicilioUrl,
         n.fotoRutaEvidenciaUrl,
         n.adjuntoFarmaciaUrl,
@@ -373,6 +380,9 @@ export default function AdminNovedades({
       "pacienteTipoDoc",
       "pacienteDocumento",
       "tipoPaciente",
+      "medicamentoNombre1",
+      "medicamentoNombre2",
+      "medicamentoNombre3",
       "fotoIngresoDomicilioUrl",
       "fotoIngresoDomicilioDriveItemId",
       "fotoIngresoDomicilioNombre",
@@ -424,6 +434,9 @@ export default function AdminNovedades({
       n.pacienteTipoDoc ?? "",
       n.pacienteDocumento ?? "",
       etiquetaTipoNovedad(n),
+      n.medicamentoNombre1 ?? "",
+      n.medicamentoNombre2 ?? "",
+      n.medicamentoNombre3 ?? "",
       n.fotoIngresoDomicilioUrl ?? "",
       n.fotoIngresoDomicilioDriveItemId ?? "",
       n.fotoIngresoDomicilioNombre ?? "",
@@ -1029,6 +1042,20 @@ export default function AdminNovedades({
                     <p className="text-sm text-gray-700 mt-1">
                       <span className="font-semibold">Numero documento:</span> {edit.pacienteDocumento || "No registrado"}
                     </p>
+                    {edit.tipoPaciente === "PRORROGA_CAMBIO_ADICION_TRATAMIENTO" ? (
+                      <div className="mt-3 rounded-lg border border-sky-100 bg-sky-50/60 p-3">
+                        <p className="text-xs font-bold text-sky-800 mb-2">Medicamentos</p>
+                        <p className="text-sm text-gray-700">
+                          <span className="font-semibold">Medicamento 1:</span> {edit.medicamentoNombre1 || "No registrado"}
+                        </p>
+                        <p className="text-sm text-gray-700 mt-1">
+                          <span className="font-semibold">Medicamento 2:</span> {edit.medicamentoNombre2 || "No aplica"}
+                        </p>
+                        <p className="text-sm text-gray-700 mt-1">
+                          <span className="font-semibold">Medicamento 3:</span> {edit.medicamentoNombre3 || "No aplica"}
+                        </p>
+                      </div>
+                    ) : null}
                   </>
                 ) : (
                   <p className="text-sm text-gray-600">No aplica para novedades sin paciente.</p>

@@ -59,6 +59,7 @@ const TIPOS_PACIENTE = [
   { v: "RELACIONAMIENTO", label: "Problemas de relacionamiento" },
   { v: "IMPOSIBILIDAD_CONTACTAR_PACIENTE", label: "Imposibilidad de contactar al paciente" },
   { v: "IMPOSIBILIDAD_INGRESAR_DOMICILIO", label: "Imposibilidad de ingresar al domicilio" },
+  { v: "PRORROGA_CAMBIO_ADICION_TRATAMIENTO", label: "Prórroga, cambio o adición de tratamiento" },
   { v: "OTRA", label: "Otra" },
 ];
 
@@ -85,6 +86,8 @@ const TIPOS_FARMACIA = [
 
 const CATEGORIA_LLAMADA_URGENTE = "LLAMADA_URGENTE";
 const DESCRIPCION_LLAMADA_URGENTE = "Necesito una llamada urgente de apoyo.";
+const TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO = "PRORROGA_CAMBIO_ADICION_TRATAMIENTO";
+const MEDICAMENTO_NO_APLICA = "No aplica";
 
 function nombreCompleto(me: MeResp | null) {
   if (!me) return "";
@@ -201,6 +204,9 @@ export default function RegistrarNovedadForm() {
   const [pacienteTipoDoc, setPacienteTipoDoc] = useState("CC");
   const [pacienteDocumento, setPacienteDocumento] = useState("");
   const [tipoPaciente, setTipoPaciente] = useState("ERCA");
+  const [medicamentoNombre1, setMedicamentoNombre1] = useState("");
+  const [medicamentoNombre2, setMedicamentoNombre2] = useState(MEDICAMENTO_NO_APLICA);
+  const [medicamentoNombre3, setMedicamentoNombre3] = useState(MEDICAMENTO_NO_APLICA);
   const [fotoIngresoDomicilio, setFotoIngresoDomicilio] = useState<File | null>(null);
   const fotoInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -216,6 +222,8 @@ export default function RegistrarNovedadForm() {
   const esRolFarmacia = me?.rol === "FARMACIA";
   const puedeReportarProcesoFarmaceutico =
     me?.rol === "FARMACIA" || me?.rol === "TECNICO" || me?.rol === "ADMINISTRATIVO";
+  const esProrrogaCambioAdicionTratamiento =
+    categoria === "PACIENTE" && tipoPaciente === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO;
 
   useEffect(() => {
     (async () => {
@@ -269,6 +277,14 @@ export default function RegistrarNovedadForm() {
     }
   }, [categoria, tipoPaciente, tipoRuta]);
 
+  useEffect(() => {
+    if (!esProrrogaCambioAdicionTratamiento) {
+      setMedicamentoNombre1("");
+      setMedicamentoNombre2(MEDICAMENTO_NO_APLICA);
+      setMedicamentoNombre3(MEDICAMENTO_NO_APLICA);
+    }
+  }, [esProrrogaCambioAdicionTratamiento]);
+
   const profesionLabel = useMemo(() => {
     const p = me?.profesion;
     if (!p) return "";
@@ -288,13 +304,19 @@ export default function RegistrarNovedadForm() {
       categoria === "RUTA" && (tipoRuta === "ACCIDENTE" || tipoRuta === "CIERRE_VIAL");
     const requiereZona = categoria === "PACIENTE" || categoria === "RUTA";
     const esLlamadaUrgente = categoria === CATEGORIA_LLAMADA_URGENTE;
+    const descripcionRequerida = !esLlamadaUrgente && !esProrrogaCambioAdicionTratamiento;
 
     if (!me) return false;
     if (requiereZona && !zona) return false;
-    if (!esLlamadaUrgente && !descripcion.trim()) return false;
+    if (descripcionRequerida && !descripcion.trim()) return false;
     if (esLlamadaUrgente) return !!telefono.trim();
     if (categoria === "PACIENTE") {
-      return !!pacienteNombre.trim() && !!pacienteDocumento.trim() && (!requiereFotoDomicilio || !!fotoIngresoDomicilio);
+      return (
+        !!pacienteNombre.trim() &&
+        !!pacienteDocumento.trim() &&
+        (!esProrrogaCambioAdicionTratamiento || !!medicamentoNombre1.trim()) &&
+        (!requiereFotoDomicilio || !!fotoIngresoDomicilio)
+      );
     }
     if (categoria === "RUTA") {
       return !requiereFotoRuta || !!fotoRutaEvidencia;
@@ -303,7 +325,7 @@ export default function RegistrarNovedadForm() {
       return !!pacienteNombre.trim() && !!pacienteDocumento.trim() && !!pacienteTipoDoc && !!tipoFarmacia;
     }
     return true;
-  }, [me, zona, descripcion, categoria, telefono, pacienteNombre, pacienteTipoDoc, pacienteDocumento, tipoPaciente, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia]);
+  }, [me, zona, descripcion, categoria, telefono, pacienteNombre, pacienteTipoDoc, pacienteDocumento, tipoPaciente, medicamentoNombre1, esProrrogaCambioAdicionTratamiento, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -324,7 +346,17 @@ export default function RegistrarNovedadForm() {
       }
       payload.append("categoria", categoria);
       payload.append("esClinicaHeridas", !esLlamadaUrgente && esClinicaHeridas ? "true" : "false");
-      payload.append("descripcion", esLlamadaUrgente ? DESCRIPCION_LLAMADA_URGENTE : descripcion.trim());
+      const descripcionTratamiento =
+        `Prórroga, cambio o adición de tratamiento.\n\n` +
+        `Anexos:\n${medicamentoNombre1.trim()}\n${(medicamentoNombre2.trim() || MEDICAMENTO_NO_APLICA)}.\n${(medicamentoNombre3.trim() || MEDICAMENTO_NO_APLICA)}.`;
+      payload.append(
+        "descripcion",
+        esLlamadaUrgente
+          ? DESCRIPCION_LLAMADA_URGENTE
+          : esProrrogaCambioAdicionTratamiento && !descripcion.trim()
+          ? descripcionTratamiento
+          : descripcion.trim()
+      );
       if (coordenadas) {
         payload.append("ubicacionLatitud", String(coordenadas.latitud));
         payload.append("ubicacionLongitud", String(coordenadas.longitud));
@@ -335,6 +367,11 @@ export default function RegistrarNovedadForm() {
         payload.append("pacienteTipoDoc", pacienteTipoDoc);
         payload.append("pacienteDocumento", pacienteDocumento.trim());
         payload.append("tipoPaciente", tipoPaciente);
+        if (esProrrogaCambioAdicionTratamiento) {
+          payload.append("medicamentoNombre1", medicamentoNombre1.trim());
+          payload.append("medicamentoNombre2", medicamentoNombre2.trim() || MEDICAMENTO_NO_APLICA);
+          payload.append("medicamentoNombre3", medicamentoNombre3.trim() || MEDICAMENTO_NO_APLICA);
+        }
 
         if (TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPaciente) && fotoIngresoDomicilio) {
           payload.append("fotoIngresoDomicilio", fotoIngresoDomicilio);
@@ -374,6 +411,9 @@ export default function RegistrarNovedadForm() {
       setPacienteTipoDoc("CC");
       setPacienteDocumento("");
       setTipoPaciente("ERCA");
+      setMedicamentoNombre1("");
+      setMedicamentoNombre2(MEDICAMENTO_NO_APLICA);
+      setMedicamentoNombre3(MEDICAMENTO_NO_APLICA);
       setFotoIngresoDomicilio(null);
       if (fotoInputRef.current) fotoInputRef.current.value = "";
       setTipoRuta("INCAPACIDAD");
@@ -688,6 +728,40 @@ export default function RegistrarNovedadForm() {
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
                           disabled={saving}
                         />
+                      </div>
+                    ) : null}
+                    {esProrrogaCambioAdicionTratamiento ? (
+                      <div className="md:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Nombre de medicamento 1 <span className="text-red-600">*</span>
+                          </label>
+                          <input
+                            value={medicamentoNombre1}
+                            onChange={(e) => setMedicamentoNombre1(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                            placeholder="Nombre del medicamento"
+                            disabled={saving}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre de medicamento 2</label>
+                          <input
+                            value={medicamentoNombre2}
+                            onChange={(e) => setMedicamentoNombre2(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                            disabled={saving}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre de medicamento 3</label>
+                          <input
+                            value={medicamentoNombre3}
+                            onChange={(e) => setMedicamentoNombre3(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                            disabled={saving}
+                          />
+                        </div>
                       </div>
                     ) : null}
                   </div>

@@ -74,6 +74,9 @@ model Novedad {
   pacienteTipoDoc    TipoDocumento?
   pacienteDocumento  String?
   tipoPaciente       TipoNovedadPaciente?
+  medicamentoNombre1 String?
+  medicamentoNombre2 String?
+  medicamentoNombre3 String?
   fotoIngresoDomicilioUrl       String?
   fotoIngresoDomicilioDriveItemId String?
   fotoIngresoDomicilioNombre    String?
@@ -168,6 +171,7 @@ enum TipoNovedadPaciente {
   RELACIONAMIENTO
   IMPOSIBILIDAD_CONTACTAR_PACIENTE
   IMPOSIBILIDAD_INGRESAR_DOMICILIO
+  PRORROGA_CAMBIO_ADICION_TRATAMIENTO
   OTRA
 }
 

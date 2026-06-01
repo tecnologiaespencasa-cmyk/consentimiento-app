@@ -20,6 +20,17 @@ const TIPOS_PACIENTE_LABEL: Record<string, string> = {
   DATOS_ERRADOS: "Datos errados de ubicación",
   ACTUALIZACION_DATOS: "Actualización de datos",
   INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",
+  PRORROGA_CAMBIO_ADICION_TRATAMIENTO: "Prórroga, cambio o adición de tratamiento",
+};
+
+const TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO = "PRORROGA_CAMBIO_ADICION_TRATAMIENTO";
+
+type NovedadBase = Awaited<ReturnType<typeof prisma.novedad.findMany>>[number];
+type NovedadMis = Omit<NovedadBase, "tipoPaciente"> & {
+  tipoPaciente?: string | null;
+  medicamentoNombre1?: string | null;
+  medicamentoNombre2?: string | null;
+  medicamentoNombre3?: string | null;
 };
 
 const ZONAS_LABEL: Record<string, string> = {
@@ -92,10 +103,10 @@ export default async function MisNovedadesPage() {
     where.NOT = { categoria: "PROCESO_FARMACEUTICO" };
   }
 
-  const novedades = await prisma.novedad.findMany({
+  const novedades = (await prisma.novedad.findMany({
     where,
     orderBy: { createdAt: "desc" },
-  });
+  })) as unknown as NovedadMis[];
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-red-50 to-white">
@@ -183,6 +194,17 @@ export default async function MisNovedadesPage() {
                             {n.descripcion || "Sin descripcion"}
                           </p>
                         </div>
+
+                        {n.tipoPaciente === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO ? (
+                          <div className="mt-3 rounded-xl border border-sky-200 bg-sky-50/50 p-3">
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-sky-700">Medicamentos</p>
+                            <div className="mt-1 space-y-1 text-sm text-gray-800">
+                              <p><span className="font-semibold">Medicamento 1:</span> {n.medicamentoNombre1 || "No registrado"}</p>
+                              <p><span className="font-semibold">Medicamento 2:</span> {n.medicamentoNombre2 || "No aplica"}</p>
+                              <p><span className="font-semibold">Medicamento 3:</span> {n.medicamentoNombre3 || "No aplica"}</p>
+                            </div>
+                          </div>
+                        ) : null}
 
                         <div className="mt-3 rounded-xl border border-blue-200 bg-blue-50/50 p-3">
                           <p className="text-[11px] font-bold uppercase tracking-wide text-blue-700">

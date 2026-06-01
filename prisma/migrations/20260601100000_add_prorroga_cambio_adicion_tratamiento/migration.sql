@@ -1,0 +1,6 @@
+ALTER TYPE "TipoNovedadPaciente" ADD VALUE IF NOT EXISTS 'PRORROGA_CAMBIO_ADICION_TRATAMIENTO';
+
+ALTER TABLE "Novedad"
+ADD COLUMN "medicamentoNombre1" TEXT,
+ADD COLUMN "medicamentoNombre2" TEXT,
+ADD COLUMN "medicamentoNombre3" TEXT;

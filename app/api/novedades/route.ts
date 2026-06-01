@@ -43,6 +43,9 @@ const CATEGORIA_FARMACIA: CategoriaNovedad = "PROCESO_FARMACEUTICO";
 const CATEGORIA_LLAMADA_URGENTE: CategoriaNovedad = "LLAMADA_URGENTE";
 const CATEGORIAS_VALIDAS: CategoriaNovedad[] = ["PACIENTE", "RUTA", CATEGORIA_FARMACIA, CATEGORIA_LLAMADA_URGENTE];
 const ROLES_CON_ACCESO_FARMACIA = ["FARMACIA", "TECNICO", "ADMINISTRATIVO"];
+const TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO =
+  "PRORROGA_CAMBIO_ADICION_TRATAMIENTO" as TipoNovedadPaciente;
+const MEDICAMENTO_NO_APLICA = "No aplica";
 
 const TIPOS_DOCUMENTO_VALIDOS: TipoDocumento[] = [
   "CC",
@@ -69,6 +72,7 @@ const TIPOS_PACIENTE_VALIDOS: TipoNovedadPaciente[] = [
   "RELACIONAMIENTO",
   "IMPOSIBILIDAD_CONTACTAR_PACIENTE",
   "IMPOSIBILIDAD_INGRESAR_DOMICILIO",
+  TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO,
   "OTRA",
 ];
 
@@ -76,6 +80,7 @@ const TIPOS_PACIENTE_LABEL: Partial<Record<TipoNovedadPaciente, string>> = {
   DATOS_ERRADOS: "Datos errados de ubicación",
   ACTUALIZACION_DATOS: "Actualización de datos",
   INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",
+  PRORROGA_CAMBIO_ADICION_TRATAMIENTO: "Prórroga, cambio o adición de tratamiento",
 };
 
 const TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA: TipoNovedadPaciente[] = [
@@ -359,6 +364,9 @@ export async function POST(req: Request) {
     let pacienteTipoDoc = "";
     let pacienteDocumento = "";
     let tipoPaciente = "";
+    let medicamentoNombre1 = "";
+    let medicamentoNombre2 = MEDICAMENTO_NO_APLICA;
+    let medicamentoNombre3 = MEDICAMENTO_NO_APLICA;
     let tipoRuta = "";
     let tipoFarmacia = "";
     let descripcion = "";
@@ -378,6 +386,9 @@ export async function POST(req: Request) {
       pacienteTipoDoc = safeStr(formData.get("pacienteTipoDoc"));
       pacienteDocumento = safeStr(formData.get("pacienteDocumento"));
       tipoPaciente = safeStr(formData.get("tipoPaciente"));
+      medicamentoNombre1 = safeStr(formData.get("medicamentoNombre1"));
+      medicamentoNombre2 = safeStr(formData.get("medicamentoNombre2")) || MEDICAMENTO_NO_APLICA;
+      medicamentoNombre3 = safeStr(formData.get("medicamentoNombre3")) || MEDICAMENTO_NO_APLICA;
       tipoRuta = safeStr(formData.get("tipoRuta"));
       tipoFarmacia = safeStr(formData.get("tipoFarmacia"));
       esClinicaHeridas = toBool(formData.get("esClinicaHeridas"));
@@ -399,6 +410,9 @@ export async function POST(req: Request) {
       pacienteTipoDoc = safeStr(body?.pacienteTipoDoc);
       pacienteDocumento = safeStr(body?.pacienteDocumento);
       tipoPaciente = safeStr(body?.tipoPaciente);
+      medicamentoNombre1 = safeStr(body?.medicamentoNombre1);
+      medicamentoNombre2 = safeStr(body?.medicamentoNombre2) || MEDICAMENTO_NO_APLICA;
+      medicamentoNombre3 = safeStr(body?.medicamentoNombre3) || MEDICAMENTO_NO_APLICA;
       tipoRuta = safeStr(body?.tipoRuta);
       tipoFarmacia = safeStr(body?.tipoFarmacia);
       esClinicaHeridas = toBool(body?.esClinicaHeridas);
@@ -413,6 +427,8 @@ export async function POST(req: Request) {
     const categoriaEnum = categoria as CategoriaNovedad;
     const esLlamadaUrgente = categoriaEnum === CATEGORIA_LLAMADA_URGENTE;
     const esClinicaHeridasAplicada = esLlamadaUrgente ? false : esClinicaHeridas;
+    const esProrrogaCambioAdicionTratamiento =
+      categoriaEnum === "PACIENTE" && tipoPaciente === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO;
 
     const puedeReportarProcesoFarmaceutico = ROLES_CON_ACCESO_FARMACIA.includes(String(u.rol));
     if (u.rol === "FARMACIA" && !(categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente)) {
@@ -440,6 +456,16 @@ export async function POST(req: Request) {
     }
     if (esLlamadaUrgente) {
       descripcion = DESCRIPCION_LLAMADA_URGENTE;
+    }
+    if (esProrrogaCambioAdicionTratamiento && !safeStr(descripcion)) {
+      descripcion = [
+        "Prórroga, cambio o adición de tratamiento.",
+        "",
+        "Anexos:",
+        medicamentoNombre1,
+        `${medicamentoNombre2 || MEDICAMENTO_NO_APLICA}.`,
+        `${medicamentoNombre3 || MEDICAMENTO_NO_APLICA}.`,
+      ].join("\n");
     }
     if (!descripcion || !String(descripcion).trim()) {
       return NextResponse.json({ error: "La descripcion es obligatoria" }, { status: 400 });
@@ -497,6 +523,9 @@ export async function POST(req: Request) {
       }
       if (!tipoPacienteEnum) {
         return NextResponse.json({ error: "Tipo de novedad del paciente es obligatorio" }, { status: 400 });
+      }
+      if (tipoPacienteEnum === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO && !medicamentoNombre1) {
+        return NextResponse.json({ error: "Nombre de medicamento 1 es obligatorio" }, { status: 400 });
       }
       const requiereFotoPaciente =
         tipoPacienteEnum ? TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPacienteEnum) : false;
@@ -641,6 +670,9 @@ export async function POST(req: Request) {
           pacienteTipoDoc: categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA ? pacienteTipoDocEnum : null,
           pacienteDocumento: categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA ? safeStr(pacienteDocumento) : null,
           tipoPaciente: categoriaEnum === "PACIENTE" ? tipoPacienteEnum : null,
+          medicamentoNombre1: esProrrogaCambioAdicionTratamiento ? safeStr(medicamentoNombre1) : null,
+          medicamentoNombre2: esProrrogaCambioAdicionTratamiento ? safeStr(medicamentoNombre2) || MEDICAMENTO_NO_APLICA : null,
+          medicamentoNombre3: esProrrogaCambioAdicionTratamiento ? safeStr(medicamentoNombre3) || MEDICAMENTO_NO_APLICA : null,
           fotoIngresoDomicilioUrl: categoriaEnum === "PACIENTE" ? fotoSubida?.webUrl ?? null : null,
           fotoIngresoDomicilioDriveItemId: categoriaEnum === "PACIENTE" ? fotoSubida?.id ?? null : null,
           fotoIngresoDomicilioNombre: categoriaEnum === "PACIENTE" ? fotoSubida?.name ?? null : null,
@@ -734,6 +766,11 @@ export async function POST(req: Request) {
     const descripcionTrim = safeStr(descripcion);
     const descripcionCorta =
       descripcionTrim.slice(0, 220) + (descripcionTrim.length > 220 ? "..." : "");
+    const medicamentosTratamiento = [
+      safeStr(medicamentoNombre1),
+      safeStr(medicamentoNombre2) || MEDICAMENTO_NO_APLICA,
+      safeStr(medicamentoNombre3) || MEDICAMENTO_NO_APLICA,
+    ];
 
     const resumenEquipo = [
       `Prestador: ${prestadorNombre} (${prestadorProfesion})`,
@@ -749,6 +786,9 @@ export async function POST(req: Request) {
         ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})`
         : null,
       tipoNovedadSeleccionada ? `Tipo: ${tipoNovedadSeleccionada}` : null,
+      esProrrogaCambioAdicionTratamiento ? `Medicamento 1: ${medicamentosTratamiento[0]}` : null,
+      esProrrogaCambioAdicionTratamiento ? `Medicamento 2: ${medicamentosTratamiento[1]}` : null,
+      esProrrogaCambioAdicionTratamiento ? `Medicamento 3: ${medicamentosTratamiento[2]}` : null,
       fotoEvidenciaUrl ? `Foto evidencia: ${fotoEvidenciaUrl}` : null,
       adjuntoFarmaciaSubido?.webUrl ? `Adjunto farmacia: ${adjuntoFarmaciaSubido.webUrl}` : null,
       ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
@@ -969,6 +1009,48 @@ ${linkAdmin}`,
       });
     } catch (mailErr) {
       console.error("No se pudo enviar correo al equipo:", mailErr);
+    }
+
+    // 1.1) Correo adicional para prorrogas, cambios o adiciones de tratamiento.
+    if (esProrrogaCambioAdicionTratamiento) {
+      const pacienteTipoDocumentoTexto = safeStr(pacienteTipoDoc);
+      const pacienteDocumentoTexto = safeStr(pacienteDocumento);
+      const pacienteIdentificacion = `${pacienteTipoDocumentoTexto} ${pacienteDocumentoTexto}`.trim();
+      const textoNuevoTratamiento = [
+        "Cordial Saludo,",
+        "",
+        `El medico ${prestadorNombre}, el día de hoy ha ordenado un nuevo tratamiento a ${safeStr(pacienteNombre)} ${pacienteIdentificacion}.`,
+        "",
+        "Medicamentos ordenados:",
+        `${medicamentosTratamiento[0]}`,
+        `${medicamentosTratamiento[1]}.`,
+        `${medicamentosTratamiento[2]}.`,
+        "",
+        "Por favor gestionar caso de acuerdo a ruta institucional.",
+        "Este es un correo de Especialistas en casa.",
+      ].join("\n");
+
+      try {
+        await sendGraphMail({
+          to: DESTINO_NOTIFICACION_AUXILIAR,
+          subject: `Nuevo medicamento ordenado - ${prestadorNombre} - ${pacienteIdentificacion}`,
+          text: textoNuevoTratamiento,
+          html: `
+            <div style="font-family: Arial, sans-serif; line-height: 1.5; color:#1e2b3c;">
+              <p>👋 Cordial Saludo,</p>
+              <p>🩺 El medico <strong>${escapeHtml(prestadorNombre)}</strong>, el día de hoy ha ordenado un nuevo tratamiento a <strong>${escapeHtml(safeStr(pacienteNombre))}</strong> ${escapeHtml(pacienteIdentificacion)}.</p>
+              <p style="margin-bottom:4px;"><strong>💊 Medicamentos ordenados:</strong></p>
+              <p style="margin:0 0 4px 0;">${escapeHtml(medicamentosTratamiento[0])}</p>
+              <p style="margin:0 0 4px 0;">${escapeHtml(medicamentosTratamiento[1])}.</p>
+              <p style="margin:0 0 16px 0;">${escapeHtml(medicamentosTratamiento[2])}.</p>
+              <p>📌 Por favor gestionar caso de acuerdo a ruta institucional.</p>
+              <p style="color:#5a6f84;">Este es un correo de Especialistas en casa.</p>
+            </div>
+          `.trim(),
+        });
+      } catch (mailErr) {
+        console.error("No se pudo enviar correo de nuevo tratamiento a admisiones:", mailErr);
+      }
     }
 
     // 2) Confirmacion al prestador (si tiene email)
