@@ -1,0 +1,39 @@
+name: Reporte Tratamientos Pendientes
+
+on:
+  schedule:
+    # 13:00 UTC = 08:00 Colombia (America/Bogota, UTC-5).
+    - cron: "0 13 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: reporte-tratamientos-pendientes
+  cancel-in-progress: false
+
+jobs:
+  enviar-reporte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Validar secretos
+        env:
+          JOB_URL: ${{ secrets.REPORTE_TRATAMIENTOS_PENDIENTES_JOB_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$JOB_URL" ]; then
+            echo "Falta el secreto REPORTE_TRATAMIENTOS_PENDIENTES_JOB_URL"
+            exit 1
+          fi
+          if [ -z "$CRON_SECRET" ]; then
+            echo "Falta el secreto CRON_SECRET"
+            exit 1
+          fi
+
+      - name: Enviar reporte diario de tratamientos pendientes
+        env:
+          JOB_URL: ${{ secrets.REPORTE_TRATAMIENTOS_PENDIENTES_JOB_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail --show-error --silent \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$JOB_URL"

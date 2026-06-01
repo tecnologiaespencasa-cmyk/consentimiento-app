@@ -101,6 +101,7 @@ const TIPOS_PACIENTE_LABEL: Record<string, string> = {
   INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",
   PRORROGA_CAMBIO_ADICION_TRATAMIENTO: "Prórroga, cambio o adición de tratamiento",
 };
+const TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO = "PRORROGA_CAMBIO_ADICION_TRATAMIENTO";
 type ResponsableKey = "ADMISIONES" | "ANALISTA_ASISTENCIAL" | "CLINICA_HERIDAS";
 const RESPONSABLES: Array<{ v: ResponsableKey; label: string }> = [
   { v: "ADMISIONES", label: "Admisiones" },
@@ -177,15 +178,16 @@ function buildGoogleMapsEmbedUrl(latitud: number, longitud: number) {
   return `https://maps.google.com/maps?q=${encodeURIComponent(`${latitud},${longitud}`)}&z=16&output=embed`;
 }
 
-function resolverResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion">): ResponsableKey[] {
+function resolverResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion" | "tipoPaciente">): ResponsableKey[] {
   if (n.responsableGestion) return [n.responsableGestion];
   if (n.categoria === "LLAMADA_URGENTE") return ["ADMISIONES", "ANALISTA_ASISTENCIAL"];
   if (n.categoria === "PROCESO_FARMACEUTICO") return ["ADMISIONES"];
+  if (n.categoria === "PACIENTE" && n.tipoPaciente === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO) return ["ADMISIONES"];
   if (Boolean(n.esClinicaHeridas)) return ["CLINICA_HERIDAS"];
   return n.prestadorProfesion === "AUXILIAR_ENFERMERIA" ? ["ADMISIONES"] : ["ANALISTA_ASISTENCIAL"];
 }
 
-function etiquetaResponsables(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion">) {
+function etiquetaResponsables(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion" | "tipoPaciente">) {
   const responsables = resolverResponsable(n);
   if (responsables.length === 2) {
     return "Admisiones y analista asistencial";
@@ -193,7 +195,7 @@ function etiquetaResponsables(n: Pick<Novedad, "categoria" | "prestadorProfesion
   return etiquetaResponsable(responsables[0]);
 }
 
-function incluyeResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion">, responsable: ResponsableKey) {
+function incluyeResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion" | "tipoPaciente">, responsable: ResponsableKey) {
   return resolverResponsable(n).includes(responsable);
 }
 

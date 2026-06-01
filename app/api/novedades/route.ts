@@ -169,7 +169,8 @@ function resolverCanalNotificacion(
   profesion: string,
   categoria: CategoriaNovedad,
   esClinicaHeridas: boolean,
-  rolReporta: string
+  rolReporta: string,
+  tipoPaciente?: TipoNovedadPaciente | null
 ) {
   const esRolFarmacia = String(rolReporta || "").toUpperCase() === "FARMACIA";
   const esAuxiliarEnfermeria = profesion === "AUXILIAR_ENFERMERIA";
@@ -200,6 +201,21 @@ function resolverCanalNotificacion(
         DESTINO_NOTIFICACION_AUXILIAR,
         DESTINO_NOTIFICACION_LLAMADA_URGENTE_DIRECCION,
       ],
+      teamsCanales: esRolFarmacia
+        ? teamsCanalFarmacia
+        : [
+            {
+              url: process.env.TEAMS_WEBHOOK_URL,
+              label: "TEAMS_WEBHOOK_URL",
+            },
+          ],
+      responsableLabel: "Admisiones",
+    };
+  }
+
+  if (categoria === "PACIENTE" && tipoPaciente === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO) {
+    return {
+      destinosCorreo: [DESTINO_NOTIFICACION_AUXILIAR],
       teamsCanales: esRolFarmacia
         ? teamsCanalFarmacia
         : [
@@ -689,6 +705,7 @@ export async function POST(req: Request) {
           tipoFarmacia: categoriaEnum === CATEGORIA_FARMACIA ? tipoFarmaciaEnum : null,
           descripcion: safeStr(descripcion),
           esClinicaHeridas: esClinicaHeridasAplicada,
+          responsableGestion: esProrrogaCambioAdicionTratamiento ? "ADMISIONES" : null,
           prioridad: prioridadPorDefecto,
           ubicacionLatitud,
           ubicacionLongitud,
@@ -716,7 +733,7 @@ export async function POST(req: Request) {
     const linkAdmin = baseUrl ? `${baseUrl}/novedades/todas` : "/novedades/todas";
 
     const { destinosCorreo, teamsCanales, responsableLabel } =
-      resolverCanalNotificacion(prestadorProfesion, categoriaEnum, esClinicaHeridasAplicada, String(u.rol || ""));
+      resolverCanalNotificacion(prestadorProfesion, categoriaEnum, esClinicaHeridasAplicada, String(u.rol || ""), tipoPacienteEnum);
     const zonaTexto = etiquetaZonaTexto(zona);
     const clinicaHeridasTexto = esLlamadaUrgente
       ? "No aplica (llamada urgente)"
