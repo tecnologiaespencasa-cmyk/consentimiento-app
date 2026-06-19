@@ -9,6 +9,7 @@ import {
   FaFileSignature,
   FaUsers,
   FaUserCircle,
+  FaIdCard,
   FaSignOutAlt,
   FaBars,
   FaTimes,
@@ -248,6 +249,14 @@ export default function Navbar() {
                       <FaUserCircle className="mr-3" />
                       Mi usuario
                     </Link>
+                    <Link
+                      href="/mi-carnet"
+                      className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      onClick={() => setShowUserMenu(false)}
+                    >
+                      <FaIdCard className="mr-3" />
+                      Mi carné
+                    </Link>
                     <button
                       type="button"
                       className="w-full text-left flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
@@ -363,6 +372,15 @@ export default function Navbar() {
                 >
                   <FaUserCircle className="mr-3" />
                   Mi usuario
+                </Link>
+
+                <Link
+                  href="/mi-carnet"
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center px-4 py-3 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                >
+                  <FaIdCard className="mr-3" />
+                  Mi carné
                 </Link>
 
                 <button

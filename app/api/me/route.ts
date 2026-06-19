@@ -15,6 +15,7 @@ type MeResponse = {
   telefono: string | null
   cedula: string
   profesion: string
+  fotoCarnet: string | null
   nombre: string
   nombreCompleto: string
 }
@@ -30,6 +31,7 @@ function toMeResponse(user: {
   telefono: string | null
   cedula: string
   profesion: string
+  fotoCarnet: string | null
 }): MeResponse {
   const nombres = (user.nombres ?? "").trim()
   const primerApellido = (user.primerApellido ?? "").trim()
@@ -53,6 +55,7 @@ function toMeResponse(user: {
     telefono: user.telefono ?? null,
     cedula: user.cedula ?? "",
     profesion: user.profesion,
+    fotoCarnet: user.fotoCarnet ?? null,
     nombre,
     nombreCompleto,
   }
@@ -78,6 +81,7 @@ export async function GET() {
       telefono: true,
       cedula: true,
       profesion: true,
+      fotoCarnet: true,
     },
   })
 
@@ -129,6 +133,7 @@ export async function PATCH(req: Request) {
         telefono: true,
         cedula: true,
         profesion: true,
+        fotoCarnet: true,
       },
     })
 

@@ -20,6 +20,7 @@ model User {
   segundoApellido String?
   profesion       Profesion
   telefono        String?
+  fotoCarnet      String?
   consentimientos Consentimiento[]
   novedades       Novedad[]
   boletines       Boletin[]
