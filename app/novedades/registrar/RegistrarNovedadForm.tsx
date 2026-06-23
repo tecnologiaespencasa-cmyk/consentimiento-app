@@ -46,6 +46,7 @@ const TIPOS_DOC = [
 
 const TIPOS_PACIENTE = [
   { v: "ERCA", label: "ERCA" },
+  { v: "CATETER_PICC", label: "Catéter PICC" },
   { v: "DATOS_ERRADOS", label: "Datos errados de ubicación" },
   { v: "ACTUALIZACION_DATOS", label: "Actualización de datos" },
   { v: "AGENDAMIENTO", label: "Agendamiento" },

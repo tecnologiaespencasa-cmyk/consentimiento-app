@@ -262,7 +262,7 @@ export default function MiCarnet() {
           <div className="absolute right-0 top-0 h-[64%] w-[62%] bg-gray-100 [clip-path:polygon(30%_0,100%_0,100%_100%,0_82%)]" />
           <div className="absolute left-0 top-0 h-24 w-24 bg-red-600 [clip-path:polygon(0_0,100%_0,0_100%)]" />
           <div className="absolute inset-x-0 bottom-0 h-[50%] bg-gradient-to-b from-transparent via-red-600/80 to-red-800" />
-          <div className="absolute inset-x-0 bottom-0 h-[31%] bg-red-700/90" />
+          <div className="absolute inset-x-0 bottom-0 h-[31%] bg-red-600" />
           <div className="absolute bottom-0 right-0 h-[28%] w-[45%] opacity-20 [background-image:linear-gradient(30deg,transparent_45%,white_46%,white_48%,transparent_49%)] [background-size:22px_38px]" />
 
           <div className="relative z-10 h-full px-7 py-8">
@@ -318,7 +318,7 @@ export default function MiCarnet() {
               </div>
             </div>
 
-            <div className="absolute inset-x-7 bottom-5 z-20 text-white">
+            <div className="absolute inset-x-7 bottom-1 z-20 text-white">
               <p className="text-[10px] font-bold uppercase text-white/75">
                 Prestador de servicios
               </p>

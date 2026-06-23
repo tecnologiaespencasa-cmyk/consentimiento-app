@@ -17,6 +17,7 @@ const TIPOS_FARMACIA_LABEL: Record<string, string> = {
 };
 
 const TIPOS_PACIENTE_LABEL: Record<string, string> = {
+  CATETER_PICC: "Catéter PICC",
   DATOS_ERRADOS: "Datos errados de ubicación",
   ACTUALIZACION_DATOS: "Actualización de datos",
   INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",

@@ -59,6 +59,7 @@ const TIPOS_DOCUMENTO_VALIDOS: TipoDocumento[] = [
 
 const TIPOS_PACIENTE_VALIDOS: TipoNovedadPaciente[] = [
   "ERCA",
+  "CATETER_PICC",
   "DATOS_ERRADOS",
   "ACTUALIZACION_DATOS",
   "AGENDAMIENTO",
@@ -77,6 +78,7 @@ const TIPOS_PACIENTE_VALIDOS: TipoNovedadPaciente[] = [
 ];
 
 const TIPOS_PACIENTE_LABEL: Partial<Record<TipoNovedadPaciente, string>> = {
+  CATETER_PICC: "Catéter PICC",
   DATOS_ERRADOS: "Datos errados de ubicación",
   ACTUALIZACION_DATOS: "Actualización de datos",
   INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",
@@ -594,7 +596,9 @@ export async function POST(req: Request) {
       Boolean(tipoPacienteEnum && TIPOS_PACIENTE_CON_FOTO_OBLIGATORIA.includes(tipoPacienteEnum));
     const requiereFotoRutaEvidencia =
       categoriaEnum === "RUTA" && (tipoRutaEnum === "ACCIDENTE" || tipoRutaEnum === "CIERRE_VIAL");
-    const prioridadPorDefecto = categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente ? "ALTA" : "MEDIA";
+    const esErca = categoriaEnum === "PACIENTE" && tipoPacienteEnum === "ERCA";
+    const prioridadPorDefecto =
+      categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente || esErca ? "ALTA" : "MEDIA";
 
     let fotoSubida: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
     if (requiereFotoIngresoDomicilio && fotoIngresoDomicilio) {

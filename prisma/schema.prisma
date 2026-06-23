@@ -159,6 +159,7 @@ enum TipoDocumento {
 
 enum TipoNovedadPaciente {
   ERCA
+  CATETER_PICC
   DATOS_ERRADOS
   ACTUALIZACION_DATOS
   AGENDAMIENTO
