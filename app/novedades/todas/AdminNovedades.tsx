@@ -150,11 +150,21 @@ function csvEscape(value: unknown) {
   return `"${raw.replace(/"/g, "\"\"")}"`;
 }
 
-function isoDate(value: unknown) {
+function reporteDate(value: unknown) {
   if (!value) return "";
   const dt = new Date(String(value));
   if (Number.isNaN(dt.getTime())) return "";
-  return dt.toISOString();
+  return formatBogotaDateTime(dt);
+}
+
+function calcularTiempoResolucionHoras(n: Pick<Novedad, "createdAt" | "updatedAt" | "estado">) {
+  if (n.estado !== "RESUELTA") return "";
+
+  const creada = new Date(String(n.createdAt)).getTime();
+  const cerrada = new Date(String(n.updatedAt)).getTime();
+  if (!Number.isFinite(creada) || !Number.isFinite(cerrada) || cerrada < creada) return "";
+
+  return Number(((cerrada - creada) / 36e5).toFixed(2));
 }
 
 function getErrorMessage(error: unknown, fallback = "Error") {
@@ -369,63 +379,64 @@ export default function AdminNovedades({
     }
 
     const columns = [
-      "id",
-      "createdAt",
-      "updatedAt",
-      "prestadorNombre",
-      "prestadorCedula",
-      "prestadorProfesion",
-      "prestadorTelefono",
-      "zona",
-      "responsable",
-      "categoria",
-      "pacienteNombre",
-      "pacienteTipoDoc",
-      "pacienteDocumento",
-      "tipoPaciente",
-      "medicamentoNombre1",
-      "medicamentoNombre2",
-      "medicamentoNombre3",
-      "fotoIngresoDomicilioUrl",
-      "fotoIngresoDomicilioDriveItemId",
-      "fotoIngresoDomicilioNombre",
-      "fotoIngresoDomicilioMimeType",
-      "fotoRutaEvidenciaUrl",
-      "fotoRutaEvidenciaDriveItemId",
-      "fotoRutaEvidenciaNombre",
-      "fotoRutaEvidenciaMimeType",
-      "adjuntoFarmaciaUrl",
-      "adjuntoFarmaciaDriveItemId",
-      "adjuntoFarmaciaNombre",
-      "adjuntoFarmaciaMimeType",
-      "tipoRuta",
-      "tipoFarmacia",
-      "descripcion",
-      "ubicacionLatitud",
-      "ubicacionLongitud",
-      "estado",
-      "prioridad",
-      "asignadoA",
-      "notasInternas",
-      "respuestaPrestador",
-      "farmaciaCorregida",
-      "farmaciaCorregidaAt",
-      "usuarioId",
-      "usuarioUsername",
-      "usuarioNombres",
-      "usuarioPrimerApellido",
-      "usuarioSegundoApellido",
-      "usuarioRol",
-      "usuarioEmail",
-      "usuarioTelefono",
-      "usuarioCedula",
-      "usuarioProfesion",
+      "Radicado",
+      "Fecha de creación",
+      "Fecha de última actualización",
+      "Nombre del prestador",
+      "Cédula del prestador",
+      "Profesión del prestador",
+      "Teléfono del prestador",
+      "Zona",
+      "Área responsable",
+      "Categoría",
+      "Nombre del paciente",
+      "Tipo de documento del paciente",
+      "Documento del paciente",
+      "Tipo de novedad",
+      "Medicamento 1",
+      "Medicamento 2",
+      "Medicamento 3",
+      "URL foto ingreso domicilio",
+      "ID archivo foto ingreso domicilio",
+      "Nombre archivo foto ingreso domicilio",
+      "Tipo archivo foto ingreso domicilio",
+      "URL foto ruta",
+      "ID archivo foto ruta",
+      "Nombre archivo foto ruta",
+      "Tipo archivo foto ruta",
+      "URL adjunto farmacia",
+      "ID archivo adjunto farmacia",
+      "Nombre archivo adjunto farmacia",
+      "Tipo archivo adjunto farmacia",
+      "Tipo de novedad en ruta",
+      "Tipo de novedad farmacia",
+      "Descripción",
+      "Latitud",
+      "Longitud",
+      "Estado",
+      "Prioridad",
+      "Persona encargada de dar solución",
+      "Tiempo de resolución (horas)",
+      "Notas internas",
+      "Respuesta al prestador",
+      "Farmacia corregida",
+      "Fecha farmacia corregida",
+      "ID usuario reporta",
+      "Usuario reporta",
+      "Nombres usuario reporta",
+      "Primer apellido usuario reporta",
+      "Segundo apellido usuario reporta",
+      "Rol usuario reporta",
+      "Correo usuario reporta",
+      "Teléfono usuario reporta",
+      "Cédula usuario reporta",
+      "Profesión usuario reporta",
     ];
 
     const rows = filtered.map((n) => [
       n.id ?? "",
-      isoDate(n.createdAt),
-      isoDate(n.updatedAt),
+      reporteDate(n.createdAt),
+      reporteDate(n.updatedAt),
       n.prestadorNombre ?? "",
       n.prestadorCedula ?? "",
       n.prestadorProfesion ?? "",
@@ -460,10 +471,11 @@ export default function AdminNovedades({
       n.estado ?? "",
       n.prioridad ?? "",
       n.asignadoA ?? "",
+      calcularTiempoResolucionHoras(n),
       n.notasInternas ?? "",
       n.respuestaPrestador ?? "",
       n.farmaciaCorregida ? "SI" : "NO",
-      isoDate(n.farmaciaCorregidaAt),
+      reporteDate(n.farmaciaCorregidaAt),
       n.usuarioId ?? "",
       n.usuario?.username ?? "",
       n.usuario?.nombres ?? "",

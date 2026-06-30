@@ -738,6 +738,11 @@ export async function POST(req: Request) {
 
     const { destinosCorreo, teamsCanales, responsableLabel } =
       resolverCanalNotificacion(prestadorProfesion, categoriaEnum, esClinicaHeridasAplicada, String(u.rol || ""), tipoPacienteEnum);
+    const esAuxiliarEnfermeriaReportando = prestadorProfesion === "AUXILIAR_ENFERMERIA";
+    const destinosCorreoNuevaNovedad = esAuxiliarEnfermeriaReportando
+      ? destinosCorreo.filter((destino) => safeStr(destino).toLowerCase() !== DESTINO_NOTIFICACION_AUXILIAR)
+      : destinosCorreo;
+    const teamsCanalesNuevaNovedad = esAuxiliarEnfermeriaReportando ? [] : teamsCanales;
     const zonaTexto = etiquetaZonaTexto(zona);
     const clinicaHeridasTexto = esLlamadaUrgente
       ? "No aplica (llamada urgente)"
@@ -747,13 +752,13 @@ export async function POST(req: Request) {
 
     const canalesTeamsUnicos = Array.from(
       new Map(
-        teamsCanales
+        teamsCanalesNuevaNovedad
           .map((c) => ({ ...c, url: safeStr(c.url) }))
           .filter((c) => Boolean(c.url))
           .map((c) => [c.url, c])
       ).values()
     );
-    for (const canal of teamsCanales) {
+    for (const canal of teamsCanalesNuevaNovedad) {
       if (!safeStr(canal.url)) {
         console.warn(`${canal.label} no configurado: no se envia alerta a Teams`);
       }
@@ -908,12 +913,13 @@ export async function POST(req: Request) {
     // Envio de correos (con manejo de errores independiente)
     // ===========================
     // 1) Correo al equipo encargado
-    const destinosCorreoUnicos = Array.from(new Set(destinosCorreo.map((d) => safeStr(d)).filter(Boolean)));
-    try {
-      await sendGraphMail({
-        to: destinosCorreoUnicos,
-        subject: `Nueva novedad registrada (portal) - ${categoriaLabel}`,
-        text: `Se ha registrado una nueva novedad en el portal.
+    const destinosCorreoUnicos = Array.from(new Set(destinosCorreoNuevaNovedad.map((d) => safeStr(d)).filter(Boolean)));
+    if (destinosCorreoUnicos.length > 0) {
+      try {
+        await sendGraphMail({
+          to: destinosCorreoUnicos,
+          subject: `Nueva novedad registrada (portal) - ${categoriaLabel}`,
+          text: `Se ha registrado una nueva novedad en el portal.
 
 Categoria: ${categoriaLabel}
 
@@ -922,7 +928,7 @@ ${resumenEquipo}
 
 Para gestionarla, ingresa al portal administrativo:
 ${linkAdmin}`,
-        html: `
+          html: `
       <!DOCTYPE html>
       <html>
       <head>
@@ -1027,9 +1033,10 @@ ${linkAdmin}`,
       </body>
       </html>
     `.trim(),
-      });
-    } catch (mailErr) {
-      console.error("No se pudo enviar correo al equipo:", mailErr);
+        });
+      } catch (mailErr) {
+        console.error("No se pudo enviar correo al equipo:", mailErr);
+      }
     }
 
     // 1.1) Correo adicional para prorrogas, cambios o adiciones de tratamiento.
