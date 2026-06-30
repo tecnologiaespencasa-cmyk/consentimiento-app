@@ -18,7 +18,7 @@ const schema = z.object({
     .toLowerCase()
     .min(1)
     .max(50)
-    .regex(/^[a-z0-9._-]+$/)
+    .regex(/^[\p{L}\p{N}._-]+$/u)
     .optional()
     .or(z.literal("")),
 });

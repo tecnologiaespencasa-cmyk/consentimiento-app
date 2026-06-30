@@ -24,7 +24,7 @@ export const loginSchema = z.object({
     .toLowerCase()
     .min(3, "Usuario invalido")
     .max(50, "Usuario invalido")
-    .regex(/^[a-z0-9._-]+$/, "Usuario invalido"),
+    .regex(/^[\p{L}\p{N}._-]+$/u, "Usuario invalido"),
   password: z.string().min(1).max(200),
   captchaToken: z.string().max(5000).optional(),
 });
@@ -36,7 +36,7 @@ export const createUserSchema = z.object({
     .toLowerCase()
     .min(3, "El usuario debe tener entre 3 y 50 caracteres")
     .max(50, "El usuario debe tener entre 3 y 50 caracteres")
-    .regex(/^[a-z0-9._-]+$/, "El usuario solo admite letras, numeros y . _ -"),
+    .regex(/^[\p{L}\p{N}._-]+$/u, "El usuario solo admite letras, numeros y . _ -"),
   password: z
     .string()
     .min(8, "La contraseña debe tener minimo 8 caracteres")
