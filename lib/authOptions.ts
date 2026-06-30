@@ -2,6 +2,17 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import * as bcrypt from "bcrypt";
 import { prisma } from "@/lib/prisma";
+import { loginSchema } from "@/lib/validation";
+import {
+  evaluateLoginThrottle,
+  getClientIp,
+  recordLoginAttempt,
+  verifyRecaptcha,
+} from "@/lib/loginSecurity";
+
+// Hash "señuelo" para igualar el tiempo de respuesta cuando el usuario no
+// existe y mitigar la enumeracion de usuarios por temporizacion.
+const DUMMY_HASH = "$2b$10$CwTycUXWue0Thq9StjUM0uJ8DvElsfAd1J3aD7sZ9Qz1pVqkr2pK";
 
 export const authOptions: NextAuthOptions = {
   jwt: {
@@ -45,16 +56,45 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         username: { label: "Usuario", type: "text" },
         password: { label: "Contrasena", type: "password" },
+        captchaToken: { label: "captcha", type: "text" },
       },
-      async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) return null;
+      async authorize(credentials, req) {
+        // 1. Validacion/saneamiento de entrada (tipo, longitud, formato).
+        const parsed = loginSchema.safeParse(credentials ?? {});
+        if (!parsed.success) return null;
+        const { username, password, captchaToken } = parsed.data;
 
-        const username = credentials.username.toLowerCase().trim();
+        const ip = getClientIp(req?.headers);
+        const userAgent =
+          (req?.headers?.["user-agent"] as string | undefined) ?? null;
+
+        // 2. Bloqueo temporal progresivo (anti fuerza bruta).
+        //    Si esta bloqueado se rechaza ANTES de verificar credenciales y
+        //    SIN registrar un nuevo intento, para que el bloqueo expire solo
+        //    y no pueda usarse como DoS contra la cuenta.
+        const throttle = await evaluateLoginThrottle({ username, ip });
+        if (throttle.blocked) return null;
+
+        // 3. CAPTCHA tras N fallos consecutivos.
+        if (throttle.captchaRequired) {
+          const captchaOk = await verifyRecaptcha(captchaToken, ip);
+          if (!captchaOk) return null;
+        }
+
+        // 4. Verificacion de credenciales (con compare señuelo si no existe).
         const user = await prisma.user.findUnique({ where: { username } });
-        if (!user || !user.activo) return null;
+        const passwordOk = user
+          ? await bcrypt.compare(password, user.passwordHash)
+          : await bcrypt.compare(password, DUMMY_HASH).then(() => false);
 
-        const ok = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!ok) return null;
+        const success = Boolean(user && user.activo && passwordOk);
+
+        // 5. Auditoria del intento (timestamp, IP, usuario intentado, UA).
+        await recordLoginAttempt({ username, ip, userAgent, success });
+
+        // 6. Mensaje generico: no se revela si el usuario existe o si la
+        //    contraseña es incorrecta (siempre null -> "credenciales invalidas").
+        if (!success || !user) return null;
 
         return {
           id: user.id,

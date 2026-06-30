@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth"
 import { authOptions } from "@/lib/authOptions"
 import { prisma } from "@/lib/prisma"
 import bcrypt from "bcrypt"
+import { changePasswordSchema } from "@/lib/validation"
 
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions)
@@ -12,26 +13,16 @@ export async function PATCH(req: Request) {
   }
 
   const body = await req.json().catch(() => null)
-  const currentPassword = (body?.currentPassword ?? "").toString().trim()
-  const newPassword = (body?.newPassword ?? "").toString().trim()
+  const parsed = changePasswordSchema.safeParse(body ?? {})
 
-  if (!currentPassword) {
-    return NextResponse.json({ error: "La contraseña actual es obligatoria" }, { status: 400 })
-  }
-
-  if (!newPassword || newPassword.length < 6) {
+  if (!parsed.success) {
     return NextResponse.json(
-      { error: "La nueva contraseña debe tener minimo 6 caracteres" },
+      { error: parsed.error.issues[0]?.message ?? "Datos invalidos" },
       { status: 400 }
     )
   }
 
-  if (currentPassword === newPassword) {
-    return NextResponse.json(
-      { error: "La nueva contraseña debe ser diferente a la actual" },
-      { status: 400 }
-    )
-  }
+  const { currentPassword, newPassword } = parsed.data
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },

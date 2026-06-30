@@ -115,6 +115,18 @@ model Novedad {
   usuario            User          @relation(fields: [usuarioId], references: [id])
 }
 
+model LoginAttempt {
+  id        String   @id @default(uuid())
+  username  String // username intentado (normalizado a minusculas)
+  ip        String
+  userAgent String?
+  success   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([username, createdAt])
+  @@index([ip, createdAt])
+}
+
 enum Rol {
   ESPECIALISTA
   ADMINISTRATIVO
