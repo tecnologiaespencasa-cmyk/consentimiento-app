@@ -431,7 +431,7 @@ export default async function HomePage() {
             <div>
               <h4 className="font-semibold text-gray-800 mb-3">Informacion del sistema</h4>
               <div className="space-y-2 text-sm">
-                <p className="text-gray-600">Version 1.0.0</p>
+                <p className="text-gray-600">Version 1.2</p>
                 <p className="text-gray-600">(c) 2026 Especialistas en Casa IPS</p>
                 <p className="text-gray-600">Todos los derechos reservados</p>
               </div>
