@@ -14,12 +14,13 @@ import {
   TipoNovedadPaciente,
   TipoNovedadRuta,
   TipoNovedadFarmacia,
+  TipoNovedadTerapiaAmbulatoria,
 } from "@prisma/client";
 
 const DESTINO_NOTIFICACION_AUXILIAR = "admisiones@especialistasencasa.com";
 const DESTINO_NOTIFICACION_OTRAS_PROFESIONES = "analistaasistencial@especialistasencasa.com";
 const DESTINO_NOTIFICACION_LLAMADA_URGENTE_ANALISTA = "analistaasistencia@especialistasencasa.com";
-const DESTINO_NOTIFICACION_LLAMADA_URGENTE_DIRECCION = "direccionasistencial@especialistasencasa.com";
+const DESTINO_NOTIFICACION_DIRECCION_ASISTENCIAL = "direccionasistencial@especialistasencasa.com";
 const DESTINO_NOTIFICACION_CLINICA_HERIDAS = "clinicadeheridas@especialistasencasa.com";
 const DESCRIPCION_LLAMADA_URGENTE = "Necesito una llamada urgente de apoyo.";
 
@@ -41,10 +42,20 @@ const ZONAS_LABEL: Record<Zona, string> = {
 
 const CATEGORIA_FARMACIA: CategoriaNovedad = "PROCESO_FARMACEUTICO";
 const CATEGORIA_LLAMADA_URGENTE: CategoriaNovedad = "LLAMADA_URGENTE";
-const CATEGORIAS_VALIDAS: CategoriaNovedad[] = ["PACIENTE", "RUTA", CATEGORIA_FARMACIA, CATEGORIA_LLAMADA_URGENTE];
+const CATEGORIA_TERAPIAS_AMBULATORIAS: CategoriaNovedad = "TERAPIAS_AMBULATORIAS";
+const CATEGORIAS_VALIDAS: CategoriaNovedad[] = [
+  "PACIENTE",
+  "RUTA",
+  CATEGORIA_FARMACIA,
+  CATEGORIA_LLAMADA_URGENTE,
+  CATEGORIA_TERAPIAS_AMBULATORIAS,
+];
 const ROLES_CON_ACCESO_FARMACIA = ["FARMACIA", "TECNICO", "ADMINISTRATIVO"];
+const ROLES_CON_ACCESO_TERAPIAS_AMBULATORIAS = ["TECNICO", "ADMINISTRATIVO"];
 const TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO =
   "PRORROGA_CAMBIO_ADICION_TRATAMIENTO" as TipoNovedadPaciente;
+const TIPO_TERAPIA_VALIDACION_PERTINENCIA =
+  "VALIDACION_PERTINENCIA_TERAPIAS" as TipoNovedadTerapiaAmbulatoria;
 const MEDICAMENTO_NO_APLICA = "No aplica";
 
 const TIPOS_DOCUMENTO_VALIDOS: TipoDocumento[] = [
@@ -106,6 +117,31 @@ const TIPOS_FARMACIA_VALIDOS: TipoNovedadFarmacia[] = [
   "ERROR_TODOS_LOS_DOCUMENTOS",
 ];
 
+const TIPOS_TERAPIA_AMBULATORIA_VALIDOS: TipoNovedadTerapiaAmbulatoria[] = [
+  "PACIENTE_TERAPIA_AMBULATORIA",
+  "VALIDACION_PERTINENCIA_TERAPIAS",
+  "CONSIDERACION_INGRESO_PROGRAMA_CRONICO",
+  "PROBABLE_AGUDIZACION",
+  "SOLICITUD_EXTENSION_TERAPIAS",
+  "CAMBIO_FRECUENCIA_TERAPIAS",
+  "VISITA_FALLIDA",
+];
+
+const TIPOS_TERAPIA_AMBULATORIA_LABEL: Record<TipoNovedadTerapiaAmbulatoria, string> = {
+  PACIENTE_TERAPIA_AMBULATORIA: "Paciente de terapia ambulatoria",
+  VALIDACION_PERTINENCIA_TERAPIAS: "Validación de pertinencia terapias",
+  CONSIDERACION_INGRESO_PROGRAMA_CRONICO: "Consideración de ingreso a programa crónico",
+  PROBABLE_AGUDIZACION: "Probable agudización",
+  SOLICITUD_EXTENSION_TERAPIAS: "Solicitud de extensión de terapias",
+  CAMBIO_FRECUENCIA_TERAPIAS: "Cambio de frecuencia de terapias",
+  VISITA_FALLIDA: "Visita fallida",
+};
+
+const TIPOS_TERAPIA_AMBULATORIA_CON_ADJUNTO_OBLIGATORIO: TipoNovedadTerapiaAmbulatoria[] = [
+  "PROBABLE_AGUDIZACION",
+  "CAMBIO_FRECUENCIA_TERAPIAS",
+];
+
 function nombreCompleto(u: any) {
   return `${u?.nombres ?? ""} ${u?.primerApellido ?? ""} ${u?.segundoApellido ?? ""}`
     .replace(/\s+/g, " ")
@@ -122,7 +158,7 @@ function toBool(v: unknown) {
   return normalized === "true" || normalized === "1" || normalized === "si" || normalized === "on";
 }
 
-function esAdjuntoFarmaciaPermitido(file: File) {
+function esAdjuntoImagenOPdfPermitido(file: File) {
   const mime = safeStr(file.type).toLowerCase();
   const nombre = safeStr(file.name).toLowerCase();
   if (mime.startsWith("image/")) return true;
@@ -144,6 +180,7 @@ function etiquetaCategoria(categoria: CategoriaNovedad) {
   if (categoria === "PACIENTE") return "Paciente";
   if (categoria === "RUTA") return "Ruta";
   if (categoria === CATEGORIA_LLAMADA_URGENTE) return "Llamada urgente";
+  if (categoria === CATEGORIA_TERAPIAS_AMBULATORIAS) return "Terapias ambulatorias";
   return "Proceso farmaceutico";
 }
 
@@ -151,10 +188,15 @@ function etiquetaTipoPaciente(tipo: TipoNovedadPaciente | null) {
   return tipo ? TIPOS_PACIENTE_LABEL[tipo] ?? tipo : null;
 }
 
+function etiquetaTipoTerapiaAmbulatoria(tipo: TipoNovedadTerapiaAmbulatoria | null) {
+  return tipo ? TIPOS_TERAPIA_AMBULATORIA_LABEL[tipo] ?? tipo : null;
+}
+
 function etiquetaCategoriaConIcono(categoria: CategoriaNovedad) {
   if (categoria === "PACIENTE") return "Categoria: Paciente";
   if (categoria === "RUTA") return "Categoria: Ruta";
   if (categoria === CATEGORIA_LLAMADA_URGENTE) return "Categoria: Llamada urgente";
+  if (categoria === CATEGORIA_TERAPIAS_AMBULATORIAS) return "Categoria: Terapias ambulatorias";
   return "Categoria: Proceso farmaceutico";
 }
 
@@ -172,7 +214,8 @@ function resolverCanalNotificacion(
   categoria: CategoriaNovedad,
   esClinicaHeridas: boolean,
   rolReporta: string,
-  tipoPaciente?: TipoNovedadPaciente | null
+  tipoPaciente?: TipoNovedadPaciente | null,
+  tipoTerapiaAmbulatoria?: TipoNovedadTerapiaAmbulatoria | null
 ) {
   const esRolFarmacia = String(rolReporta || "").toUpperCase() === "FARMACIA";
   const esAuxiliarEnfermeria = profesion === "AUXILIAR_ENFERMERIA";
@@ -185,7 +228,7 @@ function resolverCanalNotificacion(
       destinosCorreo: [
         DESTINO_NOTIFICACION_AUXILIAR,
         DESTINO_NOTIFICACION_LLAMADA_URGENTE_ANALISTA,
-        DESTINO_NOTIFICACION_LLAMADA_URGENTE_DIRECCION,
+        DESTINO_NOTIFICACION_DIRECCION_ASISTENCIAL,
       ],
       teamsCanales: esRolFarmacia
         ? teamsCanalFarmacia
@@ -201,7 +244,7 @@ function resolverCanalNotificacion(
     return {
       destinosCorreo: [
         DESTINO_NOTIFICACION_AUXILIAR,
-        DESTINO_NOTIFICACION_LLAMADA_URGENTE_DIRECCION,
+        DESTINO_NOTIFICACION_DIRECCION_ASISTENCIAL,
       ],
       teamsCanales: esRolFarmacia
         ? teamsCanalFarmacia
@@ -227,6 +270,24 @@ function resolverCanalNotificacion(
             },
           ],
       responsableLabel: "Admisiones",
+    };
+  }
+
+  if (categoria === CATEGORIA_TERAPIAS_AMBULATORIAS) {
+    const esDireccionAsistencial = tipoTerapiaAmbulatoria === TIPO_TERAPIA_VALIDACION_PERTINENCIA;
+    return {
+      destinosCorreo: [
+        esDireccionAsistencial ? DESTINO_NOTIFICACION_DIRECCION_ASISTENCIAL : DESTINO_NOTIFICACION_OTRAS_PROFESIONES,
+      ],
+      teamsCanales: esRolFarmacia
+        ? teamsCanalFarmacia
+        : [
+            {
+              url: esDireccionAsistencial ? process.env.TEAMS_WEBHOOK_URL : process.env.TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES,
+              label: esDireccionAsistencial ? "TEAMS_WEBHOOK_URL" : "TEAMS_WEBHOOK_URL_OTRAS_PROFESIONES",
+            },
+          ],
+      responsableLabel: esDireccionAsistencial ? "Direccion asistencial" : "Analista asistencial",
     };
   }
 
@@ -387,6 +448,7 @@ export async function POST(req: Request) {
     let medicamentoNombre3 = MEDICAMENTO_NO_APLICA;
     let tipoRuta = "";
     let tipoFarmacia = "";
+    let tipoTerapiaAmbulatoria = "";
     let descripcion = "";
     let esClinicaHeridas = false;
     let ubicacionLatitudRaw = "";
@@ -394,6 +456,7 @@ export async function POST(req: Request) {
     let fotoIngresoDomicilio: File | null = null;
     let fotoRutaEvidencia: File | null = null;
     let adjuntoFarmacia: File | null = null;
+    let adjuntoTerapiaAmbulatoria: File | null = null;
 
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
@@ -409,6 +472,7 @@ export async function POST(req: Request) {
       medicamentoNombre3 = safeStr(formData.get("medicamentoNombre3")) || MEDICAMENTO_NO_APLICA;
       tipoRuta = safeStr(formData.get("tipoRuta"));
       tipoFarmacia = safeStr(formData.get("tipoFarmacia"));
+      tipoTerapiaAmbulatoria = safeStr(formData.get("tipoTerapiaAmbulatoria"));
       esClinicaHeridas = toBool(formData.get("esClinicaHeridas"));
       descripcion = safeStr(formData.get("descripcion"));
       ubicacionLatitudRaw = safeStr(formData.get("ubicacionLatitud"));
@@ -419,6 +483,11 @@ export async function POST(req: Request) {
       fotoRutaEvidencia = fotoRutaRaw instanceof File && fotoRutaRaw.size > 0 ? fotoRutaRaw : null;
       const adjuntoFarmaciaRaw = formData.get("adjuntoFarmacia");
       adjuntoFarmacia = adjuntoFarmaciaRaw instanceof File && adjuntoFarmaciaRaw.size > 0 ? adjuntoFarmaciaRaw : null;
+      const adjuntoTerapiaAmbulatoriaRaw = formData.get("adjuntoTerapiaAmbulatoria");
+      adjuntoTerapiaAmbulatoria =
+        adjuntoTerapiaAmbulatoriaRaw instanceof File && adjuntoTerapiaAmbulatoriaRaw.size > 0
+          ? adjuntoTerapiaAmbulatoriaRaw
+          : null;
     } else {
       const body = await req.json();
       telefono = safeStr(body?.telefono);
@@ -433,6 +502,7 @@ export async function POST(req: Request) {
       medicamentoNombre3 = safeStr(body?.medicamentoNombre3) || MEDICAMENTO_NO_APLICA;
       tipoRuta = safeStr(body?.tipoRuta);
       tipoFarmacia = safeStr(body?.tipoFarmacia);
+      tipoTerapiaAmbulatoria = safeStr(body?.tipoTerapiaAmbulatoria);
       esClinicaHeridas = toBool(body?.esClinicaHeridas);
       descripcion = safeStr(body?.descripcion);
       ubicacionLatitudRaw = safeStr(body?.ubicacionLatitud);
@@ -444,11 +514,13 @@ export async function POST(req: Request) {
     }
     const categoriaEnum = categoria as CategoriaNovedad;
     const esLlamadaUrgente = categoriaEnum === CATEGORIA_LLAMADA_URGENTE;
-    const esClinicaHeridasAplicada = esLlamadaUrgente ? false : esClinicaHeridas;
+    const esTerapiaAmbulatoria = categoriaEnum === CATEGORIA_TERAPIAS_AMBULATORIAS;
+    const esClinicaHeridasAplicada = esLlamadaUrgente || esTerapiaAmbulatoria ? false : esClinicaHeridas;
     const esProrrogaCambioAdicionTratamiento =
       categoriaEnum === "PACIENTE" && tipoPaciente === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO;
 
     const puedeReportarProcesoFarmaceutico = ROLES_CON_ACCESO_FARMACIA.includes(String(u.rol));
+    const puedeReportarTerapiasAmbulatorias = ROLES_CON_ACCESO_TERAPIAS_AMBULATORIAS.includes(String(u.rol));
     if (u.rol === "FARMACIA" && !(categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente)) {
       return NextResponse.json(
         { error: "El rol farmacia solo puede reportar novedades de proceso farmaceutico o llamada urgente" },
@@ -461,6 +533,12 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
+    if (esTerapiaAmbulatoria && !puedeReportarTerapiasAmbulatorias) {
+      return NextResponse.json(
+        { error: "Solo los roles tecnico o administrativo pueden reportar novedades de terapias ambulatorias" },
+        { status: 403 }
+      );
+    }
     const requiereZona = categoriaEnum === "PACIENTE" || categoriaEnum === "RUTA";
     if (requiereZona && !rawZona) {
       return NextResponse.json({ error: "Seleccione una zona" }, { status: 400 });
@@ -469,7 +547,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "La zona seleccionada no es valida" }, { status: 400 });
     }
     zona = rawZona ? (rawZona as Zona) : null;
-    if (categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente) {
+    if (categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente || esTerapiaAmbulatoria) {
       zona = null;
     }
     if (esLlamadaUrgente) {
@@ -529,6 +607,12 @@ export async function POST(req: Request) {
       ? (tipoFarmacia as TipoNovedadFarmacia)
       : null;
 
+    const tipoTerapiaAmbulatoriaEnum = TIPOS_TERAPIA_AMBULATORIA_VALIDOS.includes(
+      tipoTerapiaAmbulatoria as TipoNovedadTerapiaAmbulatoria
+    )
+      ? (tipoTerapiaAmbulatoria as TipoNovedadTerapiaAmbulatoria)
+      : null;
+
     if (categoriaEnum === "PACIENTE") {
       if (!pacienteNombre || !String(pacienteNombre).trim()) {
         return NextResponse.json({ error: "Nombre del paciente es obligatorio" }, { status: 400 });
@@ -574,6 +658,33 @@ export async function POST(req: Request) {
       if (!tipoFarmaciaEnum) {
         return NextResponse.json(
           { error: "Tipo de novedad de proceso farmaceutico es obligatorio" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (esTerapiaAmbulatoria) {
+      if (!pacienteNombre || !String(pacienteNombre).trim()) {
+        return NextResponse.json({ error: "Nombre del paciente es obligatorio" }, { status: 400 });
+      }
+      if (!pacienteTipoDocEnum) {
+        return NextResponse.json({ error: "Tipo de documento del paciente es obligatorio" }, { status: 400 });
+      }
+      if (!pacienteDocumento || !String(pacienteDocumento).trim()) {
+        return NextResponse.json({ error: "Numero de documento del paciente es obligatorio" }, { status: 400 });
+      }
+      if (!tipoTerapiaAmbulatoriaEnum) {
+        return NextResponse.json(
+          { error: "Tipo de novedad de terapias ambulatorias es obligatorio" },
+          { status: 400 }
+        );
+      }
+      const requiereAdjuntoTerapia = TIPOS_TERAPIA_AMBULATORIA_CON_ADJUNTO_OBLIGATORIO.includes(
+        tipoTerapiaAmbulatoriaEnum
+      );
+      if (requiereAdjuntoTerapia && !adjuntoTerapiaAmbulatoria) {
+        return NextResponse.json(
+          { error: "Debe tomar una foto o adjuntar evidencia para esta novedad" },
           { status: 400 }
         );
       }
@@ -638,7 +749,7 @@ export async function POST(req: Request) {
 
     let adjuntoFarmaciaSubido: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
     if (categoriaEnum === CATEGORIA_FARMACIA && adjuntoFarmacia) {
-      if (!esAdjuntoFarmaciaPermitido(adjuntoFarmacia)) {
+      if (!esAdjuntoImagenOPdfPermitido(adjuntoFarmacia)) {
         return NextResponse.json(
           { error: "El adjunto de farmacia debe ser una imagen o un archivo PDF" },
           { status: 400 }
@@ -657,7 +768,29 @@ export async function POST(req: Request) {
       );
     }
 
-    const fotoEvidenciaUrl = fotoSubida?.webUrl ?? fotoRutaSubida?.webUrl ?? null;
+    let adjuntoTerapiaAmbulatoriaSubido: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
+    if (esTerapiaAmbulatoria && adjuntoTerapiaAmbulatoria) {
+      if (!esAdjuntoImagenOPdfPermitido(adjuntoTerapiaAmbulatoria)) {
+        return NextResponse.json(
+          { error: "El adjunto de terapias ambulatorias debe ser una imagen o un archivo PDF" },
+          { status: 400 }
+        );
+      }
+
+      const maxBytes = 10 * 1024 * 1024; // 10 MB
+      if (adjuntoTerapiaAmbulatoria.size > maxBytes) {
+        return NextResponse.json({ error: "El adjunto no puede superar 10MB" }, { status: 400 });
+      }
+
+      adjuntoTerapiaAmbulatoriaSubido = await uploadToSharePointWithInfo(
+        adjuntoTerapiaAmbulatoria,
+        prestadorCedula,
+        { folder: "FotosNovedades" }
+      );
+    }
+
+    const fotoEvidenciaUrl =
+      fotoSubida?.webUrl ?? fotoRutaSubida?.webUrl ?? adjuntoTerapiaAmbulatoriaSubido?.webUrl ?? null;
     const ubicacionGoogleMapsUrl =
       ubicacionLatitud !== null && ubicacionLongitud !== null
         ? buildGoogleMapsLink(ubicacionLatitud, ubicacionLongitud)
@@ -670,6 +803,8 @@ export async function POST(req: Request) {
         ? tipoRutaEnum
         : categoriaEnum === CATEGORIA_FARMACIA
         ? tipoFarmaciaEnum
+        : esTerapiaAmbulatoria
+        ? etiquetaTipoTerapiaAmbulatoria(tipoTerapiaAmbulatoriaEnum)
         : "LLAMADA_URGENTE";
 
     let novedad;
@@ -686,9 +821,18 @@ export async function POST(req: Request) {
           prestadorTelefono,
           zona,
           categoria: categoriaEnum,
-          pacienteNombre: categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA ? safeStr(pacienteNombre) : null,
-          pacienteTipoDoc: categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA ? pacienteTipoDocEnum : null,
-          pacienteDocumento: categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA ? safeStr(pacienteDocumento) : null,
+          pacienteNombre:
+            categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA || esTerapiaAmbulatoria
+              ? safeStr(pacienteNombre)
+              : null,
+          pacienteTipoDoc:
+            categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA || esTerapiaAmbulatoria
+              ? pacienteTipoDocEnum
+              : null,
+          pacienteDocumento:
+            categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA || esTerapiaAmbulatoria
+              ? safeStr(pacienteDocumento)
+              : null,
           tipoPaciente: categoriaEnum === "PACIENTE" ? tipoPacienteEnum : null,
           medicamentoNombre1: esProrrogaCambioAdicionTratamiento ? safeStr(medicamentoNombre1) : null,
           medicamentoNombre2: esProrrogaCambioAdicionTratamiento ? safeStr(medicamentoNombre2) || MEDICAMENTO_NO_APLICA : null,
@@ -707,6 +851,11 @@ export async function POST(req: Request) {
           adjuntoFarmaciaMimeType: categoriaEnum === CATEGORIA_FARMACIA ? adjuntoFarmaciaSubido?.mimeType ?? null : null,
           tipoRuta: categoriaEnum === "RUTA" ? tipoRutaEnum : null,
           tipoFarmacia: categoriaEnum === CATEGORIA_FARMACIA ? tipoFarmaciaEnum : null,
+          tipoTerapiaAmbulatoria: esTerapiaAmbulatoria ? tipoTerapiaAmbulatoriaEnum : null,
+          adjuntoTerapiaAmbulatoriaUrl: esTerapiaAmbulatoria ? adjuntoTerapiaAmbulatoriaSubido?.webUrl ?? null : null,
+          adjuntoTerapiaAmbulatoriaDriveItemId: esTerapiaAmbulatoria ? adjuntoTerapiaAmbulatoriaSubido?.id ?? null : null,
+          adjuntoTerapiaAmbulatoriaNombre: esTerapiaAmbulatoria ? adjuntoTerapiaAmbulatoriaSubido?.name ?? null : null,
+          adjuntoTerapiaAmbulatoriaMimeType: esTerapiaAmbulatoria ? adjuntoTerapiaAmbulatoriaSubido?.mimeType ?? null : null,
           descripcion: safeStr(descripcion),
           esClinicaHeridas: esClinicaHeridasAplicada,
           responsableGestion: esProrrogaCambioAdicionTratamiento ? "ADMISIONES" : null,
@@ -737,7 +886,14 @@ export async function POST(req: Request) {
     const linkAdmin = baseUrl ? `${baseUrl}/novedades/todas` : "/novedades/todas";
 
     const { destinosCorreo, teamsCanales, responsableLabel } =
-      resolverCanalNotificacion(prestadorProfesion, categoriaEnum, esClinicaHeridasAplicada, String(u.rol || ""), tipoPacienteEnum);
+      resolverCanalNotificacion(
+        prestadorProfesion,
+        categoriaEnum,
+        esClinicaHeridasAplicada,
+        String(u.rol || ""),
+        tipoPacienteEnum,
+        tipoTerapiaAmbulatoriaEnum
+      );
     const esAuxiliarEnfermeriaReportando = prestadorProfesion === "AUXILIAR_ENFERMERIA";
     const destinosCorreoNuevaNovedad = esAuxiliarEnfermeriaReportando
       ? destinosCorreo.filter((destino) => safeStr(destino).toLowerCase() !== DESTINO_NOTIFICACION_AUXILIAR)
@@ -777,6 +933,9 @@ export async function POST(req: Request) {
             `ID: ${novedad.id}`,
             fotoEvidenciaUrl ? `Foto: ${fotoEvidenciaUrl}` : null,
             adjuntoFarmaciaSubido?.webUrl ? `Adjunto farmacia: ${adjuntoFarmaciaSubido.webUrl}` : null,
+            adjuntoTerapiaAmbulatoriaSubido?.webUrl
+              ? `Adjunto terapias ambulatorias: ${adjuntoTerapiaAmbulatoriaSubido.webUrl}`
+              : null,
             ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
             ``,
             `Gestionar en: ${linkAdmin}`,
@@ -806,9 +965,7 @@ export async function POST(req: Request) {
       `Categoria: ${categoriaLabel}`,
       `Responsable(s): ${responsableLabel}`,
       `Clinica de heridas: ${clinicaHeridasTexto}`,
-      categoriaEnum === "PACIENTE"
-        ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})`
-        : categoriaEnum === CATEGORIA_FARMACIA
+      categoriaEnum === "PACIENTE" || categoriaEnum === CATEGORIA_FARMACIA || esTerapiaAmbulatoria
         ? `Paciente: ${safeStr(pacienteNombre)} (${pacienteTipoDoc} ${safeStr(pacienteDocumento)})`
         : null,
       tipoNovedadSeleccionada ? `Tipo: ${tipoNovedadSeleccionada}` : null,
@@ -817,6 +974,9 @@ export async function POST(req: Request) {
       esProrrogaCambioAdicionTratamiento ? `Medicamento 3: ${medicamentosTratamiento[2]}` : null,
       fotoEvidenciaUrl ? `Foto evidencia: ${fotoEvidenciaUrl}` : null,
       adjuntoFarmaciaSubido?.webUrl ? `Adjunto farmacia: ${adjuntoFarmaciaSubido.webUrl}` : null,
+      adjuntoTerapiaAmbulatoriaSubido?.webUrl
+        ? `Adjunto terapias ambulatorias: ${adjuntoTerapiaAmbulatoriaSubido.webUrl}`
+        : null,
       ubicacionGoogleMapsUrl ? `Ubicacion: ${ubicacionGoogleMapsUrl}` : null,
       `Descripcion: ${descripcionCorta}`,
       `ID: ${novedad.id}`,

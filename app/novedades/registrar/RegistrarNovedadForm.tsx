@@ -13,6 +13,7 @@ import {
   FaMapMarkedAlt,
   FaSave,
   FaClipboardList,
+  FaWalking,
 } from "react-icons/fa";
 
 type MeResp = {
@@ -85,7 +86,23 @@ const TIPOS_FARMACIA = [
   { v: "ERROR_TODOS_LOS_DOCUMENTOS", label: "Error en todos los documentos" },
 ];
 
+const TIPOS_TERAPIA_AMBULATORIA = [
+  { v: "PACIENTE_TERAPIA_AMBULATORIA", label: "Paciente de terapia ambulatoria" },
+  { v: "VALIDACION_PERTINENCIA_TERAPIAS", label: "Validación de pertinencia terapias" },
+  { v: "CONSIDERACION_INGRESO_PROGRAMA_CRONICO", label: "Consideración de ingreso a programa crónico" },
+  { v: "PROBABLE_AGUDIZACION", label: "Probable agudización" },
+  { v: "SOLICITUD_EXTENSION_TERAPIAS", label: "Solicitud de extensión de terapias" },
+  { v: "CAMBIO_FRECUENCIA_TERAPIAS", label: "Cambio de frecuencia de terapias" },
+  { v: "VISITA_FALLIDA", label: "Visita fallida" },
+];
+
+const TIPOS_TERAPIA_AMBULATORIA_CON_ADJUNTO_OBLIGATORIO = [
+  "PROBABLE_AGUDIZACION",
+  "CAMBIO_FRECUENCIA_TERAPIAS",
+];
+
 const CATEGORIA_LLAMADA_URGENTE = "LLAMADA_URGENTE";
+const CATEGORIA_TERAPIAS_AMBULATORIAS = "TERAPIAS_AMBULATORIAS";
 const DESCRIPCION_LLAMADA_URGENTE = "Necesito una llamada urgente de apoyo.";
 const TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO = "PRORROGA_CAMBIO_ADICION_TRATAMIENTO";
 const MEDICAMENTO_NO_APLICA = "No aplica";
@@ -197,7 +214,7 @@ export default function RegistrarNovedadForm() {
 
   const [telefono, setTelefono] = useState("");
   const [zona, setZona] = useState("");
-  const [categoria, setCategoria] = useState<"PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO" | "LLAMADA_URGENTE">("PACIENTE");
+  const [categoria, setCategoria] = useState<"PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO" | "LLAMADA_URGENTE" | "TERAPIAS_AMBULATORIAS">("PACIENTE");
   const [esClinicaHeridas, setEsClinicaHeridas] = useState(false);
 
   // paciente
@@ -219,12 +236,21 @@ export default function RegistrarNovedadForm() {
   const [adjuntoFarmacia, setAdjuntoFarmacia] = useState<File | null>(null);
   const adjuntoFarmaciaInputRef = useRef<HTMLInputElement | null>(null);
 
+  // terapias ambulatorias
+  const [tipoTerapiaAmbulatoria, setTipoTerapiaAmbulatoria] = useState("PACIENTE_TERAPIA_AMBULATORIA");
+  const [adjuntoTerapiaAmbulatoria, setAdjuntoTerapiaAmbulatoria] = useState<File | null>(null);
+  const adjuntoTerapiaAmbulatoriaInputRef = useRef<HTMLInputElement | null>(null);
+
   const [descripcion, setDescripcion] = useState("");
   const esRolFarmacia = me?.rol === "FARMACIA";
   const puedeReportarProcesoFarmaceutico =
     me?.rol === "FARMACIA" || me?.rol === "TECNICO" || me?.rol === "ADMINISTRATIVO";
+  const puedeReportarTerapiasAmbulatorias = me?.rol === "TECNICO" || me?.rol === "ADMINISTRATIVO";
   const esProrrogaCambioAdicionTratamiento =
     categoria === "PACIENTE" && tipoPaciente === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO;
+  const requiereAdjuntoTerapiaAmbulatoria =
+    categoria === CATEGORIA_TERAPIAS_AMBULATORIAS &&
+    TIPOS_TERAPIA_AMBULATORIA_CON_ADJUNTO_OBLIGATORIO.includes(tipoTerapiaAmbulatoria);
 
   useEffect(() => {
     (async () => {
@@ -253,10 +279,14 @@ export default function RegistrarNovedadForm() {
     if (!puedeReportarProcesoFarmaceutico && categoria === "PROCESO_FARMACEUTICO") {
       setCategoria("PACIENTE");
     }
-  }, [me, esRolFarmacia, puedeReportarProcesoFarmaceutico, categoria]);
+
+    if (!puedeReportarTerapiasAmbulatorias && categoria === CATEGORIA_TERAPIAS_AMBULATORIAS) {
+      setCategoria("PACIENTE");
+    }
+  }, [me, esRolFarmacia, puedeReportarProcesoFarmaceutico, puedeReportarTerapiasAmbulatorias, categoria]);
 
   useEffect(() => {
-    if (categoria === CATEGORIA_LLAMADA_URGENTE && esClinicaHeridas) {
+    if ((categoria === CATEGORIA_LLAMADA_URGENTE || categoria === CATEGORIA_TERAPIAS_AMBULATORIAS) && esClinicaHeridas) {
       setEsClinicaHeridas(false);
     }
   }, [categoria, esClinicaHeridas]);
@@ -276,7 +306,12 @@ export default function RegistrarNovedadForm() {
       setAdjuntoFarmacia(null);
       if (adjuntoFarmaciaInputRef.current) adjuntoFarmaciaInputRef.current.value = "";
     }
-  }, [categoria, tipoPaciente, tipoRuta]);
+
+    if (!(categoria === CATEGORIA_TERAPIAS_AMBULATORIAS && TIPOS_TERAPIA_AMBULATORIA_CON_ADJUNTO_OBLIGATORIO.includes(tipoTerapiaAmbulatoria))) {
+      setAdjuntoTerapiaAmbulatoria(null);
+      if (adjuntoTerapiaAmbulatoriaInputRef.current) adjuntoTerapiaAmbulatoriaInputRef.current.value = "";
+    }
+  }, [categoria, tipoPaciente, tipoRuta, tipoTerapiaAmbulatoria]);
 
   useEffect(() => {
     if (!esProrrogaCambioAdicionTratamiento) {
@@ -325,8 +360,17 @@ export default function RegistrarNovedadForm() {
     if (categoria === "PROCESO_FARMACEUTICO") {
       return !!pacienteNombre.trim() && !!pacienteDocumento.trim() && !!pacienteTipoDoc && !!tipoFarmacia;
     }
+    if (categoria === CATEGORIA_TERAPIAS_AMBULATORIAS) {
+      return (
+        !!pacienteNombre.trim() &&
+        !!pacienteDocumento.trim() &&
+        !!pacienteTipoDoc &&
+        !!tipoTerapiaAmbulatoria &&
+        (!requiereAdjuntoTerapiaAmbulatoria || !!adjuntoTerapiaAmbulatoria)
+      );
+    }
     return true;
-  }, [me, zona, descripcion, categoria, telefono, pacienteNombre, pacienteTipoDoc, pacienteDocumento, tipoPaciente, medicamentoNombre1, esProrrogaCambioAdicionTratamiento, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia]);
+  }, [me, zona, descripcion, categoria, telefono, pacienteNombre, pacienteTipoDoc, pacienteDocumento, tipoPaciente, medicamentoNombre1, esProrrogaCambioAdicionTratamiento, fotoIngresoDomicilio, tipoRuta, fotoRutaEvidencia, tipoFarmacia, tipoTerapiaAmbulatoria, requiereAdjuntoTerapiaAmbulatoria, adjuntoTerapiaAmbulatoria]);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -338,7 +382,8 @@ export default function RegistrarNovedadForm() {
     setSaving(true);
     const t = toast.loading("Guardando novedad...");
     try {
-      const coordenadas = await obtenerUbicacionActual();
+      const coordenadas =
+        categoria === CATEGORIA_TERAPIAS_AMBULATORIAS ? null : await obtenerUbicacionActual();
       const esLlamadaUrgente = categoria === CATEGORIA_LLAMADA_URGENTE;
       const payload = new FormData();
       payload.append("telefono", telefono.trim());
@@ -390,6 +435,14 @@ export default function RegistrarNovedadForm() {
         if (adjuntoFarmacia) {
           payload.append("adjuntoFarmacia", adjuntoFarmacia);
         }
+      } else if (categoria === CATEGORIA_TERAPIAS_AMBULATORIAS) {
+        payload.append("pacienteNombre", pacienteNombre.trim());
+        payload.append("pacienteTipoDoc", pacienteTipoDoc);
+        payload.append("pacienteDocumento", pacienteDocumento.trim());
+        payload.append("tipoTerapiaAmbulatoria", tipoTerapiaAmbulatoria);
+        if (adjuntoTerapiaAmbulatoria) {
+          payload.append("adjuntoTerapiaAmbulatoria", adjuntoTerapiaAmbulatoria);
+        }
       }
 
       const res = await fetch("/api/novedades", {
@@ -423,6 +476,9 @@ export default function RegistrarNovedadForm() {
       if (adjuntoFarmaciaInputRef.current) adjuntoFarmaciaInputRef.current.value = "";
       setFotoRutaEvidencia(null);
       if (fotoRutaInputRef.current) fotoRutaInputRef.current.value = "";
+      setTipoTerapiaAmbulatoria("PACIENTE_TERAPIA_AMBULATORIA");
+      setAdjuntoTerapiaAmbulatoria(null);
+      if (adjuntoTerapiaAmbulatoriaInputRef.current) adjuntoTerapiaAmbulatoriaInputRef.current.value = "";
       setDescripcion("");
     } catch {
       toast.error("No fue posible guardar la novedad. Intenta nuevamente.", { id: t });
@@ -518,7 +574,7 @@ export default function RegistrarNovedadForm() {
                     <FaClipboardList className="inline-block mr-2 text-red-500" />
                     Datos de la novedad
                   </label>
-                  {categoria !== CATEGORIA_LLAMADA_URGENTE ? (
+                  {categoria !== CATEGORIA_LLAMADA_URGENTE && categoria !== CATEGORIA_TERAPIAS_AMBULATORIAS ? (
                     <label className="inline-flex items-center gap-2 rounded-2xl border-2 border-red-200 bg-red-50 px-3 py-2.5 text-sm font-bold text-red-800 shadow-sm">
                       <input
                         type="checkbox"
@@ -617,6 +673,24 @@ export default function RegistrarNovedadForm() {
                         </p>
                         <p className="text-xs text-gray-600">Necesito una llamada urgente de apoyo.</p>
                       </button>
+
+                      {puedeReportarTerapiasAmbulatorias ? (
+                        <button
+                          type="button"
+                          onClick={() => setCategoria(CATEGORIA_TERAPIAS_AMBULATORIAS)}
+                          className={`px-4 py-3 rounded-2xl border transition-all text-left ${
+                            categoria === CATEGORIA_TERAPIAS_AMBULATORIAS
+                              ? "bg-white border-red-300 shadow-sm"
+                              : "bg-white/60 border-gray-200 hover:bg-white"
+                          }`}
+                        >
+                          <p className="font-extrabold text-gray-900 flex items-center gap-2">
+                            <FaWalking className="text-red-500" />
+                            Terapias ambulatorias
+                          </p>
+                          <p className="text-xs text-gray-600">Paciente, pertinencia, agudización, extensión, frecuencia o visita fallida.</p>
+                        </button>
+                      ) : null}
                     </>
                   )}
                 </div>
@@ -805,6 +879,79 @@ export default function RegistrarNovedadForm() {
                 ) : categoria === CATEGORIA_LLAMADA_URGENTE ? (
                   <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
                     Comprueba que tu número de celular sea el correcto en la parte superior o, en caso contrario, puedes editarlo.
+                  </div>
+                ) : categoria === CATEGORIA_TERAPIAS_AMBULATORIAS ? (
+                  <div className="mt-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del paciente</label>
+                        <input
+                          value={pacienteNombre ?? ""}
+                          onChange={(e) => setPacienteNombre(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                          placeholder="Ej: Maria Gomez"
+                          disabled={saving}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de documento</label>
+                        <select
+                          value={pacienteTipoDoc ?? "CC"}
+                          onChange={(e) => setPacienteTipoDoc(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                          disabled={saving}
+                        >
+                          {TIPOS_DOC.map((t) => (
+                            <option key={t.v} value={t.v}>
+                              {t.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Número de documento</label>
+                        <input
+                          value={pacienteDocumento ?? ""}
+                          onChange={(e) => setPacienteDocumento(e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
+                          placeholder="Ej: 43830559"
+                          disabled={saving}
+                        />
+                      </div>
+                    </div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de novedad</label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {TIPOS_TERAPIA_AMBULATORIA.map((t) => (
+                        <button
+                          key={t.v}
+                          type="button"
+                          onClick={() => setTipoTerapiaAmbulatoria(t.v)}
+                          className={`px-3 py-2 rounded-xl border text-sm text-left transition-all ${
+                            tipoTerapiaAmbulatoria === t.v
+                              ? "bg-red-50 border-red-300 text-red-700"
+                              : "bg-white border-gray-200 hover:bg-gray-50"
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                    {requiereAdjuntoTerapiaAmbulatoria ? (
+                      <div className="mt-4">
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Foto o adjunto de evidencia (obligatorio)
+                        </label>
+                        <input
+                          ref={adjuntoTerapiaAmbulatoriaInputRef}
+                          type="file"
+                          accept="image/*,application/pdf,.pdf"
+                          capture="environment"
+                          onChange={(e) => setAdjuntoTerapiaAmbulatoria(e.target.files?.[0] ?? null)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+                          disabled={saving}
+                        />
+                      </div>
+                    ) : null}
                   </div>
                 ) : (
                   <div className="mt-4">

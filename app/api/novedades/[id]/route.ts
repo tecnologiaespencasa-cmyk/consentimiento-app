@@ -6,7 +6,12 @@ import { sendGraphMail } from "@/lib/sendGraphMail";
 import { notificarNovedadesFarmaciaSinGestion } from "@/lib/notificarNovedadesFarmaciaSinGestion";
 
 const ESTADOS_GESTION_VALIDOS = new Set(["PENDIENTE", "RESUELTA"]);
-const RESPONSABLES_GESTION_VALIDOS = new Set(["ADMISIONES", "ANALISTA_ASISTENCIAL", "CLINICA_HERIDAS"]);
+const RESPONSABLES_GESTION_VALIDOS = new Set([
+  "ADMISIONES",
+  "ANALISTA_ASISTENCIAL",
+  "CLINICA_HERIDAS",
+  "DIRECCION_ASISTENCIAL",
+]);
 
 const TIPOS_PACIENTE_LABEL: Record<string, string> = {
   CATETER_PICC: "Catéter PICC",
@@ -14,6 +19,16 @@ const TIPOS_PACIENTE_LABEL: Record<string, string> = {
   ACTUALIZACION_DATOS: "Actualización de datos",
   INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",
   PRORROGA_CAMBIO_ADICION_TRATAMIENTO: "Prórroga, cambio o adición de tratamiento",
+};
+
+const TIPOS_TERAPIA_AMBULATORIA_LABEL: Record<string, string> = {
+  PACIENTE_TERAPIA_AMBULATORIA: "Paciente de terapia ambulatoria",
+  VALIDACION_PERTINENCIA_TERAPIAS: "Validación de pertinencia terapias",
+  CONSIDERACION_INGRESO_PROGRAMA_CRONICO: "Consideración de ingreso a programa crónico",
+  PROBABLE_AGUDIZACION: "Probable agudización",
+  SOLICITUD_EXTENSION_TERAPIAS: "Solicitud de extensión de terapias",
+  CAMBIO_FRECUENCIA_TERAPIAS: "Cambio de frecuencia de terapias",
+  VISITA_FALLIDA: "Visita fallida",
 };
 
 function nombreCompleto(u: any) {
@@ -37,6 +52,10 @@ function escapeHtml(s: string) {
 
 function etiquetaTipoPaciente(tipo: string | null) {
   return tipo ? TIPOS_PACIENTE_LABEL[tipo] ?? tipo : null;
+}
+
+function etiquetaTipoTerapiaAmbulatoria(tipo: string | null) {
+  return tipo ? TIPOS_TERAPIA_AMBULATORIA_LABEL[tipo] ?? tipo : null;
 }
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -125,6 +144,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         tipoPaciente: true,
         tipoRuta: true,
         tipoFarmacia: true,
+        tipoTerapiaAmbulatoria: true,
         usuario: {
           select: {
             email: true,
@@ -161,7 +181,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       !RESPONSABLES_GESTION_VALIDOS.has(responsableGestionNormalizado)
     ) {
       return NextResponse.json(
-        { error: "El responsable debe ser ADMISIONES, ANALISTA_ASISTENCIAL o CLINICA_HERIDAS" },
+        { error: "El responsable debe ser ADMISIONES, ANALISTA_ASISTENCIAL, CLINICA_HERIDAS o DIRECCION_ASISTENCIAL" },
         { status: 400 }
       );
     }
@@ -228,6 +248,8 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
             ? etiquetaTipoPaciente(novedadActual.tipoPaciente)
             : novedadActual.categoria === "RUTA"
             ? novedadActual.tipoRuta
+            : novedadActual.categoria === "TERAPIAS_AMBULATORIAS"
+            ? etiquetaTipoTerapiaAmbulatoria(novedadActual.tipoTerapiaAmbulatoria)
             : novedadActual.tipoFarmacia;
 
         const text = [

@@ -95,6 +95,13 @@ model Novedad {
   tipoRuta           TipoNovedadRuta?
   tipoFarmacia       TipoNovedadFarmacia?
 
+  // Campos para novedad de terapias ambulatorias
+  tipoTerapiaAmbulatoria               TipoNovedadTerapiaAmbulatoria?
+  adjuntoTerapiaAmbulatoriaUrl         String?
+  adjuntoTerapiaAmbulatoriaDriveItemId String?
+  adjuntoTerapiaAmbulatoriaNombre      String?
+  adjuntoTerapiaAmbulatoriaMimeType    String?
+
   descripcion        String
   esClinicaHeridas   Boolean        @default(false)
   ubicacionLatitud   Float?
@@ -157,6 +164,7 @@ enum CategoriaNovedad {
   RUTA
   PROCESO_FARMACEUTICO
   LLAMADA_URGENTE
+  TERAPIAS_AMBULATORIAS
 }
 
 enum TipoDocumento {
@@ -205,6 +213,16 @@ enum TipoNovedadFarmacia {
   ERROR_TODOS_LOS_DOCUMENTOS
 }
 
+enum TipoNovedadTerapiaAmbulatoria {
+  PACIENTE_TERAPIA_AMBULATORIA
+  VALIDACION_PERTINENCIA_TERAPIAS
+  CONSIDERACION_INGRESO_PROGRAMA_CRONICO
+  PROBABLE_AGUDIZACION
+  SOLICITUD_EXTENSION_TERAPIAS
+  CAMBIO_FRECUENCIA_TERAPIAS
+  VISITA_FALLIDA
+}
+
 enum EstadoNovedad {
   PENDIENTE
   RESUELTA
@@ -220,6 +238,7 @@ enum ResponsableGestion {
   ADMISIONES
   ANALISTA_ASISTENCIAL
   CLINICA_HERIDAS
+  DIRECCION_ASISTENCIAL
 }
 
 enum BoletinAdjuntoTipo {

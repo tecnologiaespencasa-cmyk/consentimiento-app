@@ -24,6 +24,16 @@ const TIPOS_PACIENTE_LABEL: Record<string, string> = {
   PRORROGA_CAMBIO_ADICION_TRATAMIENTO: "Prórroga, cambio o adición de tratamiento",
 };
 
+const TIPOS_TERAPIA_AMBULATORIA_LABEL: Record<string, string> = {
+  PACIENTE_TERAPIA_AMBULATORIA: "Paciente de terapia ambulatoria",
+  VALIDACION_PERTINENCIA_TERAPIAS: "Validación de pertinencia terapias",
+  CONSIDERACION_INGRESO_PROGRAMA_CRONICO: "Consideración de ingreso a programa crónico",
+  PROBABLE_AGUDIZACION: "Probable agudización",
+  SOLICITUD_EXTENSION_TERAPIAS: "Solicitud de extensión de terapias",
+  CAMBIO_FRECUENCIA_TERAPIAS: "Cambio de frecuencia de terapias",
+  VISITA_FALLIDA: "Visita fallida",
+};
+
 const TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO = "PRORROGA_CAMBIO_ADICION_TRATAMIENTO";
 
 type NovedadBase = Awaited<ReturnType<typeof prisma.novedad.findMany>>[number];
@@ -59,6 +69,7 @@ function etiquetaTipoNovedad(n: {
   tipoPaciente?: string | null;
   tipoRuta?: string | null;
   tipoFarmacia?: string | null;
+  tipoTerapiaAmbulatoria?: string | null;
 }) {
   if (n.categoria === "LLAMADA_URGENTE") {
     return "Llamada urgente";
@@ -71,6 +82,11 @@ function etiquetaTipoNovedad(n: {
 
   if (n.categoria === "RUTA") {
     return n.tipoRuta ? normalizarTextoEnum(n.tipoRuta) : "Sin tipo";
+  }
+
+  if (n.categoria === "TERAPIAS_AMBULATORIAS") {
+    if (!n.tipoTerapiaAmbulatoria) return "Sin tipo";
+    return TIPOS_TERAPIA_AMBULATORIA_LABEL[n.tipoTerapiaAmbulatoria] ?? normalizarTextoEnum(n.tipoTerapiaAmbulatoria);
   }
 
   if (!n.tipoFarmacia) return "Sin tipo";
@@ -149,12 +165,15 @@ export default async function MisNovedadesPage() {
                     ? "Ruta"
                     : n.categoria === "LLAMADA_URGENTE"
                     ? "Llamada urgente"
+                    : n.categoria === "TERAPIAS_AMBULATORIAS"
+                    ? "Terapias ambulatorias"
                     : "Proceso farmaceutico";
                 const tipoLabel = etiquetaTipoNovedad({
                   categoria: n.categoria,
                   tipoPaciente: n.tipoPaciente,
                   tipoRuta: n.tipoRuta,
                   tipoFarmacia: (n as { tipoFarmacia?: string | null }).tipoFarmacia,
+                  tipoTerapiaAmbulatoria: (n as { tipoTerapiaAmbulatoria?: string | null }).tipoTerapiaAmbulatoria,
                 });
                 return (
                   <div

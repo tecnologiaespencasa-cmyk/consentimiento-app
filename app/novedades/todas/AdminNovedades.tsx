@@ -24,7 +24,7 @@ type CurrentUser = {
   nombre: string;
 };
 
-type CategoriaFiltro = "" | "PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO" | "LLAMADA_URGENTE";
+type CategoriaFiltro = "" | "PACIENTE" | "RUTA" | "PROCESO_FARMACEUTICO" | "LLAMADA_URGENTE" | "TERAPIAS_AMBULATORIAS";
 type UsuarioNovedad = {
   username?: string | null;
   nombres?: string | null;
@@ -68,6 +68,11 @@ type Novedad = {
   adjuntoFarmaciaMimeType?: string | null;
   tipoRuta?: string | null;
   tipoFarmacia?: string | null;
+  tipoTerapiaAmbulatoria?: string | null;
+  adjuntoTerapiaAmbulatoriaUrl?: string | null;
+  adjuntoTerapiaAmbulatoriaDriveItemId?: string | null;
+  adjuntoTerapiaAmbulatoriaNombre?: string | null;
+  adjuntoTerapiaAmbulatoriaMimeType?: string | null;
   descripcion?: string | null;
   esClinicaHeridas?: boolean | null;
   ubicacionLatitud?: number | null;
@@ -102,12 +107,23 @@ const TIPOS_PACIENTE_LABEL: Record<string, string> = {
   INICIO_TRATAMIENTO_PRIORITARIO: "Inicio de tratamiento prioritario",
   PRORROGA_CAMBIO_ADICION_TRATAMIENTO: "Prórroga, cambio o adición de tratamiento",
 };
+const TIPOS_TERAPIA_AMBULATORIA_LABEL: Record<string, string> = {
+  PACIENTE_TERAPIA_AMBULATORIA: "Paciente de terapia ambulatoria",
+  VALIDACION_PERTINENCIA_TERAPIAS: "Validación de pertinencia terapias",
+  CONSIDERACION_INGRESO_PROGRAMA_CRONICO: "Consideración de ingreso a programa crónico",
+  PROBABLE_AGUDIZACION: "Probable agudización",
+  SOLICITUD_EXTENSION_TERAPIAS: "Solicitud de extensión de terapias",
+  CAMBIO_FRECUENCIA_TERAPIAS: "Cambio de frecuencia de terapias",
+  VISITA_FALLIDA: "Visita fallida",
+};
 const TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO = "PRORROGA_CAMBIO_ADICION_TRATAMIENTO";
-type ResponsableKey = "ADMISIONES" | "ANALISTA_ASISTENCIAL" | "CLINICA_HERIDAS";
+const TIPO_TERAPIA_VALIDACION_PERTINENCIA = "VALIDACION_PERTINENCIA_TERAPIAS";
+type ResponsableKey = "ADMISIONES" | "ANALISTA_ASISTENCIAL" | "CLINICA_HERIDAS" | "DIRECCION_ASISTENCIAL";
 const RESPONSABLES: Array<{ v: ResponsableKey; label: string }> = [
   { v: "ADMISIONES", label: "Admisiones" },
   { v: "ANALISTA_ASISTENCIAL", label: "Analista asistencial" },
   { v: "CLINICA_HERIDAS", label: "Clínica de heridas" },
+  { v: "DIRECCION_ASISTENCIAL", label: "Dirección asistencial" },
 ];
 
 function etiquetaZona(zona: string) {
@@ -172,7 +188,14 @@ function getErrorMessage(error: unknown, fallback = "Error") {
 }
 
 function toCategoriaFiltro(value: string): CategoriaFiltro {
-  if (value === "PACIENTE" || value === "RUTA" || value === "PROCESO_FARMACEUTICO" || value === "LLAMADA_URGENTE") return value;
+  if (
+    value === "PACIENTE" ||
+    value === "RUTA" ||
+    value === "PROCESO_FARMACEUTICO" ||
+    value === "LLAMADA_URGENTE" ||
+    value === "TERAPIAS_AMBULATORIAS"
+  )
+    return value;
   return "";
 }
 
@@ -189,16 +212,21 @@ function buildGoogleMapsEmbedUrl(latitud: number, longitud: number) {
   return `https://maps.google.com/maps?q=${encodeURIComponent(`${latitud},${longitud}`)}&z=16&output=embed`;
 }
 
-function resolverResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion" | "tipoPaciente">): ResponsableKey[] {
+function resolverResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion" | "tipoPaciente" | "tipoTerapiaAmbulatoria">): ResponsableKey[] {
   if (n.responsableGestion) return [n.responsableGestion];
   if (n.categoria === "LLAMADA_URGENTE") return ["ADMISIONES", "ANALISTA_ASISTENCIAL"];
   if (n.categoria === "PROCESO_FARMACEUTICO") return ["ADMISIONES"];
   if (n.categoria === "PACIENTE" && n.tipoPaciente === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO) return ["ADMISIONES"];
+  if (n.categoria === "TERAPIAS_AMBULATORIAS") {
+    return n.tipoTerapiaAmbulatoria === TIPO_TERAPIA_VALIDACION_PERTINENCIA
+      ? ["DIRECCION_ASISTENCIAL"]
+      : ["ANALISTA_ASISTENCIAL"];
+  }
   if (Boolean(n.esClinicaHeridas)) return ["CLINICA_HERIDAS"];
   return n.prestadorProfesion === "AUXILIAR_ENFERMERIA" ? ["ADMISIONES"] : ["ANALISTA_ASISTENCIAL"];
 }
 
-function etiquetaResponsables(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion" | "tipoPaciente">) {
+function etiquetaResponsables(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion" | "tipoPaciente" | "tipoTerapiaAmbulatoria">) {
   const responsables = resolverResponsable(n);
   if (responsables.length === 2) {
     return "Admisiones y analista asistencial";
@@ -206,7 +234,7 @@ function etiquetaResponsables(n: Pick<Novedad, "categoria" | "prestadorProfesion
   return etiquetaResponsable(responsables[0]);
 }
 
-function incluyeResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion" | "tipoPaciente">, responsable: ResponsableKey) {
+function incluyeResponsable(n: Pick<Novedad, "categoria" | "prestadorProfesion" | "esClinicaHeridas" | "responsableGestion" | "tipoPaciente" | "tipoTerapiaAmbulatoria">, responsable: ResponsableKey) {
   return resolverResponsable(n).includes(responsable);
 }
 
@@ -219,10 +247,11 @@ function etiquetaCategoria(categoria: CategoriaFiltro) {
   if (categoria === "RUTA") return "RUTA";
   if (categoria === "PROCESO_FARMACEUTICO") return "PROCESO_FARMACEUTICO";
   if (categoria === "LLAMADA_URGENTE") return "LLAMADA_URGENTE";
+  if (categoria === "TERAPIAS_AMBULATORIAS") return "TERAPIAS_AMBULATORIAS";
   return "";
 }
 
-function etiquetaTipoNovedad(n: Pick<Novedad, "categoria" | "tipoPaciente" | "tipoRuta" | "tipoFarmacia">) {
+function etiquetaTipoNovedad(n: Pick<Novedad, "categoria" | "tipoPaciente" | "tipoRuta" | "tipoFarmacia" | "tipoTerapiaAmbulatoria">) {
   if (n.categoria === "PACIENTE") {
     if (!n.tipoPaciente) return "SIN_TIPO";
     return TIPOS_PACIENTE_LABEL[n.tipoPaciente] ?? n.tipoPaciente;
@@ -230,6 +259,10 @@ function etiquetaTipoNovedad(n: Pick<Novedad, "categoria" | "tipoPaciente" | "ti
   if (n.categoria === "RUTA") return n.tipoRuta ?? "SIN_TIPO";
   if (n.categoria === "PROCESO_FARMACEUTICO") return n.tipoFarmacia ?? "SIN_TIPO";
   if (n.categoria === "LLAMADA_URGENTE") return "LLAMADA_URGENTE";
+  if (n.categoria === "TERAPIAS_AMBULATORIAS") {
+    if (!n.tipoTerapiaAmbulatoria) return "SIN_TIPO";
+    return TIPOS_TERAPIA_AMBULATORIA_LABEL[n.tipoTerapiaAmbulatoria] ?? n.tipoTerapiaAmbulatoria;
+  }
   return "SIN_TIPO";
 }
 
@@ -294,6 +327,7 @@ export default function AdminNovedades({
         n.tipoPaciente,
         n.tipoRuta,
         n.tipoFarmacia,
+        n.tipoTerapiaAmbulatoria,
         n.pacienteNombre,
         n.pacienteTipoDoc,
         n.pacienteDocumento,
@@ -304,6 +338,8 @@ export default function AdminNovedades({
         n.fotoRutaEvidenciaUrl,
         n.adjuntoFarmaciaUrl,
         n.adjuntoFarmaciaNombre,
+        n.adjuntoTerapiaAmbulatoriaUrl,
+        n.adjuntoTerapiaAmbulatoriaNombre,
         n.prestadorNombre,
         n.prestadorCedula,
         n.ubicacionLatitud,
@@ -344,9 +380,14 @@ export default function AdminNovedades({
     edit?.fotoIngresoDomicilioUrl ??
     edit?.fotoRutaEvidenciaUrl ??
     edit?.adjuntoFarmaciaUrl ??
+    edit?.adjuntoTerapiaAmbulatoriaUrl ??
     null;
   const etiquetaAdjuntoEdit =
-    edit?.categoria === "PROCESO_FARMACEUTICO" ? "Ver adjunto de farmacia" : "Ver foto de evidencia";
+    edit?.categoria === "PROCESO_FARMACEUTICO"
+      ? "Ver adjunto de farmacia"
+      : edit?.categoria === "TERAPIAS_AMBULATORIAS"
+      ? "Ver foto o adjunto de terapias ambulatorias"
+      : "Ver foto de evidencia";
   const editTieneUbicacion = coordenadasValidas(edit?.ubicacionLatitud, edit?.ubicacionLongitud);
   const editGoogleMapsUrl = editTieneUbicacion
     ? buildGoogleMapsUrl(edit!.ubicacionLatitud as number, edit!.ubicacionLongitud as number)
@@ -408,6 +449,10 @@ export default function AdminNovedades({
       "ID archivo adjunto farmacia",
       "Nombre archivo adjunto farmacia",
       "Tipo archivo adjunto farmacia",
+      "URL adjunto terapias ambulatorias",
+      "ID archivo adjunto terapias ambulatorias",
+      "Nombre archivo adjunto terapias ambulatorias",
+      "Tipo archivo adjunto terapias ambulatorias",
       "Tipo de novedad en ruta",
       "Tipo de novedad farmacia",
       "Descripción",
@@ -463,6 +508,10 @@ export default function AdminNovedades({
       n.adjuntoFarmaciaDriveItemId ?? "",
       n.adjuntoFarmaciaNombre ?? "",
       n.adjuntoFarmaciaMimeType ?? "",
+      n.adjuntoTerapiaAmbulatoriaUrl ?? "",
+      n.adjuntoTerapiaAmbulatoriaDriveItemId ?? "",
+      n.adjuntoTerapiaAmbulatoriaNombre ?? "",
+      n.adjuntoTerapiaAmbulatoriaMimeType ?? "",
       n.tipoRuta ?? "",
       n.tipoFarmacia ?? "",
       n.descripcion ?? "",
@@ -650,6 +699,7 @@ export default function AdminNovedades({
                   <option value="RUTA">Ruta</option>
                   <option value="PROCESO_FARMACEUTICO">Proceso farmaceutico</option>
                   <option value="LLAMADA_URGENTE">Llamada urgente</option>
+                  <option value="TERAPIAS_AMBULATORIAS">Terapias ambulatorias</option>
                 </select>
               </div>
 
@@ -813,16 +863,20 @@ export default function AdminNovedades({
                   const evidenciaVisualUrl = n.fotoIngresoDomicilioUrl ?? n.fotoRutaEvidenciaUrl;
                   const enlaceAdjuntoUrl = n.categoria === "PROCESO_FARMACEUTICO"
                     ? n.adjuntoFarmaciaUrl ?? evidenciaVisualUrl
+                    : n.categoria === "TERAPIAS_AMBULATORIAS"
+                    ? n.adjuntoTerapiaAmbulatoriaUrl ?? evidenciaVisualUrl
                     : evidenciaVisualUrl;
                   const textoAdjunto = n.categoria === "PROCESO_FARMACEUTICO"
                     ? "Ver adjunto de farmacia"
+                    : n.categoria === "TERAPIAS_AMBULATORIAS"
+                    ? "Ver foto o adjunto de terapias ambulatorias"
                     : "Ver foto de evidencia";
                   const tieneUbicacion = coordenadasValidas(n.ubicacionLatitud, n.ubicacionLongitud);
                   const ubicacionGoogleMapsUrl = tieneUbicacion
                     ? buildGoogleMapsUrl(n.ubicacionLatitud as number, n.ubicacionLongitud as number)
                     : null;
                   const responsableLabel = etiquetaResponsables(n);
-                  const paciente = (n.categoria === "PACIENTE" || n.categoria === "PROCESO_FARMACEUTICO")
+                  const paciente = (n.categoria === "PACIENTE" || n.categoria === "PROCESO_FARMACEUTICO" || n.categoria === "TERAPIAS_AMBULATORIAS")
                     ? ` • ${n.pacienteNombre ?? ""}${n.pacienteTipoDoc ? ` (${n.pacienteTipoDoc}${n.pacienteDocumento ? ` ${n.pacienteDocumento}` : ""})` : ""}`
                     : "";
                   return (
@@ -1046,7 +1100,7 @@ export default function AdminNovedades({
 
               <div className="rounded-xl border border-gray-200 bg-gray-50/40 p-3">
                 <p className="text-xs font-bold text-gray-600 mb-2">Datos del paciente</p>
-                {edit.categoria === "PACIENTE" || edit.categoria === "PROCESO_FARMACEUTICO" ? (
+                {edit.categoria === "PACIENTE" || edit.categoria === "PROCESO_FARMACEUTICO" || edit.categoria === "TERAPIAS_AMBULATORIAS" ? (
                   <>
                     <p className="text-sm text-gray-700">
                       <span className="font-semibold">Nombre:</span> {edit.pacienteNombre || "No registrado"}
