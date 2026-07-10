@@ -51,7 +51,7 @@ const CATEGORIAS_VALIDAS: CategoriaNovedad[] = [
   CATEGORIA_TERAPIAS_AMBULATORIAS,
 ];
 const ROLES_CON_ACCESO_FARMACIA = ["FARMACIA", "TECNICO", "ADMINISTRATIVO"];
-const ROLES_CON_ACCESO_TERAPIAS_AMBULATORIAS = ["TECNICO", "ADMINISTRATIVO"];
+const ROLES_CON_ACCESO_TERAPIAS_AMBULATORIAS = ["TECNICO", "ADMINISTRATIVO", "ESPECIALISTA"];
 const TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO =
   "PRORROGA_CAMBIO_ADICION_TRATAMIENTO" as TipoNovedadPaciente;
 const TIPO_TERAPIA_VALIDACION_PERTINENCIA =
@@ -156,6 +156,23 @@ function toBool(v: unknown) {
   if (typeof v === "boolean") return v;
   const normalized = safeStr(v).toLowerCase();
   return normalized === "true" || normalized === "1" || normalized === "si" || normalized === "on";
+}
+
+const TIPOS_DOCUMENTO_ALFANUMERICOS: TipoDocumento[] = ["CE", "PA"];
+const NOMBRE_PACIENTE_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ][A-Za-zÀ-ÖØ-öø-ÿÑñ\s'.-]*$/;
+const DOCUMENTO_NUMERICO_REGEX = /^[0-9]+$/;
+const DOCUMENTO_ALFANUMERICO_REGEX = /^[A-Za-z0-9]+$/;
+
+function esNombrePacienteValido(nombre: string) {
+  return NOMBRE_PACIENTE_REGEX.test(String(nombre ?? "").trim());
+}
+
+function esDocumentoPacienteValido(documento: string, tipoDoc: TipoDocumento | null) {
+  const regex =
+    tipoDoc && TIPOS_DOCUMENTO_ALFANUMERICOS.includes(tipoDoc)
+      ? DOCUMENTO_ALFANUMERICO_REGEX
+      : DOCUMENTO_NUMERICO_REGEX;
+  return regex.test(String(documento ?? "").trim());
 }
 
 function esAdjuntoImagenOPdfPermitido(file: File) {
@@ -535,7 +552,7 @@ export async function POST(req: Request) {
     }
     if (esTerapiaAmbulatoria && !puedeReportarTerapiasAmbulatorias) {
       return NextResponse.json(
-        { error: "Solo los roles tecnico o administrativo pueden reportar novedades de terapias ambulatorias" },
+        { error: "Solo los roles tecnico, administrativo o especialista pueden reportar novedades de terapias ambulatorias" },
         { status: 403 }
       );
     }
@@ -617,11 +634,27 @@ export async function POST(req: Request) {
       if (!pacienteNombre || !String(pacienteNombre).trim()) {
         return NextResponse.json({ error: "Nombre del paciente es obligatorio" }, { status: 400 });
       }
+      if (!esNombrePacienteValido(pacienteNombre)) {
+        return NextResponse.json(
+          { error: "El nombre del paciente solo puede contener letras y espacios" },
+          { status: 400 }
+        );
+      }
       if (!pacienteTipoDocEnum) {
         return NextResponse.json({ error: "Tipo de documento del paciente es obligatorio" }, { status: 400 });
       }
       if (!pacienteDocumento || !String(pacienteDocumento).trim()) {
         return NextResponse.json({ error: "Numero de documento del paciente es obligatorio" }, { status: 400 });
+      }
+      if (!esDocumentoPacienteValido(pacienteDocumento, pacienteTipoDocEnum)) {
+        return NextResponse.json(
+          {
+            error: TIPOS_DOCUMENTO_ALFANUMERICOS.includes(pacienteTipoDocEnum)
+              ? "El numero de documento solo puede contener letras y numeros"
+              : "El numero de documento solo puede contener numeros",
+          },
+          { status: 400 }
+        );
       }
       if (!tipoPacienteEnum) {
         return NextResponse.json({ error: "Tipo de novedad del paciente es obligatorio" }, { status: 400 });
@@ -649,11 +682,27 @@ export async function POST(req: Request) {
       if (!pacienteNombre || !String(pacienteNombre).trim()) {
         return NextResponse.json({ error: "Nombre del paciente es obligatorio" }, { status: 400 });
       }
+      if (!esNombrePacienteValido(pacienteNombre)) {
+        return NextResponse.json(
+          { error: "El nombre del paciente solo puede contener letras y espacios" },
+          { status: 400 }
+        );
+      }
       if (!pacienteTipoDocEnum) {
         return NextResponse.json({ error: "Tipo de documento del paciente es obligatorio" }, { status: 400 });
       }
       if (!pacienteDocumento || !String(pacienteDocumento).trim()) {
         return NextResponse.json({ error: "Numero de documento del paciente es obligatorio" }, { status: 400 });
+      }
+      if (!esDocumentoPacienteValido(pacienteDocumento, pacienteTipoDocEnum)) {
+        return NextResponse.json(
+          {
+            error: TIPOS_DOCUMENTO_ALFANUMERICOS.includes(pacienteTipoDocEnum)
+              ? "El numero de documento solo puede contener letras y numeros"
+              : "El numero de documento solo puede contener numeros",
+          },
+          { status: 400 }
+        );
       }
       if (!tipoFarmaciaEnum) {
         return NextResponse.json(
@@ -667,11 +716,27 @@ export async function POST(req: Request) {
       if (!pacienteNombre || !String(pacienteNombre).trim()) {
         return NextResponse.json({ error: "Nombre del paciente es obligatorio" }, { status: 400 });
       }
+      if (!esNombrePacienteValido(pacienteNombre)) {
+        return NextResponse.json(
+          { error: "El nombre del paciente solo puede contener letras y espacios" },
+          { status: 400 }
+        );
+      }
       if (!pacienteTipoDocEnum) {
         return NextResponse.json({ error: "Tipo de documento del paciente es obligatorio" }, { status: 400 });
       }
       if (!pacienteDocumento || !String(pacienteDocumento).trim()) {
         return NextResponse.json({ error: "Numero de documento del paciente es obligatorio" }, { status: 400 });
+      }
+      if (!esDocumentoPacienteValido(pacienteDocumento, pacienteTipoDocEnum)) {
+        return NextResponse.json(
+          {
+            error: TIPOS_DOCUMENTO_ALFANUMERICOS.includes(pacienteTipoDocEnum)
+              ? "El numero de documento solo puede contener letras y numeros"
+              : "El numero de documento solo puede contener numeros",
+          },
+          { status: 400 }
+        );
       }
       if (!tipoTerapiaAmbulatoriaEnum) {
         return NextResponse.json(

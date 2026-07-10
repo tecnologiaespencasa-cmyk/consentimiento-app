@@ -45,6 +45,32 @@ const TIPOS_DOC = [
   { v: "NUIP", label: "NUIP" },
 ];
 
+const TIPOS_DOC_ALFANUMERICOS = ["CE", "PA"];
+const NOMBRE_PACIENTE_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ][A-Za-zÀ-ÖØ-öø-ÿÑñ\s'.-]*$/;
+const DOCUMENTO_NUMERICO_REGEX = /^[0-9]+$/;
+const DOCUMENTO_ALFANUMERICO_REGEX = /^[A-Za-z0-9]+$/;
+
+function sanitizarNombrePaciente(value: string) {
+  return value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿÑñ\s'.-]/g, "");
+}
+
+function sanitizarDocumentoPaciente(value: string, tipoDoc: string) {
+  return TIPOS_DOC_ALFANUMERICOS.includes(tipoDoc)
+    ? value.replace(/[^A-Za-z0-9]/g, "")
+    : value.replace(/[^0-9]/g, "");
+}
+
+function esNombrePacienteValido(value: string) {
+  return NOMBRE_PACIENTE_REGEX.test(value.trim());
+}
+
+function esDocumentoPacienteValido(value: string, tipoDoc: string) {
+  const regex = TIPOS_DOC_ALFANUMERICOS.includes(tipoDoc)
+    ? DOCUMENTO_ALFANUMERICO_REGEX
+    : DOCUMENTO_NUMERICO_REGEX;
+  return regex.test(value.trim());
+}
+
 const TIPOS_PACIENTE = [
   { v: "ERCA", label: "ERCA" },
   { v: "CATETER_PICC", label: "Catéter PICC" },
@@ -222,6 +248,20 @@ export default function RegistrarNovedadForm() {
   const [pacienteTipoDoc, setPacienteTipoDoc] = useState("CC");
   const [pacienteDocumento, setPacienteDocumento] = useState("");
   const [tipoPaciente, setTipoPaciente] = useState("ERCA");
+
+  function handlePacienteNombreChange(value: string) {
+    setPacienteNombre(sanitizarNombrePaciente(value));
+  }
+
+  function handlePacienteTipoDocChange(value: string) {
+    setPacienteTipoDoc(value);
+    setPacienteDocumento((prev) => sanitizarDocumentoPaciente(prev, value));
+  }
+
+  function handlePacienteDocumentoChange(value: string) {
+    setPacienteDocumento(sanitizarDocumentoPaciente(value, pacienteTipoDoc));
+  }
+
   const [medicamentoNombre1, setMedicamentoNombre1] = useState("");
   const [medicamentoNombre2, setMedicamentoNombre2] = useState(MEDICAMENTO_NO_APLICA);
   const [medicamentoNombre3, setMedicamentoNombre3] = useState(MEDICAMENTO_NO_APLICA);
@@ -245,7 +285,8 @@ export default function RegistrarNovedadForm() {
   const esRolFarmacia = me?.rol === "FARMACIA";
   const puedeReportarProcesoFarmaceutico =
     me?.rol === "FARMACIA" || me?.rol === "TECNICO" || me?.rol === "ADMINISTRATIVO";
-  const puedeReportarTerapiasAmbulatorias = me?.rol === "TECNICO" || me?.rol === "ADMINISTRATIVO";
+  const puedeReportarTerapiasAmbulatorias =
+    me?.rol === "TECNICO" || me?.rol === "ADMINISTRATIVO" || me?.rol === "ESPECIALISTA";
   const esProrrogaCambioAdicionTratamiento =
     categoria === "PACIENTE" && tipoPaciente === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO;
   const requiereAdjuntoTerapiaAmbulatoria =
@@ -348,8 +389,8 @@ export default function RegistrarNovedadForm() {
     if (esLlamadaUrgente) return !!telefono.trim();
     if (categoria === "PACIENTE") {
       return (
-        !!pacienteNombre.trim() &&
-        !!pacienteDocumento.trim() &&
+        esNombrePacienteValido(pacienteNombre) &&
+        esDocumentoPacienteValido(pacienteDocumento, pacienteTipoDoc) &&
         (!esProrrogaCambioAdicionTratamiento || !!medicamentoNombre1.trim()) &&
         (!requiereFotoDomicilio || !!fotoIngresoDomicilio)
       );
@@ -358,12 +399,17 @@ export default function RegistrarNovedadForm() {
       return !requiereFotoRuta || !!fotoRutaEvidencia;
     }
     if (categoria === "PROCESO_FARMACEUTICO") {
-      return !!pacienteNombre.trim() && !!pacienteDocumento.trim() && !!pacienteTipoDoc && !!tipoFarmacia;
+      return (
+        esNombrePacienteValido(pacienteNombre) &&
+        esDocumentoPacienteValido(pacienteDocumento, pacienteTipoDoc) &&
+        !!pacienteTipoDoc &&
+        !!tipoFarmacia
+      );
     }
     if (categoria === CATEGORIA_TERAPIAS_AMBULATORIAS) {
       return (
-        !!pacienteNombre.trim() &&
-        !!pacienteDocumento.trim() &&
+        esNombrePacienteValido(pacienteNombre) &&
+        esDocumentoPacienteValido(pacienteDocumento, pacienteTipoDoc) &&
         !!pacienteTipoDoc &&
         !!tipoTerapiaAmbulatoria &&
         (!requiereAdjuntoTerapiaAmbulatoria || !!adjuntoTerapiaAmbulatoria)
@@ -739,7 +785,7 @@ export default function RegistrarNovedadForm() {
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del paciente</label>
                       <input
                         value={pacienteNombre ?? ""}
-                        onChange={(e) => setPacienteNombre(e.target.value)}
+                        onChange={(e) => handlePacienteNombreChange(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                         placeholder="Ej: Maria Gomez"
                         disabled={saving}
@@ -749,7 +795,7 @@ export default function RegistrarNovedadForm() {
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de documento</label>
                       <select
                         value={pacienteTipoDoc ?? "CC"}
-                        onChange={(e) => setPacienteTipoDoc(e.target.value)}
+                        onChange={(e) => handlePacienteTipoDocChange(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                         disabled={saving}
                       >
@@ -764,7 +810,7 @@ export default function RegistrarNovedadForm() {
                       <label className="block text-sm font-semibold text-gray-700 mb-2">Número de documento</label>
                       <input
                         value={pacienteDocumento ?? ""}
-                        onChange={(e) => setPacienteDocumento(e.target.value)}
+                        onChange={(e) => handlePacienteDocumentoChange(e.target.value)}
                         className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                         placeholder="Ej: 43830559"
                         disabled={saving}
@@ -887,7 +933,7 @@ export default function RegistrarNovedadForm() {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del paciente</label>
                         <input
                           value={pacienteNombre ?? ""}
-                          onChange={(e) => setPacienteNombre(e.target.value)}
+                          onChange={(e) => handlePacienteNombreChange(e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                           placeholder="Ej: Maria Gomez"
                           disabled={saving}
@@ -897,7 +943,7 @@ export default function RegistrarNovedadForm() {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de documento</label>
                         <select
                           value={pacienteTipoDoc ?? "CC"}
-                          onChange={(e) => setPacienteTipoDoc(e.target.value)}
+                          onChange={(e) => handlePacienteTipoDocChange(e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                           disabled={saving}
                         >
@@ -912,7 +958,7 @@ export default function RegistrarNovedadForm() {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Número de documento</label>
                         <input
                           value={pacienteDocumento ?? ""}
-                          onChange={(e) => setPacienteDocumento(e.target.value)}
+                          onChange={(e) => handlePacienteDocumentoChange(e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                           placeholder="Ej: 43830559"
                           disabled={saving}
@@ -960,7 +1006,7 @@ export default function RegistrarNovedadForm() {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del paciente</label>
                         <input
                           value={pacienteNombre ?? ""}
-                          onChange={(e) => setPacienteNombre(e.target.value)}
+                          onChange={(e) => handlePacienteNombreChange(e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                           placeholder="Ej: Maria Gomez"
                           disabled={saving}
@@ -970,7 +1016,7 @@ export default function RegistrarNovedadForm() {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de documento</label>
                         <select
                           value={pacienteTipoDoc ?? "CC"}
-                          onChange={(e) => setPacienteTipoDoc(e.target.value)}
+                          onChange={(e) => handlePacienteTipoDocChange(e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                           disabled={saving}
                         >
@@ -985,7 +1031,7 @@ export default function RegistrarNovedadForm() {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Número de documento</label>
                         <input
                           value={pacienteDocumento ?? ""}
-                          onChange={(e) => setPacienteDocumento(e.target.value)}
+                          onChange={(e) => handlePacienteDocumentoChange(e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500"
                           placeholder="Ej: 43830559"
                           disabled={saving}
