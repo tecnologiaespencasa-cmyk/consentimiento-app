@@ -60,7 +60,7 @@ export default async function UsuariosPage({
 
   const where: any = {}
 
-  if (rol && ["ADMINISTRATIVO", "TECNICO", "FARMACIA", "ESPECIALISTA"].includes(rol)) {
+  if (rol && ["ADMINISTRATIVO", "TECNICO", "FARMACIA", "ESPECIALISTA", "MEDICO_RONDA"].includes(rol)) {
     where.rol = rol
   }
 
@@ -110,11 +110,12 @@ export default async function UsuariosPage({
   ])
 
   // Estadisticas por rol (se mantienen)
-  const [administradores, tecnicos, farmacias, especialistas, inactivos] = await Promise.all([
+  const [administradores, tecnicos, farmacias, especialistas, medicosRonda, inactivos] = await Promise.all([
     prisma.user.count({ where: { rol: "ADMINISTRATIVO" } }),
     prisma.user.count({ where: { rol: "TECNICO" } }),
     prisma.user.count({ where: { rol: "FARMACIA" } }),
     prisma.user.count({ where: { rol: "ESPECIALISTA" } }),
+    prisma.user.count({ where: { rol: "MEDICO_RONDA" } }),
     prisma.user.count({ where: { activo: false } }),
   ])
 
@@ -163,7 +164,7 @@ export default async function UsuariosPage({
 
       {/* Cards por rol (se mantienen igual, con sus logos) */}
       <div className="p-[5px]mx-auto px-4 pt-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-4">
           <div className="bg-white p-5 rounded-2xl shadow-lg border-l-4 border-red-500">
             <div className="flex items-center justify-between">
               <div>
@@ -208,6 +209,15 @@ export default async function UsuariosPage({
               <div className="p-3 bg-green-100 rounded-full">
                 <FaUserCheck className="text-xl text-green-600" />
               </div>
+            </div>
+          </div>
+          <div className="bg-white p-5 rounded-2xl shadow-lg border-l-4 border-teal-500">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold text-gray-900">{medicosRonda}</p>
+                <p className="text-sm text-gray-600 mt-1">Médicos Ronda</p>
+              </div>
+              <div className="p-3 bg-teal-100 rounded-full"><FaUserCog className="text-xl text-teal-600" /></div>
             </div>
           </div>
 
@@ -285,6 +295,8 @@ export default async function UsuariosPage({
                                     ? "bg-blue-100 text-blue-600"
                                     : u.rol === "FARMACIA"
                                     ? "bg-purple-100 text-purple-600"
+                                    : u.rol === "MEDICO_RONDA"
+                                    ? "bg-teal-100 text-teal-600"
                                     : "bg-green-100 text-green-600"
                                 }`}
                               >
@@ -307,6 +319,8 @@ export default async function UsuariosPage({
                                   ? "bg-blue-100 text-blue-800"
                                   : u.rol === "FARMACIA"
                                   ? "bg-purple-100 text-purple-800"
+                                  : u.rol === "MEDICO_RONDA"
+                                  ? "bg-teal-100 text-teal-800"
                                   : "bg-green-100 text-green-800"
                               }`}
                             >

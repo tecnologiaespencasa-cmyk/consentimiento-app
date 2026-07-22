@@ -116,7 +116,7 @@ export default async function MisNovedadesPage() {
 
   if (esRolFarmacia) {
     where.categoria = { in: ["PROCESO_FARMACEUTICO", "LLAMADA_URGENTE"] };
-  } else if (u.rol === "ESPECIALISTA") {
+  } else if (u.rol === "ESPECIALISTA" || u.rol === "MEDICO_RONDA") {
     where.NOT = { categoria: "PROCESO_FARMACEUTICO" };
   }
 
@@ -291,4 +291,3 @@ export default async function MisNovedadesPage() {
     </div>
   );
 }
-

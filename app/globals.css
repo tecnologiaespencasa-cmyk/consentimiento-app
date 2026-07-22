@@ -39,6 +39,25 @@ body {
   font-family: 'Poppins', sans-serif;
 }
 
+.input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.7rem;
+  padding: 0.65rem 0.8rem;
+  color: #1e293b;
+  background: #fff;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, .16);
+}
+
+input.input, textarea.input {
+  text-transform: uppercase;
+}
+
 /* Transiciones suaves */
 a, button {
   transition: all 0.2s ease-in-out;

@@ -87,7 +87,8 @@ export default function CrearUsuarioForm() {
     ADMINISTRATIVO: "Acceso completo a todas las funciones del sistema",
     TECNICO: "Puede ver todos los consentimientos y novedades",
     FARMACIA: "Solo reporta novedades de proceso farmaceutico y ve sus propias novedades",
-    ESPECIALISTA: "Solo puede ver sus propios consentimientos y novedades"
+    ESPECIALISTA: "Solo puede ver sus propios consentimientos y novedades",
+    MEDICO_RONDA: "Tiene los accesos de Especialista y puede registrar y consultar sus rondas intramurales"
   }
 
   return (
@@ -300,6 +301,7 @@ export default function CrearUsuarioForm() {
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all bg-white"
           >
             <option value="ESPECIALISTA">Especialista</option>
+            <option value="MEDICO_RONDA">Médico Ronda</option>
             <option value="TECNICO">Técnico</option>
             <option value="FARMACIA">Farmacia</option>
             <option value="ADMINISTRATIVO">Administrativo</option>

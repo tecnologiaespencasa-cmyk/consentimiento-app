@@ -16,7 +16,8 @@ import {
   FaUserMd,
   FaHospital,
   FaChevronDown,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaClipboardList
 } from "react-icons/fa"
 
 function nombreCorto(nombres?: string, primerApellido?: string) {
@@ -84,6 +85,8 @@ export default function Navbar() {
     pathname === "/consentimientos" ||
     pathname.startsWith("/consentimientos/")
   const puedeVerConsentimientos = rol !== "FARMACIA"
+  const puedeVerRondas = ["MEDICO_RONDA", "TECNICO", "ADMINISTRATIVO"].includes(rol ?? "")
+  const isRondasSection = pathname === "/rondas" || pathname.startsWith("/rondas/")
 
   async function confirmSignOut() {
     if (isSigningOut) return
@@ -178,6 +181,20 @@ export default function Navbar() {
                 <FaExclamationTriangle className="mr-2" />
                 Novedades
               </Link>
+
+              {puedeVerRondas && (
+                <Link
+                  href="/rondas"
+                  className={`flex items-center px-4 py-2 rounded-lg transition-all ${
+                    isRondasSection
+                      ? isScrolled ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-white/20 text-white'
+                      : isScrolled ? 'text-gray-700 hover:bg-red-50 hover:text-red-700' : 'text-red-100 hover:bg-white/10'
+                  }`}
+                >
+                  <FaClipboardList className="mr-2" />
+                  Rondas
+                </Link>
+              )}
 
               {rol === "ADMINISTRATIVO" && (
                 <Link
@@ -332,6 +349,19 @@ export default function Navbar() {
                   <FaExclamationTriangle className="mr-3" />
                   Novedades
                 </Link>
+
+                {puedeVerRondas && (
+                  <Link
+                    href="/rondas"
+                    onClick={() => setIsOpen(false)}
+                    className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
+                      isRondasSection ? 'bg-red-50 text-red-700 border border-red-200' : 'text-gray-700 hover:bg-red-50 hover:text-red-700'
+                    }`}
+                  >
+                    <FaClipboardList className="mr-3" />
+                    Rondas
+                  </Link>
+                )}
 
                 {rol === "ADMINISTRATIVO" && (
                   <Link

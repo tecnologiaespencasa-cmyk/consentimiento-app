@@ -13,7 +13,7 @@ export default async function TodosLosConsentimientosPage() {
 
   const { rol } = session.user
 
-  if (rol === "ESPECIALISTA") redirect("/")
+  if (rol === "ESPECIALISTA" || rol === "MEDICO_RONDA" || rol === "FARMACIA") redirect("/")
 
   const consentimientos = await prisma.consentimiento.findMany({
     include: {

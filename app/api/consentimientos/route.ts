@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
     let where: any = {}
 
-    if (mine || rol === "ESPECIALISTA" || rol === "FARMACIA") {
+    if (mine || rol === "ESPECIALISTA" || rol === "MEDICO_RONDA" || rol === "FARMACIA") {
         where = { usuarioId: id }
     }
 

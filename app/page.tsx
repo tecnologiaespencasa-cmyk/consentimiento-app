@@ -20,6 +20,9 @@ import { PiWarningCircleBold } from "react-icons/pi"
 
 export default async function HomePage() {
   const session = await getServerSession(authOptions)
+  // Se mantiene como string para que el editor no conserve un enum Prisma previo
+  // después de agregar un rol mediante migración.
+  const rol = session?.user.rol as string | undefined
 
   // Fecha actual
   const now = new Date()
@@ -39,10 +42,10 @@ export default async function HomePage() {
   const startOfMonth = getStartOfBogotaMonthUtc(now)
 
   // Verificar roles
-  const esTecnicoOAdministrativo = session?.user.rol === "TECNICO" || session?.user.rol === "ADMINISTRATIVO"
-  const esAdministrativo = session?.user.rol === "ADMINISTRATIVO"
-  const esEspecialista = session?.user.rol === "ESPECIALISTA"
-  const esFarmacia = session?.user.rol === "FARMACIA"
+  const esTecnicoOAdministrativo = rol === "TECNICO" || rol === "ADMINISTRATIVO"
+  const esAdministrativo = rol === "ADMINISTRATIVO"
+  const esEspecialista = rol === "ESPECIALISTA" || rol === "MEDICO_RONDA"
+  const esFarmacia = rol === "FARMACIA"
 
   // Consultas estadisticas
   const [
@@ -107,10 +110,11 @@ export default async function HomePage() {
                     Panel de Control
                   </h1>
                   <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-medium border border-red-200">
-                    {session?.user.rol === "ADMINISTRATIVO" ? "Administrativo" :
-                     session?.user.rol === "TECNICO" ? "Tecnico" :
-                     session?.user.rol === "ESPECIALISTA" ? "Especialista" :
-                     session?.user.rol === "FARMACIA" ? "Farmacia" : "Operativo"}
+                    {rol === "ADMINISTRATIVO" ? "Administrativo" :
+                     rol === "TECNICO" ? "Tecnico" :
+                     rol === "ESPECIALISTA" ? "Especialista" :
+                     rol === "MEDICO_RONDA" ? "Médico Ronda" :
+                     rol === "FARMACIA" ? "Farmacia" : "Operativo"}
                   </span>
                 </div>
 
@@ -390,7 +394,7 @@ export default async function HomePage() {
           </div>
         )}
 
-        {/* Mensaje para Especialistas - Solo ven acciones, no estadisticas */}
+        {/* Mensaje para Especialistas y Médicos Ronda - Solo ven acciones, no estadisticas */}
         {esEspecialista && (
           <div className="mb-12 p-6 bg-blue-50 rounded-2xl border border-blue-200">
             <div className="flex items-center">
@@ -398,9 +402,9 @@ export default async function HomePage() {
                 <FaUserMd className="text-2xl text-blue-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-800">Bienvenido Especialista</h3>
+                <h3 className="text-lg font-semibold text-gray-800">Bienvenido {rol === "MEDICO_RONDA" ? "Médico Ronda" : "Especialista"}</h3>
                 <p className="text-gray-600">
- Desde aqui puedes registrar consentimientos y reportar novedades durante tus atenciones domiciliarias.
+                  Desde aquí puedes registrar consentimientos y reportar novedades durante tus atenciones domiciliarias{rol === "MEDICO_RONDA" ? ", además de gestionar tus rondas intramurales." : "."}
                 </p>
               </div>
             </div>

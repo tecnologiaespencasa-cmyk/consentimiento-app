@@ -40,7 +40,7 @@ export default withAuth(
     // Pagina de carga de consentimiento (todos)
     if (
       pathname.startsWith("/consentimiento") &&
-      !["ADMINISTRATIVO", "TECNICO", "ESPECIALISTA"].includes(rol)
+        !["ADMINISTRATIVO", "TECNICO", "ESPECIALISTA", "MEDICO_RONDA"].includes(rol)
     ) {
       return withSecurityHeaders(NextResponse.redirect(new URL("/login", req.url)))
     }
@@ -56,6 +56,14 @@ export default withAuth(
     // Gestion de usuarios (solo admin)
     if (pathname.startsWith("/usuarios") && rol !== "ADMINISTRATIVO") {
       return withSecurityHeaders(NextResponse.redirect(new URL("/consentimiento", req.url)))
+    }
+
+    if (pathname.startsWith("/rondas") && !["MEDICO_RONDA", "TECNICO", "ADMINISTRATIVO"].includes(rol)) {
+      return withSecurityHeaders(NextResponse.redirect(new URL("/", req.url)))
+    }
+
+    if (pathname.startsWith("/rondas/todas") && !["TECNICO", "ADMINISTRATIVO"].includes(rol)) {
+      return withSecurityHeaders(NextResponse.redirect(new URL("/rondas", req.url)))
     }
 
     return withSecurityHeaders(NextResponse.next())
