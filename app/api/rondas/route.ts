@@ -2,13 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
-import { FrecuenciaRonda, MedidaRonda, TipoDocumentoRonda, ViaAdministracionRonda } from "@prisma/client";
+import { TipoDocumentoRonda } from "@prisma/client";
 
 const ROLES_RONDA = ["MEDICO_RONDA", "TECNICO", "ADMINISTRATIVO"];
 const TIPOS_DOCUMENTO = ["CC", "RC", "PA", "CE", "TI", "PE", "PPT"] as const;
-const MEDIDAS = ["MILIGRAMOS", "GRAMOS", "UNIDADES", "GOTAS", "MILILITROS"] as const;
-const VIAS = ["INTRAVENOSA", "INTRAMUSCULAR", "SUBCUTANEA", "NEBULIZADA", "ORAL"] as const;
-const FRECUENCIAS = ["INFUSION_CONTINUA", "CADA_4_HORAS", "CADA_6_HORAS", "CADA_8_HORAS", "CADA_12_HORAS", "CADA_24_HORAS", "CADA_48_HORAS", "CADA_72_HORAS", "NO_APLICA"] as const;
 const NOMBRE_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ ]+$/;
 const CIE10_REGEX = /^[A-Z][0-9]{3}$/;
 
@@ -30,7 +27,7 @@ export async function POST(req: Request) {
     const pacienteNombre = texto(body?.pacienteNombre, 180).replace(/\s+/g, " ");
     const pacienteTipoDoc = texto(body?.pacienteTipoDoc, 3);
     const pacienteDocumento = texto(body?.pacienteDocumento, 30);
-    const eps = texto(body?.eps, 150);
+    const ips = texto(body?.ips, 150);
     const cie10Codigo = texto(body?.cie10Codigo, 4).toUpperCase();
     const otros = texto(body?.otros, 2000) || null;
     const medicamentos = Array.isArray(body?.medicamentos) ? body.medicamentos : [];
@@ -45,7 +42,7 @@ export async function POST(req: Request) {
       ? /^[A-Za-z0-9]+$/.test(pacienteDocumento)
       : /^[0-9]+$/.test(pacienteDocumento);
     if (!documentoValido) return NextResponse.json({ error: "El número de identificación no tiene un formato válido." }, { status: 400 });
-    if (!eps) return NextResponse.json({ error: "La EPS es obligatoria." }, { status: 400 });
+    if (!ips) return NextResponse.json({ error: "La IPS es obligatoria." }, { status: 400 });
     if (!CIE10_REGEX.test(cie10Codigo)) return NextResponse.json({ error: "El CIE-10 debe tener una letra seguida de tres números." }, { status: 400 });
     if (!Array.isArray(medicamentos) || medicamentos.length < 1 || medicamentos.length > 6) {
       return NextResponse.json({ error: "Registra entre uno y seis medicamentos." }, { status: 400 });
@@ -60,24 +57,14 @@ export async function POST(req: Request) {
     const nombresCatalogo = new Set(catalogo.map((medicamento) => medicamento.nombre.toUpperCase()));
     if (nombresMedicamentos.some((nombre) => !nombresCatalogo.has(nombre))) return NextResponse.json({ error: "Uno o más medicamentos no pertenecen al catálogo." }, { status: 400 });
 
-    const detalles = medicamentos.map((medicamento: Record<string, unknown>, index: number) => {
-      const dosis = texto(medicamento.dosis, 80);
-      const medida = texto(medicamento.medida, 30);
-      const viaAdministracion = texto(medicamento.viaAdministracion, 30);
-      const frecuencia = texto(medicamento.frecuencia, 30);
-      const dias = Number(medicamento.dias);
-      if (!dosis || !MEDIDAS.includes(medida as typeof MEDIDAS[number]) || !VIAS.includes(viaAdministracion as typeof VIAS[number]) || !FRECUENCIAS.includes(frecuencia as typeof FRECUENCIAS[number]) || !Number.isInteger(dias) || dias < 1 || dias > 3650) {
-        throw new Error(`Medicamento ${index + 1} inválido.`);
-      }
-      return { nombre: nombresMedicamentos[index], dosis, medida: medida as MedidaRonda, viaAdministracion: viaAdministracion as ViaAdministracionRonda, frecuencia: frecuencia as FrecuenciaRonda, dias, orden: index + 1 };
-    });
+    const detalles = nombresMedicamentos.map((nombre, index) => ({ nombre, orden: index + 1 }));
 
     const ronda = await prisma.rondaIntramural.create({
       data: {
         pacienteNombre,
         pacienteTipoDoc: pacienteTipoDoc as TipoDocumentoRonda,
         pacienteDocumento,
-        eps,
+        ips,
         cie10Codigo,
         diagnosticoDescriptivo: cie10.descripcion,
         otros,
@@ -87,7 +74,6 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ ok: true, id: ronda.id }, { status: 201 });
   } catch (error) {
-    if (error instanceof Error && error.message.startsWith("Medicamento")) return NextResponse.json({ error: error.message }, { status: 400 });
     console.error("Error creando ronda intramural:", error);
     return NextResponse.json({ error: "No fue posible registrar la ronda." }, { status: 500 });
   }

@@ -32,9 +32,10 @@ model RondaIntramural {
   pacienteNombre         String
   pacienteTipoDoc        TipoDocumentoRonda
   pacienteDocumento      String
-  eps                    String
+  ips                    String
   cie10Codigo            String
   diagnosticoDescriptivo String
+  ingresoEfectivo        Boolean?
   otros                  String?
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt
@@ -44,17 +45,12 @@ model RondaIntramural {
 
   @@index([usuarioId, createdAt])
   @@index([createdAt])
-  @@index([eps])
+  @@index([ips])
 }
 
 model RondaMedicamento {
-  id                    String          @id @default(uuid())
+  id                    String           @id @default(uuid())
   nombre                String
-  dosis                 String
-  medida                MedidaRonda
-  viaAdministracion     ViaAdministracionRonda
-  frecuencia            FrecuenciaRonda
-  dias                  Int
   orden                 Int
   rondaId               String
   ronda                 RondaIntramural @relation(fields: [rondaId], references: [id], onDelete: Cascade)
@@ -196,34 +192,6 @@ enum TipoDocumentoRonda {
   TI
   PE
   PPT
-}
-
-enum MedidaRonda {
-  MILIGRAMOS
-  GRAMOS
-  UNIDADES
-  GOTAS
-  MILILITROS
-}
-
-enum ViaAdministracionRonda {
-  INTRAVENOSA
-  INTRAMUSCULAR
-  SUBCUTANEA
-  NEBULIZADA
-  ORAL
-}
-
-enum FrecuenciaRonda {
-  INFUSION_CONTINUA
-  CADA_4_HORAS
-  CADA_6_HORAS
-  CADA_8_HORAS
-  CADA_12_HORAS
-  CADA_24_HORAS
-  CADA_48_HORAS
-  CADA_72_HORAS
-  NO_APLICA
 }
 
 enum Profesion {

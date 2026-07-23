@@ -15,7 +15,7 @@ export default async function RondasHome() {
     <div className="container mx-auto px-4 py-10"><div className="grid grid-cols-1 gap-6 md:grid-cols-3">
       <Opcion href="/rondas/registrar" icon={<FaPlusCircle />} title="Registrar paciente de Ronda intramural" description="Registra los datos clínicos, el diagnóstico y hasta seis medicamentos." />
       <Opcion href="/rondas/mis" icon={<FaListAlt />} title="Ver mis pacientes reportados" description="Consulta únicamente los pacientes que has reportado con tu perfil." />
-      {puedeVerTodas && <Opcion href="/rondas/todas" icon={<FaUsers />} title="Ver todos los pacientes reportados" description="Panel administrativo con filtros por médico, fecha, EPS y más." />}
+      {puedeVerTodas && <Opcion href="/rondas/todas" icon={<FaUsers />} title="Ver todos los pacientes reportados" description="Panel administrativo con filtros por médico, fecha, IPS y más." />}
     </div></div>
   </div>;
 }

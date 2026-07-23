@@ -6,17 +6,13 @@ import toast from "react-hot-toast";
 import { FaCheckCircle, FaMinusCircle, FaPlusCircle, FaPills, FaUserPlus } from "react-icons/fa";
 
 type Medicamento = { nombre: string };
-type MedicamentoForm = { nombre: string; dosis: string; medida: string; viaAdministracion: string; frecuencia: string; dias: string };
-const nuevoMedicamento = (): MedicamentoForm => ({ nombre: "", dosis: "", medida: "UNIDADES", viaAdministracion: "INTRAVENOSA", frecuencia: "CADA_8_HORAS", dias: "" });
-
-const medidas = [["MILIGRAMOS", "Miligramos"], ["GRAMOS", "Gramos"], ["UNIDADES", "Unidades"], ["GOTAS", "Gotas"], ["MILILITROS", "Mililitros"]];
-const vias = [["INTRAVENOSA", "Intravenosa"], ["INTRAMUSCULAR", "Intramuscular"], ["SUBCUTANEA", "Subcutánea"], ["NEBULIZADA", "Nebulizada"], ["ORAL", "Oral"]];
-const frecuencias = [["INFUSION_CONTINUA", "Infusión continua"], ["CADA_4_HORAS", "Cada 4 horas"], ["CADA_6_HORAS", "Cada 6 horas"], ["CADA_8_HORAS", "Cada 8 horas"], ["CADA_12_HORAS", "Cada 12 horas"], ["CADA_24_HORAS", "Cada 24 horas"], ["CADA_48_HORAS", "Cada 48 horas"], ["CADA_72_HORAS", "Cada 72 horas"], ["NO_APLICA", "No aplica"]];
+type MedicamentoForm = { nombre: string };
+const nuevoMedicamento = (): MedicamentoForm => ({ nombre: "" });
 
 export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamentosCatalogo: Medicamento[] }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ pacienteNombre: "", pacienteTipoDoc: "CC", pacienteDocumento: "", eps: "", cie10Codigo: "", diagnosticoDescriptivo: "", otros: "" });
+  const [form, setForm] = useState({ pacienteNombre: "", pacienteTipoDoc: "CC", pacienteDocumento: "", ips: "", cie10Codigo: "", diagnosticoDescriptivo: "", otros: "" });
   const [medicamentos, setMedicamentos] = useState<MedicamentoForm[]>([nuevoMedicamento()]);
   const cie10Valido = /^[A-Z][0-9]{3}$/.test(form.cie10Codigo);
   const catalogoSet = useMemo(() => new Set(medicamentosCatalogo.map((m) => m.nombre.toUpperCase())), [medicamentosCatalogo]);
@@ -31,9 +27,8 @@ export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamen
     return () => controller.abort();
   }, [form.cie10Codigo, cie10Valido]);
 
-  function actualizarMedicamento(index: number, key: keyof MedicamentoForm, value: string) {
-    const valorNormalizado = key === "nombre" || key === "dosis" ? value.toUpperCase() : value;
-    setMedicamentos((prev) => prev.map((m, i) => i === index ? { ...m, [key]: valorNormalizado } : m));
+  function actualizarMedicamento(index: number, nombre: string) {
+    setMedicamentos((prev) => prev.map((m, i) => i === index ? { ...m, nombre: nombre.toUpperCase() } : m));
   }
   function actualizarDocumento(value: string) {
     const regex = ["PA", "CE"].includes(form.pacienteTipoDoc) ? /[^A-Za-z0-9]/g : /[^0-9]/g;
@@ -70,7 +65,7 @@ export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamen
           <Campo label="Nombre del paciente"><input required value={form.pacienteNombre} onChange={(e) => setForm((p) => ({ ...p, pacienteNombre: e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿÑñ ]/g, "").toUpperCase() }))} placeholder="Nombres y apellidos" className="input" /></Campo>
           <Campo label="Tipo de identificación"><select value={form.pacienteTipoDoc} onChange={(e) => setForm((p) => ({ ...p, pacienteTipoDoc: e.target.value, pacienteDocumento: "" }))} className="input"><option>CC</option><option>RC</option><option>PA</option><option>CE</option><option>TI</option><option>PE</option><option>PPT</option></select></Campo>
           <Campo label="Número de identificación"><input required value={form.pacienteDocumento} onChange={(e) => actualizarDocumento(e.target.value)} placeholder={["PA", "CE"].includes(form.pacienteTipoDoc) ? "Letras y números" : "Solo números"} className="input" /></Campo>
-          <Campo label="EPS"><input required value={form.eps} onChange={(e) => setForm((p) => ({ ...p, eps: e.target.value.toUpperCase() }))} placeholder="Nombre de la EPS" className="input" /></Campo>
+          <Campo label="IPS"><input required value={form.ips} onChange={(e) => setForm((p) => ({ ...p, ips: e.target.value.toUpperCase() }))} placeholder="Nombre de la IPS" className="input" /></Campo>
           <Campo label="Código CIE-10"><input required maxLength={4} value={form.cie10Codigo} onChange={(e) => setForm((p) => ({ ...p, cie10Codigo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") }))} placeholder="Ejemplo: N390" className="input uppercase" /><p className="mt-1 text-xs text-slate-500">Una letra y tres números.</p></Campo>
           <Campo label="Diagnóstico descriptivo"><div className={`input flex items-center min-h-11 ${form.diagnosticoDescriptivo ? "bg-slate-50 text-slate-700" : "bg-slate-50 text-slate-400"}`} aria-live="polite">{form.diagnosticoDescriptivo || "Se completa automáticamente con el CIE-10"}</div></Campo>
         </div>
@@ -79,7 +74,7 @@ export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamen
         <button type="button" disabled={medicamentos.length >= 6} onClick={() => setMedicamentos((p) => [...p, nuevoMedicamento()])} className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"><FaPlusCircle /> Agregar medicamento</button></div>
         <datalist id="medicamentos-ronda">{medicamentosCatalogo.map((m) => <option key={m.nombre} value={m.nombre.toUpperCase()} />)}</datalist>
         <div className="mt-5 space-y-4">{medicamentos.map((m, index) => <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4"><div className="mb-3 flex items-center justify-between"><span className="font-bold text-slate-700">Medicamento {index + 1}</span>{medicamentos.length > 1 && <button type="button" onClick={() => setMedicamentos((p) => p.filter((_, i) => i !== index))} className="text-sm font-semibold text-red-600 hover:text-red-800"><FaMinusCircle className="inline mr-1" /> Quitar</button>}</div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-6"><Campo label="Medicamento"><input required list="medicamentos-ronda" value={m.nombre} onChange={(e) => actualizarMedicamento(index, "nombre", e.target.value)} placeholder="Escribe para buscar" className="input" /></Campo><Campo label="Dosis"><input required value={m.dosis} onChange={(e) => actualizarMedicamento(index, "dosis", e.target.value)} className="input" /></Campo><SelectCampo label="Medida" value={m.medida} options={medidas} onChange={(v) => actualizarMedicamento(index, "medida", v)} /><SelectCampo label="Vía" value={m.viaAdministracion} options={vias} onChange={(v) => actualizarMedicamento(index, "viaAdministracion", v)} /><SelectCampo label="Frecuencia" value={m.frecuencia} options={frecuencias} onChange={(v) => actualizarMedicamento(index, "frecuencia", v)} /><Campo label="Días"><input required type="number" min="1" max="3650" value={m.dias} onChange={(e) => actualizarMedicamento(index, "dias", e.target.value)} className="input" /></Campo></div>
+          <div className="max-w-3xl"><Campo label="Medicamento"><input required list="medicamentos-ronda" value={m.nombre} onChange={(e) => actualizarMedicamento(index, e.target.value)} placeholder="Escribe para buscar" className="input" /></Campo></div>
         </div>)}</div>
       </section>
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><Campo label="Otros"><textarea value={form.otros} onChange={(e) => setForm((p) => ({ ...p, otros: e.target.value.toUpperCase() }))} maxLength={2000} rows={3} placeholder="Terapias, NPT, Clínica de heridas, etc." className="input resize-y" /></Campo></section>
@@ -88,4 +83,3 @@ export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamen
   </div>;
 }
 function Campo({ label, children }: { label: string; children: React.ReactNode }) { return <label className="block text-sm font-bold text-slate-700">{label}<span className="mt-1.5 block font-normal">{children}</span></label>; }
-function SelectCampo({ label, value, options, onChange }: { label: string; value: string; options: string[][]; onChange: (v: string) => void }) { return <Campo label={label}><select value={value} onChange={(e) => onChange(e.target.value)} className="input">{options.map(([v, t]) => <option key={v} value={v}>{t}</option>)}</select></Campo>; }
