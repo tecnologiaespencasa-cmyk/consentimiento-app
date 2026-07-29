@@ -36,6 +36,8 @@ model RondaIntramural {
   cie10Codigo            String
   diagnosticoDescriptivo String
   ingresoEfectivo        Boolean?
+  causaNoIngreso         String?
+  observacionNoIngreso   String?
   otros                  String?
   createdAt              DateTime           @default(now())
   updatedAt              DateTime           @updatedAt

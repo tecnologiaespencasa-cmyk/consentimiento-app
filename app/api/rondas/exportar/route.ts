@@ -36,7 +36,7 @@ export async function GET() {
   });
 
   const columns = [
-    "ID reporte", "Fecha de registro", "Fecha de última actualización", "Nombre del paciente", "Tipo de identificación", "Número de identificación", "IPS", "Código CIE-10", "Diagnóstico descriptivo", "Ingreso efectivo", "Otros",
+    "ID reporte", "Fecha de registro", "Fecha de última actualización", "Nombre del paciente", "Tipo de identificación", "Número de identificación", "IPS", "Código CIE-10", "Diagnóstico descriptivo", "Ingreso efectivo", "Causa de no ingreso", "Observación de no ingreso", "Otros",
     "Medicamento 1", "Medicamento 2", "Medicamento 3", "Medicamento 4", "Medicamento 5", "Medicamento 6",
     "ID usuario reporta", "Usuario reporta", "Nombres usuario reporta", "Primer apellido usuario reporta", "Segundo apellido usuario reporta", "Rol usuario reporta", "Correo usuario reporta", "Teléfono usuario reporta", "Cédula usuario reporta", "Profesión usuario reporta",
   ];
@@ -45,7 +45,7 @@ export async function GET() {
     const medicamentos = Array.from({ length: 6 }, (_, index) => ronda.medicamentos[index]?.nombre ?? "");
     return [
       ronda.id, fecha(ronda.createdAt), fecha(ronda.updatedAt), ronda.pacienteNombre, ronda.pacienteTipoDoc, ronda.pacienteDocumento, ronda.ips, ronda.cie10Codigo, ronda.diagnosticoDescriptivo,
-      ronda.ingresoEfectivo === null ? "SIN GESTIÓN" : ronda.ingresoEfectivo ? "SÍ" : "NO", ronda.otros ?? "", ...medicamentos,
+      ronda.ingresoEfectivo === null ? "SIN GESTIÓN" : ronda.ingresoEfectivo ? "SÍ" : "NO", ronda.causaNoIngreso ?? "", ronda.observacionNoIngreso ?? "", ronda.otros ?? "", ...medicamentos,
       ronda.usuario.id, ronda.usuario.username, ronda.usuario.nombres, ronda.usuario.primerApellido, ronda.usuario.segundoApellido ?? "", ronda.usuario.rol, ronda.usuario.email ?? "", ronda.usuario.telefono ?? "", ronda.usuario.cedula, ronda.usuario.profesion,
     ];
   });

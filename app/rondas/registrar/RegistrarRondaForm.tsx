@@ -13,7 +13,7 @@ export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamen
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ pacienteNombre: "", pacienteTipoDoc: "CC", pacienteDocumento: "", ips: "", cie10Codigo: "", diagnosticoDescriptivo: "", otros: "" });
-  const [medicamentos, setMedicamentos] = useState<MedicamentoForm[]>([nuevoMedicamento()]);
+  const [medicamentos, setMedicamentos] = useState<MedicamentoForm[]>([]);
   const cie10Valido = /^[A-Z][0-9]{3}$/.test(form.cie10Codigo);
   const catalogoSet = useMemo(() => new Set(medicamentosCatalogo.map((m) => m.nombre.toUpperCase())), [medicamentosCatalogo]);
 
@@ -70,10 +70,10 @@ export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamen
           <Campo label="Diagnóstico descriptivo"><div className={`input flex items-center min-h-11 ${form.diagnosticoDescriptivo ? "bg-slate-50 text-slate-700" : "bg-slate-50 text-slate-400"}`} aria-live="polite">{form.diagnosticoDescriptivo || "Se completa automáticamente con el CIE-10"}</div></Campo>
         </div>
       </section>
-      <section className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between items-center gap-3"><div><h2 className="font-extrabold text-slate-800 text-lg flex items-center gap-2"><FaPills className="text-red-700" /> Medicamentos</h2><p className="text-sm text-slate-500">Puedes agregar hasta seis medicamentos.</p></div>
+      <section className="rounded-2xl border border-red-100 bg-white p-5 shadow-sm"><div className="flex flex-wrap justify-between items-center gap-3"><div><h2 className="font-extrabold text-slate-800 text-lg flex items-center gap-2"><FaPills className="text-red-700" /> Medicamentos <span className="text-sm font-normal text-slate-500">(opcional)</span></h2><p className="text-sm text-slate-500">Puedes agregar hasta seis medicamentos.</p></div>
         <button type="button" disabled={medicamentos.length >= 6} onClick={() => setMedicamentos((p) => [...p, nuevoMedicamento()])} className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"><FaPlusCircle /> Agregar medicamento</button></div>
         <datalist id="medicamentos-ronda">{medicamentosCatalogo.map((m) => <option key={m.nombre} value={m.nombre.toUpperCase()} />)}</datalist>
-        <div className="mt-5 space-y-4">{medicamentos.map((m, index) => <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4"><div className="mb-3 flex items-center justify-between"><span className="font-bold text-slate-700">Medicamento {index + 1}</span>{medicamentos.length > 1 && <button type="button" onClick={() => setMedicamentos((p) => p.filter((_, i) => i !== index))} className="text-sm font-semibold text-red-600 hover:text-red-800"><FaMinusCircle className="inline mr-1" /> Quitar</button>}</div>
+        <div className="mt-5 space-y-4">{medicamentos.length === 0 && <p className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-4 text-sm text-slate-500">No se han agregado medicamentos.</p>}{medicamentos.map((m, index) => <div key={index} className="rounded-xl border border-slate-200 bg-slate-50/70 p-4"><div className="mb-3 flex items-center justify-between"><span className="font-bold text-slate-700">Medicamento {index + 1}</span><button type="button" onClick={() => setMedicamentos((p) => p.filter((_, i) => i !== index))} className="text-sm font-semibold text-red-600 hover:text-red-800"><FaMinusCircle className="inline mr-1" /> Quitar</button></div>
           <div className="max-w-3xl"><Campo label="Medicamento"><input required list="medicamentos-ronda" value={m.nombre} onChange={(e) => actualizarMedicamento(index, e.target.value)} placeholder="Escribe para buscar" className="input" /></Campo></div>
         </div>)}</div>
       </section>

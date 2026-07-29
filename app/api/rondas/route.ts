@@ -44,8 +44,8 @@ export async function POST(req: Request) {
     if (!documentoValido) return NextResponse.json({ error: "El número de identificación no tiene un formato válido." }, { status: 400 });
     if (!ips) return NextResponse.json({ error: "La IPS es obligatoria." }, { status: 400 });
     if (!CIE10_REGEX.test(cie10Codigo)) return NextResponse.json({ error: "El CIE-10 debe tener una letra seguida de tres números." }, { status: 400 });
-    if (!Array.isArray(medicamentos) || medicamentos.length < 1 || medicamentos.length > 6) {
-      return NextResponse.json({ error: "Registra entre uno y seis medicamentos." }, { status: 400 });
+    if (!Array.isArray(medicamentos) || medicamentos.length > 6) {
+      return NextResponse.json({ error: "Puedes registrar hasta seis medicamentos." }, { status: 400 });
     }
 
     const cie10 = await prisma.cie10Catalogo.findUnique({ where: { codigo: cie10Codigo } });
@@ -53,9 +53,11 @@ export async function POST(req: Request) {
 
     const nombresMedicamentos = medicamentos.map((m: unknown) => texto((m as Record<string, unknown>)?.nombre, 250));
     if (nombresMedicamentos.some((nombre: string) => !nombre)) return NextResponse.json({ error: "Selecciona un medicamento válido en cada fila." }, { status: 400 });
-    const catalogo = await prisma.medicamentoCatalogo.findMany({ select: { nombre: true } });
-    const nombresCatalogo = new Set(catalogo.map((medicamento) => medicamento.nombre.toUpperCase()));
-    if (nombresMedicamentos.some((nombre) => !nombresCatalogo.has(nombre))) return NextResponse.json({ error: "Uno o más medicamentos no pertenecen al catálogo." }, { status: 400 });
+    if (nombresMedicamentos.length) {
+      const catalogo = await prisma.medicamentoCatalogo.findMany({ select: { nombre: true } });
+      const nombresCatalogo = new Set(catalogo.map((medicamento) => medicamento.nombre.toUpperCase()));
+      if (nombresMedicamentos.some((nombre) => !nombresCatalogo.has(nombre))) return NextResponse.json({ error: "Uno o más medicamentos no pertenecen al catálogo." }, { status: 400 });
+    }
 
     const detalles = nombresMedicamentos.map((nombre, index) => ({ nombre, orden: index + 1 }));
 
