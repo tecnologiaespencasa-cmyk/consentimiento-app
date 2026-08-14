@@ -25,7 +25,7 @@ type Ronda = {
 };
 type ActualizacionRonda = Pick<Ronda, "ingresoEfectivo" | "causaNoIngreso" | "observacionNoIngreso">;
 
-const CAUSAS_NO_INGRESO = ["CAUSA 1", "CAUSA 2", "CAUSA 3", "CAUSA 4", "CAUSA 5"];
+const CAUSAS_NO_INGRESO = ["Cambio en el estado clínico", "⁠No aceptación de atención domiciliaria por el paciente", "Cambio de desición por parte del médico tratante", "Alta de la IPS sin atención domiciliaria", "⁠Otra"];
 
 function fecha(value: string | Date) {
   return new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Bogota" }).format(new Date(value));

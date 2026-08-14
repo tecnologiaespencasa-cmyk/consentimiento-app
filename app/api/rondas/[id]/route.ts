@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 
 const ROLES_GESTION_RONDA = ["ADMINISTRATIVO", "TECNICO"];
-const CAUSAS_NO_INGRESO = ["CAUSA 1", "CAUSA 2", "CAUSA 3", "CAUSA 4", "CAUSA 5"];
+const CAUSAS_NO_INGRESO = ["Cambio en el estado clínico", "⁠No aceptación de atención domiciliaria por el paciente", "Cambio de desición por parte del médico tratante", "Alta de la IPS sin atención domiciliaria", "⁠Otra"];
 
 function texto(value: unknown, max: number) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
