@@ -17,8 +17,15 @@ import {
   FaHospital,
   FaChevronDown,
   FaExclamationTriangle,
-  FaClipboardList
+  FaClipboardList,
+  FaNotesMedical
 } from "react-icons/fa"
+
+// La barra de navegacion no comparte el `.container` de 1280px del resto del
+// portal: al tener que alojar hasta seis enlaces mas la marca y el usuario,
+// aprovecha el ancho de pantalla hasta este limite. El tope evita que en
+// monitores muy anchos los extremos queden absurdamente separados.
+const ANCHO_NAVBAR = "mx-auto w-full max-w-[1800px] px-4 lg:px-6"
 
 function nombreCorto(nombres?: string, primerApellido?: string) {
   const n = (nombres ?? "").trim()
@@ -87,6 +94,66 @@ export default function Navbar() {
   const puedeVerConsentimientos = rol !== "FARMACIA"
   const puedeVerRondas = ["MEDICO_RONDA", "TECNICO", "ADMINISTRATIVO"].includes(rol ?? "")
   const isRondasSection = pathname === "/rondas" || pathname.startsWith("/rondas/")
+  // Ocultar el modulo es solo comodidad visual: el acceso real lo deciden el
+  // middleware, la pagina server-side y cada API route.
+  const puedeVerClinicaHeridas = ["CLINICA_HERIDAS", "ADMINISTRATIVO", "TECNICO"].includes(rol ?? "")
+  const isClinicaHeridasSection = pathname === "/clinica-heridas" || pathname.startsWith("/clinica-heridas/")
+
+  // Enlaces visibles para este rol. Una sola definicion alimenta el navbar de
+  // escritorio y el menu movil, para que no puedan quedar desincronizados.
+  const enlaces = [
+    { href: "/", label: "Inicio", Icon: FaHome, activo: isActive("/"), visible: true },
+    {
+      href: "/consentimientos",
+      label: "Consentimientos",
+      Icon: FaFileSignature,
+      activo: isConsentimientosSection,
+      visible: puedeVerConsentimientos
+    },
+    { href: "/novedades", label: "Novedades", Icon: FaExclamationTriangle, activo: isActive("/novedades"), visible: true },
+    { href: "/rondas", label: "Rondas", Icon: FaClipboardList, activo: isRondasSection, visible: puedeVerRondas },
+    {
+      href: "/clinica-heridas",
+      label: "Clínica de Heridas",
+      Icon: FaNotesMedical,
+      activo: isClinicaHeridasSection,
+      visible: puedeVerClinicaHeridas
+    },
+    { href: "/usuarios", label: "Usuarios", Icon: FaUsers, activo: isActive("/usuarios"), visible: rol === "ADMINISTRATIVO" }
+  ].filter((enlace) => enlace.visible)
+
+  // La barra usa su propio contenedor (ANCHO_NAVBAR), mas amplio que el
+  // `.container` de 1280px que comparte el resto de paginas, para aprovechar
+  // las pantallas grandes sin alterar el ancho de lectura del contenido.
+  //
+  // Aun asi el numero de enlaces depende del rol, asi que la densidad se adapta
+  // a cuantos haya: con muchos enlaces el espaciado se compacta y los textos
+  // accesorios -- subtitulo de la marca, nombre y rol -- solo aparecen cuando
+  // hay ancho real para ellos. Los enlaces nunca parten de linea.
+  const compacto = enlaces.length >= 5
+  // Los umbrales de 1500/1700 px son explicitos en vez de usar `2xl`: la barra
+  // de desplazamiento resta unos pixeles al ancho que ven las media queries, y
+  // asi el salto de tamaño ocurre donde de verdad hay hueco medido.
+  const claseEnlace = compacto
+    ? "px-2.5 py-2 text-sm xl:px-3 min-[1500px]:text-base min-[1700px]:px-4"
+    : "px-4 py-2 text-base"
+  const claseIcono = compacto ? "mr-1.5 shrink-0 min-[1500px]:mr-2" : "mr-2 shrink-0"
+  // Orden de prioridad al repartir el ancho sobrante en modo compacto:
+  // primero el nombre y el rol del usuario, despues el nombre de la empresa y
+  // por ultimo el subtitulo, que es la linea mas ancha de todas.
+  const claseUsuario = "hidden xl:block"
+  const claseMarca = compacto ? "hidden min-[1400px]:block" : "hidden md:block"
+  const claseSubtitulo = compacto ? "hidden min-[1700px]:block" : "hidden xl:block"
+
+  // Estilo de un enlace segun si esta activo y si la barra esta desplazada.
+  const estiloEnlace = (activo: boolean) =>
+    activo
+      ? isScrolled
+        ? "bg-red-50 text-red-700 border border-red-200"
+        : "bg-white/20 text-white"
+      : isScrolled
+        ? "text-gray-700 hover:bg-red-50 hover:text-red-700"
+        : "text-red-100 hover:bg-white/10"
 
   async function confirmSignOut() {
     if (isSigningOut) return
@@ -102,26 +169,28 @@ export default function Navbar() {
           ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-red-100'
           : 'bg-gradient-to-r from-red-700 to-red-800'
       }`}>
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+        <div className={ANCHO_NAVBAR}>
+          <div className="flex items-center justify-between h-16 gap-2">
 
             {/* Logo y Nombre de la Empresa */}
-            <div className="flex items-center space-x-3">
-              <Link href="/" className="flex items-center space-x-3">
-                <div className={`p-2 rounded-lg transition-colors ${
+            {/* min-w-0 permite que el bloque de marca ceda espacio en vez de
+                empujar la navegacion fuera de la barra. */}
+            <div className="flex items-center min-w-0 shrink">
+              <Link href="/" className="flex items-center space-x-3 min-w-0">
+                <div className={`p-2 rounded-lg transition-colors shrink-0 ${
                   isScrolled ? 'bg-red-100' : 'bg-white/20'
                 }`}>
                   <FaHospital className={`text-xl ${
                     isScrolled ? 'text-red-600' : 'text-white'
                   }`} />
                 </div>
-                <div className="hidden md:block">
-                  <h1 className={`font-bold text-lg ${
+                <div className={`${claseMarca} min-w-0`}>
+                  <h1 className={`font-bold text-lg min-[1700px]:text-xl leading-tight whitespace-nowrap ${
                     isScrolled ? 'text-gray-800' : 'text-white'
                   }`}>
                     Especialistas en Casa
                   </h1>
-                  <p className={`text-xs ${
+                  <p className={`text-xs min-[1700px]:text-sm truncate ${claseSubtitulo} ${
                     isScrolled ? 'text-gray-600' : 'text-red-100'
                   }`}>
                     Sistema de consentimientos y novedades
@@ -131,121 +200,55 @@ export default function Navbar() {
             </div>
 
             {/* Enlaces de NavegaciÃ³n - Desktop */}
-            <div className="hidden md:flex items-center space-x-1">
-              <Link
-                href="/"
-                className={`flex items-center px-4 py-2 rounded-lg transition-all ${
-                  isActive('/')
-                    ? isScrolled
-                      ? 'bg-red-50 text-red-600 border border-red-200'
-                      : 'bg-white/20 text-white'
-                    : isScrolled
-                      ? 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                      : 'text-red-100 hover:bg-white/10'
-                }`}
-              >
-                <FaHome className="mr-2" />
-                Inicio
-              </Link>
-
-              {puedeVerConsentimientos && (
+            {/* shrink-0 + whitespace-nowrap: la navegacion nunca se parte en
+                varias lineas; si no cabe, lo que cede es el bloque de marca. */}
+            <div className="hidden lg:flex items-center gap-0.5 shrink-0">
+              {enlaces.map(({ href, label, Icon, activo }) => (
                 <Link
-                  href="/consentimientos"
-                  className={`flex items-center px-4 py-2 rounded-lg transition-all ${
-                    isConsentimientosSection
-                      ? isScrolled
-                        ? 'bg-red-50 text-red-600 border border-red-200'
-                        : 'bg-white/20 text-white'
-                      : isScrolled
-                        ? 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                        : 'text-red-100 hover:bg-white/10'
-                  }`}
+                  key={href}
+                  href={href}
+                  className={`flex items-center rounded-lg transition-all whitespace-nowrap ${claseEnlace} ${estiloEnlace(activo)}`}
                 >
-                  <FaFileSignature className="mr-2" />
-                  Consentimientos
+                  <Icon className={claseIcono} />
+                  {label}
                 </Link>
-              )}
-
-              <Link
-                href="/novedades"
-                className={`flex items-center px-4 py-2 rounded-lg transition-all ${
-                  isActive('/novedades')
-                    ? isScrolled
-                      ? 'bg-red-50 text-red-600 border border-red-200'
-                      : 'bg-white/20 text-white'
-                    : isScrolled
-                      ? 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                      : 'text-red-100 hover:bg-white/10'
-                }`}
-              >
-                <FaExclamationTriangle className="mr-2" />
-                Novedades
-              </Link>
-
-              {puedeVerRondas && (
-                <Link
-                  href="/rondas"
-                  className={`flex items-center px-4 py-2 rounded-lg transition-all ${
-                    isRondasSection
-                      ? isScrolled ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-white/20 text-white'
-                      : isScrolled ? 'text-gray-700 hover:bg-red-50 hover:text-red-700' : 'text-red-100 hover:bg-white/10'
-                  }`}
-                >
-                  <FaClipboardList className="mr-2" />
-                  Rondas
-                </Link>
-              )}
-
-              {rol === "ADMINISTRATIVO" && (
-                <Link
-                  href="/usuarios"
-                  className={`flex items-center px-4 py-2 rounded-lg transition-all ${
-                    isActive('/usuarios')
-                      ? isScrolled
-                        ? 'bg-red-50 text-red-600 border border-red-200'
-                        : 'bg-white/20 text-white'
-                      : isScrolled
-                        ? 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                        : 'text-red-100 hover:bg-white/10'
-                  }`}
-                >
-                  <FaUsers className="mr-2" />
-                  Usuarios
-                </Link>
-              )}
+              ))}
             </div>
 
             {/* MenÃº de Usuario - Desktop */}
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden lg:flex items-center shrink-0">
 
               {/* Perfil de Usuario */}
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                  title={`${displayName} - ${rol || "Rol"}`}
+                  className={`flex items-center gap-2 px-2 py-2 rounded-lg transition-colors ${
                     isScrolled
                       ? 'hover:bg-red-50 text-gray-700'
                       : 'text-red-100 hover:bg-white/10'
                   }`}
                 >
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  <div className={`w-8 h-8 min-[1700px]:w-9 min-[1700px]:h-9 shrink-0 rounded-full flex items-center justify-center ${
                     isScrolled ? 'bg-red-100 text-red-600' : 'bg-white/20 text-white'
                   }`}>
                     <FaUserMd />
                   </div>
-                  <div className="text-left hidden lg:block">
-                    <p className={`text-sm font-medium truncate max-w-[150px] ${
+                  {/* Mientras no quepa, el nombre queda accesible en el tooltip
+                      del avatar y en el desplegable. */}
+                  <div className={`text-left ${claseUsuario}`}>
+                    <p className={`text-sm min-[1500px]:text-[15px] font-medium truncate max-w-[170px] ${
                       isScrolled ? 'text-gray-800' : 'text-white'
                     }`}>
                       {displayName}
                     </p>
-                    <p className={`text-xs truncate max-w-[150px] ${
+                    <p className={`text-xs truncate max-w-[170px] ${
                       isScrolled ? 'text-gray-600' : 'text-red-200'
                     }`}>
                       {rol || "Rol"}
                     </p>
                   </div>
-                  <FaChevronDown className={`text-xs transition-transform ${
+                  <FaChevronDown className={`text-xs shrink-0 transition-transform ${
                     showUserMenu ? 'rotate-180' : ''
                   }`} />
                 </button>
@@ -257,6 +260,7 @@ export default function Navbar() {
                       <p className="text-sm font-medium text-gray-800 truncate">
                         {displayName}
                       </p>
+                      <p className="text-xs text-gray-500 truncate">{rol || "Rol"}</p>
                     </div>
                     <Link
                       href="/mi-usuario"
@@ -293,7 +297,8 @@ export default function Navbar() {
             {/* BotÃ³n del MenÃº MÃ³vil */}
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className={`md:hidden p-2 rounded-lg transition-colors ${
+              aria-label={isOpen ? "Cerrar menu" : "Abrir menu"}
+              className={`lg:hidden p-2 rounded-lg shrink-0 transition-colors ${
                 isScrolled
                   ? 'text-gray-700 hover:bg-red-50'
                   : 'text-white hover:bg-white/10'
@@ -306,77 +311,24 @@ export default function Navbar() {
 
         {/* MenÃº MÃ³vil */}
         {isOpen && (
-          <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
-            <div className="container mx-auto px-4 py-4">
+          <div className="lg:hidden bg-white border-t border-gray-200 shadow-lg">
+            <div className={`${ANCHO_NAVBAR} py-4`}>
               <div className="space-y-2">
-                <Link
-                  href="/"
-                  onClick={() => setIsOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                    isActive('/')
-                      ? 'bg-red-50 text-red-600 border border-red-200'
-                      : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                  }`}
-                >
-                  <FaHome className="mr-3" />
-                  Inicio
-                </Link>
-
-                {puedeVerConsentimientos && (
+                {enlaces.map(({ href, label, Icon, activo }) => (
                   <Link
-                    href="/consentimientos"
+                    key={href}
+                    href={href}
                     onClick={() => setIsOpen(false)}
                     className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                      isConsentimientosSection
-                        ? 'bg-red-50 text-red-600 border border-red-200'
-                        : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
+                      activo
+                        ? 'bg-red-50 text-red-700 border border-red-200'
+                        : 'text-gray-700 hover:bg-red-50 hover:text-red-700'
                     }`}
                   >
-                    <FaFileSignature className="mr-3" />
-                    Consentimientos
+                    <Icon className="mr-3 shrink-0" />
+                    {label}
                   </Link>
-                )}
-
-                <Link
-                  href="/novedades"
-                  onClick={() => setIsOpen(false)}
-                  className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                    isActive('/novedades')
-                      ? 'bg-red-50 text-red-600 border border-red-200'
-                      : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                  }`}
-                >
-                  <FaExclamationTriangle className="mr-3" />
-                  Novedades
-                </Link>
-
-                {puedeVerRondas && (
-                  <Link
-                    href="/rondas"
-                    onClick={() => setIsOpen(false)}
-                    className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                      isRondasSection ? 'bg-red-50 text-red-700 border border-red-200' : 'text-gray-700 hover:bg-red-50 hover:text-red-700'
-                    }`}
-                  >
-                    <FaClipboardList className="mr-3" />
-                    Rondas
-                  </Link>
-                )}
-
-                {rol === "ADMINISTRATIVO" && (
-                  <Link
-                    href="/usuarios"
-                    onClick={() => setIsOpen(false)}
-                    className={`flex items-center px-4 py-3 rounded-lg transition-colors ${
-                      isActive('/usuarios')
-                        ? 'bg-red-50 text-red-600 border border-red-200'
-                        : 'text-gray-700 hover:bg-red-50 hover:text-red-600'
-                    }`}
-                  >
-                    <FaUsers className="mr-3" />
-                    Usuarios
-                  </Link>
-                )}
+                ))}
 
                 {/* InformaciÃ³n del Usuario en MÃ³vil */}
                 <div className="pt-4 mt-4 border-t border-gray-200">
@@ -433,7 +385,7 @@ export default function Navbar() {
       {/* Efecto overlay cuando el menÃº mÃ³vil estÃ¡ abierto */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-40 md:hidden"
+          className="fixed inset-0 bg-black/20 z-40 lg:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}

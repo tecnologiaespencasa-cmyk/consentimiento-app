@@ -25,6 +25,114 @@ model User {
   novedades       Novedad[]
   rondas          RondaIntramural[]
   boletines       Boletin[]
+  registrosHeridas ClinicaHeridas[]
+  consultasHeridas ClinicaHeridasConsulta[]
+}
+
+/// Paciente de la Clinica de Heridas.
+///
+/// PRIVACIDAD: no guarda ningun dato personal. Solo la referencia opaca del
+/// Bridge y el identificador -- tambien opaco -- de su carpeta en SharePoint.
+/// El nombre y el documento que dan nombre a esa carpeta viajan en memoria
+/// durante la peticion que la crea y no se persisten en Neon.
+model ClinicaHeridasPaciente {
+  id                 String   @id @default(uuid())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  /// Referencia opaca y estable del paciente en el Bridge.
+  pacienteRef        String   @unique
+
+  /// driveItemId de la carpeta del paciente dentro de ClinicaDeHeridas.
+  /// Es un identificador opaco de Graph: no contiene el documento.
+  carpetaDriveItemId String?
+
+  seguimientos       ClinicaHeridas[]
+}
+
+/// Un seguimiento de la herida. Un paciente acumula N seguimientos numerados
+/// de forma consecutiva, cada uno con sus propias medidas y sus propias fotos.
+model ClinicaHeridas {
+  id                     String   @id @default(uuid())
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  /// Consecutivo dentro del paciente: 1, 2, 3... Da nombre a la carpeta
+  /// "Seguimiento N" de SharePoint y ordena el historico.
+  numero                 Int
+
+  pacienteRef            String
+  paciente               ClinicaHeridasPaciente @relation(fields: [pacienteRef], references: [pacienteRef])
+
+  // Caracteristicas de la herida
+  origen                 String
+  ubicacion              String
+  diametroVerticalCm     Float
+  diametroHorizontalCm   Float
+  profundidadCm          Float
+  fondo                  String
+  lecho                  String
+  tejido                 String
+
+  // Exudado: dejo de ser un campo unico y pasa a describirse en dos.
+  exudadoCantidad        String
+  exudadoCaracteristicas String
+
+  /// driveItemId de la carpeta "Seguimiento N" en SharePoint.
+  carpetaDriveItemId     String?
+
+  usuarioId              String
+  usuario                User     @relation(fields: [usuarioId], references: [id])
+
+  fotos                  ClinicaHeridasFoto[]
+
+  @@unique([pacienteRef, numero])
+  @@index([usuarioId, createdAt])
+  @@index([createdAt])
+  @@index([pacienteRef, createdAt])
+}
+
+/// Referencia a una foto de la herida.
+///
+/// El binario vive EXCLUSIVAMENTE en SharePoint. Aqui solo se guarda su
+/// driveItemId (opaco), el nombre del archivo y su tipo MIME, que es lo minimo
+/// para volver a abrirla desde el portal.
+model ClinicaHeridasFoto {
+  id            String         @id @default(uuid())
+  createdAt     DateTime       @default(now())
+
+  seguimientoId String
+  seguimiento   ClinicaHeridas @relation(fields: [seguimientoId], references: [id], onDelete: Cascade)
+
+  tipo          TipoFotoHerida
+  driveItemId   String
+  nombre        String
+  mimeType      String?
+
+  @@unique([seguimientoId, tipo])
+  @@index([seguimientoId])
+}
+
+/// Auditoria tecnica y soporte del rate limiting de las busquedas contra el
+/// Bridge. Sigue el mismo patron que `LoginAttempt` (no hay Redis en este
+/// despliegue, el estado vive en PostgreSQL).
+///
+/// PRIVACIDAD: aqui NO se guarda documento, nombre, HMAC ni payload. Solo
+/// metadatos tecnicos: quien consulto, desde donde, cuando, cuanto tardo y con
+/// que codigo HTTP termino.
+model ClinicaHeridasConsulta {
+  id         String   @id @default(uuid())
+  createdAt  DateTime @default(now())
+  usuarioId  String
+  usuario    User     @relation(fields: [usuarioId], references: [id])
+  ip         String
+  requestId  String
+  ok         Boolean  @default(false)
+  status     Int
+  durationMs Int
+
+  @@index([usuarioId, createdAt])
+  @@index([ip, createdAt])
 }
 
 model RondaIntramural {
@@ -178,12 +286,21 @@ model LoginAttempt {
   @@index([ip, createdAt])
 }
 
+/// Las cuatro tomas fotograficas de cada seguimiento.
+enum TipoFotoHerida {
+  PLANO_GENERAL
+  MEDIDA_VERTICAL
+  MEDIDA_HORIZONTAL
+  LATERAL
+}
+
 enum Rol {
   ESPECIALISTA
   MEDICO_RONDA
   ADMINISTRATIVO
   TECNICO
   FARMACIA
+  CLINICA_HERIDAS
 }
 
 enum TipoDocumentoRonda {

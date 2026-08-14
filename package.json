@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:clinica-heridas": "node scripts/clinica-heridas/security-checks.mjs",
+    "test:clinica-heridas:bridge": "node scripts/clinica-heridas/bridge-selftest.mjs",
+    "test:clinica-heridas:portal": "node scripts/clinica-heridas/portal-role-tests.mjs"
   },
   "dependencies": {
     "@azure/msal-node": "^3.8.4",
@@ -23,6 +26,7 @@
     "react-hot-toast": "^2.6.0",
     "react-icons": "^5.5.0",
     "react-pdf": "^10.3.0",
+    "server-only": "^0.0.1",
     "zod": "^4.3.6"
   },
   "devDependencies": {

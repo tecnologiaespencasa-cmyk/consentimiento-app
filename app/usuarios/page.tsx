@@ -60,7 +60,7 @@ export default async function UsuariosPage({
 
   const where: any = {}
 
-  if (rol && ["ADMINISTRATIVO", "TECNICO", "FARMACIA", "ESPECIALISTA", "MEDICO_RONDA"].includes(rol)) {
+  if (rol && ["ADMINISTRATIVO", "TECNICO", "FARMACIA", "ESPECIALISTA", "MEDICO_RONDA", "CLINICA_HERIDAS"].includes(rol)) {
     where.rol = rol
   }
 

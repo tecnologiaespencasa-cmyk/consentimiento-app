@@ -45,7 +45,7 @@ type Me = {
   id: string;
   username: string;
   nombre: string;
-  rol: "ADMINISTRATIVO" | "TECNICO" | "ESPECIALISTA" | "MEDICO_RONDA" | "FARMACIA";
+  rol: "ADMINISTRATIVO" | "TECNICO" | "ESPECIALISTA" | "MEDICO_RONDA" | "FARMACIA" | "CLINICA_HERIDAS";
 };
 
 function formatLocalDatetime(now: Date) {

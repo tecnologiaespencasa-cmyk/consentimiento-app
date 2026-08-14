@@ -14,7 +14,8 @@ import {
   FaBell,
   FaExclamationTriangle,
   FaArrowRight,
-  FaListAlt
+  FaListAlt,
+  FaNotesMedical
 } from "react-icons/fa"
 import { PiWarningCircleBold } from "react-icons/pi"
 
@@ -44,7 +45,8 @@ export default async function HomePage() {
   // Verificar roles
   const esTecnicoOAdministrativo = rol === "TECNICO" || rol === "ADMINISTRATIVO"
   const esAdministrativo = rol === "ADMINISTRATIVO"
-  const esEspecialista = rol === "ESPECIALISTA" || rol === "MEDICO_RONDA"
+  const esEspecialista = rol === "ESPECIALISTA" || rol === "MEDICO_RONDA" || rol === "CLINICA_HERIDAS"
+  const puedeVerClinicaHeridas = rol === "CLINICA_HERIDAS" || esTecnicoOAdministrativo
   const esFarmacia = rol === "FARMACIA"
 
   // Consultas estadisticas
@@ -114,6 +116,7 @@ export default async function HomePage() {
                      rol === "TECNICO" ? "Tecnico" :
                      rol === "ESPECIALISTA" ? "Especialista" :
                      rol === "MEDICO_RONDA" ? "Médico Ronda" :
+                     rol === "CLINICA_HERIDAS" ? "Clínica de Heridas" :
                      rol === "FARMACIA" ? "Farmacia" : "Operativo"}
                   </span>
                 </div>
@@ -237,6 +240,32 @@ export default async function HomePage() {
                     </p>
                     <div className="flex items-center text-blue-600 font-medium text-sm">
                       <span>Ver mis novedades</span>
+                      <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            )}
+
+            {/* Clinica de Heridas - solo para el rol CLINICA_HERIDAS */}
+            {puedeVerClinicaHeridas && (
+              <Link href="/clinica-heridas" className="group transform hover:-translate-y-1 transition-all duration-300">
+                <div className="bg-white rounded-2xl shadow-lg hover:shadow-2xl overflow-hidden border-2 border-transparent hover:border-teal-200 h-full">
+                  <div className="p-6 bg-gradient-to-br from-teal-500 to-teal-600">
+                    <div className="flex items-center justify-between">
+                      <FaNotesMedical className="text-4xl text-white" />
+                      <span className="px-3 py-1 bg-white/20 rounded-full text-white text-xs font-medium backdrop-blur-sm">
+                        Valorar
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">Clínica de Heridas</h3>
+                    <p className="text-gray-600 text-sm mb-4">
+                      Busca al paciente por su documento y registra las características de la herida.
+                    </p>
+                    <div className="flex items-center text-teal-600 font-medium text-sm">
+                      <span>Abrir módulo</span>
                       <FaArrowRight className="ml-2 group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
@@ -402,9 +431,9 @@ export default async function HomePage() {
                 <FaUserMd className="text-2xl text-blue-600" />
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-800">Bienvenido {rol === "MEDICO_RONDA" ? "Médico Ronda" : "Especialista"}</h3>
+                <h3 className="text-lg font-semibold text-gray-800">Bienvenido {rol === "MEDICO_RONDA" ? "Médico Ronda" : rol === "CLINICA_HERIDAS" ? "Clínica de Heridas" : "Especialista"}</h3>
                 <p className="text-gray-600">
-                  Desde aquí puedes registrar consentimientos y reportar novedades durante tus atenciones domiciliarias{rol === "MEDICO_RONDA" ? ", además de gestionar tus rondas intramurales." : "."}
+                  Desde aquí puedes registrar consentimientos y reportar novedades durante tus atenciones domiciliarias{rol === "MEDICO_RONDA" ? ", además de gestionar tus rondas intramurales." : rol === "CLINICA_HERIDAS" ? ", además de consultar pacientes y registrar la valoración de sus heridas." : "."}
                 </p>
               </div>
             </div>

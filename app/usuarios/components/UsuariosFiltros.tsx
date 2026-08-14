@@ -83,6 +83,7 @@ export default function UsuariosFiltros({
             <option value="FARMACIA">FARMACIA</option>
             <option value="ESPECIALISTA">ESPECIALISTA</option>
             <option value="MEDICO_RONDA">MEDICO RONDA</option>
+            <option value="CLINICA_HERIDAS">CLINICA DE HERIDAS</option>
           </select>
         </div>
 

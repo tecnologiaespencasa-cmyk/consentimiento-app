@@ -88,7 +88,8 @@ export default function CrearUsuarioForm() {
     TECNICO: "Puede ver todos los consentimientos y novedades",
     FARMACIA: "Solo reporta novedades de proceso farmaceutico y ve sus propias novedades",
     ESPECIALISTA: "Solo puede ver sus propios consentimientos y novedades",
-    MEDICO_RONDA: "Tiene los accesos de Especialista y puede registrar y consultar sus rondas intramurales"
+    MEDICO_RONDA: "Tiene los accesos de Especialista y puede registrar y consultar sus rondas intramurales",
+    CLINICA_HERIDAS: "Tiene los accesos de Especialista y puede usar el modulo Clinica de Heridas"
   }
 
   return (
@@ -302,6 +303,7 @@ export default function CrearUsuarioForm() {
           >
             <option value="ESPECIALISTA">Especialista</option>
             <option value="MEDICO_RONDA">Médico Ronda</option>
+            <option value="CLINICA_HERIDAS">Clínica de Heridas</option>
             <option value="TECNICO">Técnico</option>
             <option value="FARMACIA">Farmacia</option>
             <option value="ADMINISTRATIVO">Administrativo</option>

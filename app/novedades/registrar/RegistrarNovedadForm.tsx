@@ -21,7 +21,7 @@ type MeResp = {
   primerApellido: string;
   segundoApellido: string | null;
   username: string;
-  rol: "ESPECIALISTA" | "MEDICO_RONDA" | "TECNICO" | "ADMINISTRATIVO" | "FARMACIA";
+  rol: "ESPECIALISTA" | "MEDICO_RONDA" | "TECNICO" | "ADMINISTRATIVO" | "FARMACIA" | "CLINICA_HERIDAS";
   telefono: string | null;
   cedula: string;
   profesion: string | null;
@@ -286,7 +286,11 @@ export default function RegistrarNovedadForm() {
   const puedeReportarProcesoFarmaceutico =
     me?.rol === "FARMACIA" || me?.rol === "TECNICO" || me?.rol === "ADMINISTRATIVO";
   const puedeReportarTerapiasAmbulatorias =
-    me?.rol === "TECNICO" || me?.rol === "ADMINISTRATIVO" || me?.rol === "ESPECIALISTA" || me?.rol === "MEDICO_RONDA";
+    me?.rol === "TECNICO" ||
+    me?.rol === "ADMINISTRATIVO" ||
+    me?.rol === "ESPECIALISTA" ||
+    me?.rol === "MEDICO_RONDA" ||
+    me?.rol === "CLINICA_HERIDAS";
   const esProrrogaCambioAdicionTratamiento =
     categoria === "PACIENTE" && tipoPaciente === TIPO_PACIENTE_PRORROGA_CAMBIO_ADICION_TRATAMIENTO;
   const requiereAdjuntoTerapiaAmbulatoria =

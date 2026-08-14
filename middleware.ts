@@ -1,6 +1,7 @@
 import { withAuth } from "next-auth/middleware"
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
+import { tieneAccesoClinicaHeridas } from "@/lib/roles"
 
 type AuthenticatedRequest = NextRequest & {
   nextauth?: {
@@ -37,10 +38,17 @@ export default withAuth(
       return withSecurityHeaders(NextResponse.redirect(new URL("/novedades", req.url)))
     }
 
+    // Modulo Clinica de Heridas: solo el rol CLINICA_HERIDAS.
+    // Esta es la primera de tres barreras; la pagina y cada API route vuelven a
+    // validar el rol server-side (no se confia en ocultar el menu).
+    if (pathname.startsWith("/clinica-heridas") && !tieneAccesoClinicaHeridas(rol)) {
+      return withSecurityHeaders(NextResponse.redirect(new URL("/", req.url)))
+    }
+
     // Pagina de carga de consentimiento (todos)
     if (
       pathname.startsWith("/consentimiento") &&
-        !["ADMINISTRATIVO", "TECNICO", "ESPECIALISTA", "MEDICO_RONDA"].includes(rol)
+        !["ADMINISTRATIVO", "TECNICO", "ESPECIALISTA", "MEDICO_RONDA", "CLINICA_HERIDAS"].includes(rol)
     ) {
       return withSecurityHeaders(NextResponse.redirect(new URL("/login", req.url)))
     }

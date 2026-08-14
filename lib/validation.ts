@@ -5,7 +5,14 @@ import { z } from "zod";
  * sensibles de autenticacion y gestion de usuarios.
  */
 
-const ROLES = ["ESPECIALISTA", "MEDICO_RONDA", "ADMINISTRATIVO", "TECNICO", "FARMACIA"] as const;
+const ROLES = [
+  "ESPECIALISTA",
+  "MEDICO_RONDA",
+  "ADMINISTRATIVO",
+  "TECNICO",
+  "FARMACIA",
+  "CLINICA_HERIDAS",
+] as const;
 const PROFESIONES = [
   "AUXILIAR_ENFERMERIA",
   "ENFERMERIA",
