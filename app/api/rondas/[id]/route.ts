@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 
 const ROLES_GESTION_RONDA = ["ADMINISTRATIVO", "TECNICO"];
-const CAUSAS_NO_INGRESO = ["Cambio en el estado clínico", "⁠No aceptación de atención domiciliaria por el paciente", "Cambio de desición por parte del médico tratante", "Alta de la IPS sin atención domiciliaria", "⁠Otra"];
+const CAUSAS_NO_INGRESO = ["Cambio en el estado clínico", "No aceptación de atención domiciliaria por el paciente", "Cambio de decisión por parte del médico tratante", "Alta de la IPS sin atención domiciliaria", "Otra"];
 
 function texto(value: unknown, max: number) {
   return typeof value === "string" ? value.trim().slice(0, max) : "";
@@ -43,7 +43,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       return NextResponse.json({ error: "Solo puedes registrar la causa cuando el ingreso efectivo está en No." }, { status: 400 });
     }
 
-    const causaNoIngreso = texto(body?.causaNoIngreso, 30).toUpperCase();
+    const causaNoIngreso = texto(body?.causaNoIngreso, 60);
     const observacionNoIngreso = texto(body?.observacionNoIngreso, 99);
     if (causaNoIngreso && !CAUSAS_NO_INGRESO.includes(causaNoIngreso)) {
       return NextResponse.json({ error: "Selecciona una causa de la lista." }, { status: 400 });
