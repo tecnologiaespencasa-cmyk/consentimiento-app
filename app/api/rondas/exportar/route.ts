@@ -4,22 +4,33 @@ import { prisma } from "@/lib/prisma";
 
 const ROLES_EXPORTACION = ["ADMINISTRATIVO", "TECNICO"];
 
+// Los campos de texto libre (otros, observaciones, diagnóstico) pueden traer saltos de línea:
+// dentro del CSV parten el registro en varias filas y Excel pierde la alineación de columnas.
 function csvEscape(value: unknown) {
   const raw = value == null ? "" : String(value);
-  return `"${raw.replace(/"/g, '""')}"`;
+  const plano = raw.replace(/\r\n|[\r\n]/g, " ").replace(/[ \t]+/g, " ").trim();
+  return `"${plano.replace(/"/g, '""')}"`;
 }
 
+const formatoFecha = new Intl.DateTimeFormat("es-CO", {
+  timeZone: "America/Bogota",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+// dd/MM/yyyy HH:mm:ss sin coma, para que Excel lo reconozca como fecha y permita filtrar y ordenar.
 function fecha(value: Date) {
-  return new Intl.DateTimeFormat("es-CO", {
-    timeZone: "America/Bogota",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: false,
-  }).format(value);
+  const partes = formatoFecha.formatToParts(value).reduce<Record<string, string>>((acc, parte) => {
+    if (parte.type !== "literal") acc[parte.type] = parte.value;
+    return acc;
+  }, {});
+  const hora = partes.hour === "24" ? "00" : partes.hour;
+  return `${partes.day}/${partes.month}/${partes.year} ${hora}:${partes.minute}:${partes.second}`;
 }
 
 export async function GET() {
@@ -50,7 +61,7 @@ export async function GET() {
     ];
   });
 
-  const csv = [columns.map(csvEscape).join(";"), ...rows.map((row) => row.map(csvEscape).join(";"))].join("\n");
+  const csv = [columns.map(csvEscape).join(";"), ...rows.map((row) => row.map(csvEscape).join(";"))].join("\r\n");
   const stamp = new Date().toISOString().slice(0, 10);
   return new Response(`\uFEFF${csv}`, {
     headers: {
