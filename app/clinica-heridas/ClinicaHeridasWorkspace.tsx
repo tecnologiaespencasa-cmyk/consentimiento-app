@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import toast from "react-hot-toast";
+import { CATALOGOS, esOpcionValida } from "@/lib/clinicaHeridasCatalogos";
 import {
   FaCamera,
   FaCheckCircle,
@@ -55,17 +56,19 @@ type Paciente = {
   documentoMascarado: string;
 };
 
+// Campos parametrizados: cada uno se pinta como desplegable con las opciones
+// de su catalogo, de modo que no haya variantes de grafia entre seguimientos.
 const CAMPOS_HERIDA = [
-  { clave: "origen", etiqueta: "Origen", placeholder: "Origen de la herida" },
-  { clave: "ubicacion", etiqueta: "Ubicación", placeholder: "Ubicación anatómica" },
-  { clave: "fondo", etiqueta: "Fondo", placeholder: "Descripción del fondo" },
-  { clave: "lecho", etiqueta: "Lecho", placeholder: "Descripción del lecho" },
-  { clave: "tejido", etiqueta: "Tejido", placeholder: "Tipo de tejido" },
+  { clave: "origen", etiqueta: "Origen" },
+  { clave: "ubicacion", etiqueta: "Ubicación" },
+  { clave: "fondo", etiqueta: "Fondo" },
+  { clave: "lecho", etiqueta: "Lecho" },
+  { clave: "tejido", etiqueta: "Tejido" },
 ] as const;
 
 const CAMPOS_EXUDADO = [
-  { clave: "exudadoCantidad", etiqueta: "Cantidad", placeholder: "Cantidad de exudado" },
-  { clave: "exudadoCaracteristicas", etiqueta: "Características", placeholder: "Características del exudado" },
+  { clave: "exudadoCantidad", etiqueta: "Cantidad" },
+  { clave: "exudadoCaracteristicas", etiqueta: "Características" },
 ] as const;
 
 const MEDIDAS_HERIDA = [
@@ -204,17 +207,27 @@ export default function ClinicaHeridasWorkspace() {
     }
   }
 
-  /** Abre el formulario del siguiente seguimiento precargando el anterior. */
+  /**
+   * Abre el formulario del siguiente seguimiento precargando el anterior.
+   *
+   * Solo se arrastran los valores que siguen perteneciendo al catalogo: un
+   * seguimiento antiguo puede tener texto libre de antes de parametrizar los
+   * campos, y precargarlo dejaria el desplegable visualmente vacio pero con un
+   * valor invalido en el estado. En ese caso se deja en blanco para que el
+   * profesional elija una opcion valida.
+   */
   function nuevoSeguimiento() {
     if (ultimo) {
+      const heredar = (clave: ClaveTexto) =>
+        esOpcionValida(clave, ultimo[clave]) ? ultimo[clave] : "";
       setForm({
-        origen: ultimo.origen,
-        ubicacion: ultimo.ubicacion,
-        fondo: ultimo.fondo,
-        lecho: ultimo.lecho,
-        tejido: ultimo.tejido,
-        exudadoCantidad: ultimo.exudadoCantidad,
-        exudadoCaracteristicas: ultimo.exudadoCaracteristicas,
+        origen: heredar("origen"),
+        ubicacion: heredar("ubicacion"),
+        fondo: heredar("fondo"),
+        lecho: heredar("lecho"),
+        tejido: heredar("tejido"),
+        exudadoCantidad: heredar("exudadoCantidad"),
+        exudadoCaracteristicas: heredar("exudadoCaracteristicas"),
         // Las medidas siempre se toman de nuevo: son el objeto del seguimiento.
         diametroVerticalCm: "",
         diametroHorizontalCm: "",
@@ -545,15 +558,12 @@ export default function ClinicaHeridasWorkspace() {
                   </div>
 
                   <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {CAMPOS_HERIDA.map(({ clave, etiqueta, placeholder }) => (
+                    {CAMPOS_HERIDA.map(({ clave, etiqueta }) => (
                       <Campo key={clave} etiqueta={etiqueta}>
-                        <input
-                          required
-                          value={form[clave]}
-                          onChange={(e) => setForm((prev) => ({ ...prev, [clave]: e.target.value }))}
-                          maxLength={200}
-                          placeholder={placeholder}
-                          className="input"
+                        <Desplegable
+                          clave={clave}
+                          valor={form[clave]}
+                          onChange={(valor) => setForm((prev) => ({ ...prev, [clave]: valor }))}
                         />
                       </Campo>
                     ))}
@@ -561,15 +571,12 @@ export default function ClinicaHeridasWorkspace() {
 
                   <h3 className="mt-6 font-extrabold text-slate-800">Exudado</h3>
                   <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {CAMPOS_EXUDADO.map(({ clave, etiqueta, placeholder }) => (
+                    {CAMPOS_EXUDADO.map(({ clave, etiqueta }) => (
                       <Campo key={clave} etiqueta={etiqueta}>
-                        <input
-                          required
-                          value={form[clave]}
-                          onChange={(e) => setForm((prev) => ({ ...prev, [clave]: e.target.value }))}
-                          maxLength={200}
-                          placeholder={placeholder}
-                          className="input"
+                        <Desplegable
+                          clave={clave}
+                          valor={form[clave]}
+                          onChange={(valor) => setForm((prev) => ({ ...prev, [clave]: valor }))}
                         />
                       </Campo>
                     ))}
@@ -602,11 +609,6 @@ export default function ClinicaHeridasWorkspace() {
                     <FaCamera className="text-red-700" /> Fotos de la herida
                     <span className="text-sm font-normal text-slate-500">(opcionales)</span>
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">
-                    Se archivan en SharePoint, en la carpeta del paciente, dentro de Seguimiento{" "}
-                    {proximoNumero}.
-                  </p>
-
                   <div className="mt-5 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                     {FOTOS.map(({ tipo, etiqueta }) => (
                       <Campo key={tipo} etiqueta={etiqueta}>
@@ -693,6 +695,36 @@ export default function ClinicaHeridasWorkspace() {
         </div>
       )}
     </div>
+  );
+}
+
+/**
+ * Desplegable de un campo clinico. Las opciones salen del catalogo compartido
+ * con el servidor, que vuelve a validarlas al guardar.
+ */
+function Desplegable({
+  clave,
+  valor,
+  onChange,
+}: {
+  clave: ClaveTexto;
+  valor: string;
+  onChange: (valor: string) => void;
+}) {
+  return (
+    <select
+      required
+      value={valor}
+      onChange={(e) => onChange(e.target.value)}
+      className={`input ${valor ? "" : "text-slate-400"}`}
+    >
+      <option value="">Selecciona una opción</option>
+      {CATALOGOS[clave].map((opcion) => (
+        <option key={opcion} value={opcion} className="text-slate-800">
+          {opcion}
+        </option>
+      ))}
+    </select>
   );
 }
 

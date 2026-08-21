@@ -5,6 +5,7 @@ import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 import { tieneAccesoClinicaHeridas } from "@/lib/roles";
 import { esPacienteRefValido } from "@/lib/clinicaHeridas";
+import { CAMPOS_CATALOGO, esOpcionValida } from "@/lib/clinicaHeridasCatalogos";
 import {
   asegurarCarpetaPaciente,
   asegurarCarpetaSeguimiento,
@@ -27,18 +28,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_TEXTO = 200;
 const MEDIDA_MAXIMA_CM = 200;
-
-const CAMPOS_TEXTO = [
-  "origen",
-  "ubicacion",
-  "fondo",
-  "lecho",
-  "tejido",
-  "exudadoCantidad",
-  "exudadoCaracteristicas",
-] as const;
 
 const CAMPOS_MEDIDA = ["diametroVerticalCm", "diametroHorizontalCm", "profundidadCm"] as const;
 
@@ -54,10 +44,6 @@ const ETIQUETAS: Record<string, string> = {
   diametroHorizontalCm: "Diametro horizontal",
   profundidadCm: "Profundidad",
 };
-
-function texto(value: unknown): string {
-  return typeof value === "string" ? value.trim().slice(0, MAX_TEXTO).toUpperCase() : "";
-}
 
 function medida(value: unknown): number | null {
   const numero = typeof value === "number" ? value : Number(String(value ?? "").replace(",", "."));
@@ -90,12 +76,21 @@ export async function POST(req: Request) {
     );
   }
 
+  // Cada campo clinico debe traer una opcion EXACTA de su catalogo. El servidor
+  // no confia en que el navegador haya usado el desplegable: texto libre,
+  // valores inventados o variantes con otra grafia se rechazan aqui.
   const valoresTexto: Record<string, string> = {};
-  for (const campo of CAMPOS_TEXTO) {
-    const valor = texto(body?.[campo]);
+  for (const campo of CAMPOS_CATALOGO) {
+    const valor = typeof body?.[campo] === "string" ? body[campo].trim() : "";
     if (!valor) {
       return NextResponse.json(
         { error: `El campo ${ETIQUETAS[campo]} es obligatorio.` },
+        { status: 400 },
+      );
+    }
+    if (!esOpcionValida(campo, valor)) {
+      return NextResponse.json(
+        { error: `El valor de ${ETIQUETAS[campo]} no es una opcion valida.` },
         { status: 400 },
       );
     }

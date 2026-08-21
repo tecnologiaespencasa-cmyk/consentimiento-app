@@ -266,15 +266,17 @@ console.log("\nEndpoint de guardado");
 const REF_PRUEBA_A = "11111111-1111-4111-8111-111111111111";
 const REF_PRUEBA_B = "22222222-2222-4222-8222-222222222222";
 
+// Los campos clinicos estan parametrizados: solo se aceptan opciones exactas
+// del catalogo compartido (lib/clinicaHeridasCatalogos.ts).
 const registroValido = {
   pacienteRef: REF_PRUEBA_A,
-  origen: "PRUEBA",
-  ubicacion: "PRUEBA",
-  fondo: "PRUEBA",
-  lecho: "PRUEBA",
-  tejido: "PRUEBA",
-  exudadoCantidad: "PRUEBA",
-  exudadoCaracteristicas: "PRUEBA",
+  origen: "QUIRÚRGICA",
+  ubicacion: "PIE / TALÓN DERECHO",
+  fondo: "LIMPIO",
+  lecho: "VIABLE",
+  tejido: "GRANULACIÓN",
+  exudadoCantidad: "ESCASO",
+  exudadoCaracteristicas: "SEROSO",
   diametroVerticalCm: 1,
   diametroHorizontalCm: 1,
   profundidadCm: 1,
@@ -326,6 +328,28 @@ const registroValido = {
     body: { ...registroValido, pacienteRef: "no-es-un-uuid" },
   });
   comprobar("pacienteRef con formato invalido rechazado (400)", r.status === 400, `status ${r.status}`);
+}
+{
+  const r = await pedir("/api/clinica-heridas/seguimientos", {
+    cookie: conRol,
+    body: { ...registroValido, origen: "LO QUE SEA" },
+  });
+  comprobar("opcion fuera del catalogo rechazada (400)", r.status === 400, `status ${r.status}`);
+}
+{
+  // Misma opcion con otra grafia: el catalogo es exacto, no aproximado.
+  const r = await pedir("/api/clinica-heridas/seguimientos", {
+    cookie: conRol,
+    body: { ...registroValido, origen: "QUIRURGICA" },
+  });
+  comprobar("opcion sin tilde rechazada (400)", r.status === 400, `status ${r.status}`);
+}
+{
+  const r = await pedir("/api/clinica-heridas/seguimientos", {
+    cookie: conRol,
+    body: { ...registroValido, exudadoCantidad: "MUCHISIMO" },
+  });
+  comprobar("cantidad de exudado fuera del catalogo rechazada (400)", r.status === 400, `status ${r.status}`);
 }
 {
   // El documento se acepta para nombrar la carpeta de SharePoint, pero no
