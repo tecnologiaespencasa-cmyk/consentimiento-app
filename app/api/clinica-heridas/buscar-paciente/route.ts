@@ -140,6 +140,8 @@ export async function POST(req: Request) {
       fondo: true,
       lecho: true,
       tejido: true,
+      cavitacionTunelizacion: true,
+      pielPerilesional: true,
       exudadoCantidad: true,
       exudadoCaracteristicas: true,
       usuario: { select: { nombres: true, primerApellido: true } },

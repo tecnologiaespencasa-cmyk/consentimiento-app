@@ -57,6 +57,22 @@ export const TEJIDO = [
   "NECROSIS HÚMEDA",
 ] as const;
 
+export const CAVITACION_TUNELIZACION = [
+  "NO PRESENTA",
+  "CAVITACIÓN",
+  "TUNELIZACIÓN",
+  "CAVITACIÓN Y TUNELIZACIÓN",
+] as const;
+
+export const PIEL_PERILESIONAL = [
+  "SANA / ÍNTEGRA",
+  "ERITEMATOSA",
+  "DESCAMATIVA",
+  "MACERADA",
+  "INDURADA",
+  "CON HEMATOMA",
+] as const;
+
 export const EXUDADO_CANTIDAD = ["NULO", "ESCASO", "MODERADO", "ABUNDANTE"] as const;
 
 export const EXUDADO_CARACTERISTICAS = [
@@ -74,6 +90,8 @@ export const CATALOGOS = {
   fondo: FONDO,
   lecho: LECHO,
   tejido: TEJIDO,
+  cavitacionTunelizacion: CAVITACION_TUNELIZACION,
+  pielPerilesional: PIEL_PERILESIONAL,
   exudadoCantidad: EXUDADO_CANTIDAD,
   exudadoCaracteristicas: EXUDADO_CARACTERISTICAS,
 } as const;

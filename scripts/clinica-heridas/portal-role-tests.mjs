@@ -275,6 +275,8 @@ const registroValido = {
   fondo: "LIMPIO",
   lecho: "VIABLE",
   tejido: "GRANULACIÓN",
+  cavitacionTunelizacion: "NO PRESENTA",
+  pielPerilesional: "SANA / ÍNTEGRA",
   exudadoCantidad: "ESCASO",
   exudadoCaracteristicas: "SEROSO",
   diametroVerticalCm: 1,
@@ -350,6 +352,25 @@ const registroValido = {
     body: { ...registroValido, exudadoCantidad: "MUCHISIMO" },
   });
   comprobar("cantidad de exudado fuera del catalogo rechazada (400)", r.status === 400, `status ${r.status}`);
+}
+{
+  const { pielPerilesional, ...sinPiel } = registroValido;
+  void pielPerilesional;
+  const r = await pedir("/api/clinica-heridas/seguimientos", { cookie: conRol, body: sinPiel });
+  comprobar("piel perilesional ausente rechazada (400)", r.status === 400, `status ${r.status}`);
+}
+{
+  const { cavitacionTunelizacion, ...sinCavitacion } = registroValido;
+  void cavitacionTunelizacion;
+  const r = await pedir("/api/clinica-heridas/seguimientos", { cookie: conRol, body: sinCavitacion });
+  comprobar("cavitacion / tunelizacion ausente rechazada (400)", r.status === 400, `status ${r.status}`);
+}
+{
+  const r = await pedir("/api/clinica-heridas/seguimientos", {
+    cookie: conRol,
+    body: { ...registroValido, pielPerilesional: "IRRITADA" },
+  });
+  comprobar("piel perilesional fuera del catalogo rechazada (400)", r.status === 400, `status ${r.status}`);
 }
 {
   // El documento se acepta para nombrar la carpeta de SharePoint, pero no

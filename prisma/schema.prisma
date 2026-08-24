@@ -74,6 +74,11 @@ model ClinicaHeridas {
   lecho                  String
   tejido                 String
 
+  /// Opcionales en la base porque hay seguimientos anteriores a la creacion de
+  /// estos campos. La API los exige en todo seguimiento nuevo.
+  cavitacionTunelizacion String?
+  pielPerilesional       String?
+
   // Exudado: dejo de ser un campo unico y pasa a describirse en dos.
   exudadoCantidad        String
   exudadoCaracteristicas String

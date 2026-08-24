@@ -6,6 +6,7 @@ import { CATALOGOS, esOpcionValida } from "@/lib/clinicaHeridasCatalogos";
 import {
   FaCamera,
   FaCheckCircle,
+  FaRegCopy,
   FaExternalLinkAlt,
   FaNotesMedical,
   FaPlusCircle,
@@ -44,6 +45,8 @@ type Seguimiento = {
   fondo: string;
   lecho: string;
   tejido: string;
+  cavitacionTunelizacion: string | null;
+  pielPerilesional: string | null;
   exudadoCantidad: string;
   exudadoCaracteristicas: string;
   registradoPor: string;
@@ -64,6 +67,8 @@ const CAMPOS_HERIDA = [
   { clave: "fondo", etiqueta: "Fondo" },
   { clave: "lecho", etiqueta: "Lecho" },
   { clave: "tejido", etiqueta: "Tejido" },
+  { clave: "cavitacionTunelizacion", etiqueta: "Cavitación / tunelización" },
+  { clave: "pielPerilesional", etiqueta: "Piel perilesional" },
 ] as const;
 
 const CAMPOS_EXUDADO = [
@@ -95,6 +100,8 @@ const FORM_INICIAL: Record<ClaveTexto | ClaveMedida, string> = {
   fondo: "",
   lecho: "",
   tejido: "",
+  cavitacionTunelizacion: "",
+  pielPerilesional: "",
   exudadoCantidad: "",
   exudadoCaracteristicas: "",
   diametroVerticalCm: "",
@@ -111,6 +118,41 @@ function formatearFecha(iso: string) {
     minute: "2-digit",
     timeZone: "America/Bogota",
   });
+}
+
+/**
+ * Redacta la nota clinica sugerida del seguimiento.
+ *
+ * Es un borrador para copiar a la historia clinica: se arma con los valores del
+ * catalogo tal cual quedaron guardados, sin reescribirlos, para no alterar
+ * terminos ni siglas (LPP, PICC).
+ */
+function construirNota(seguimiento: Seguimiento): string {
+  const cavitacion = seguimiento.cavitacionTunelizacion;
+  const fraseCavitacion = !cavitacion
+    ? "sin dato de cavitación o tunelización"
+    : cavitacion === "NO PRESENTA"
+      ? "sin presencia de cavitación ni tunelización"
+      : `con presencia de ${cavitacion}`;
+
+  const piel = seguimiento.pielPerilesional ?? "sin dato";
+
+  const cuerpo =
+    `Herida de origen ${seguimiento.origen}, localizada en ${seguimiento.ubicacion}, ` +
+    `con diámetro vertical de ${seguimiento.diametroVerticalCm} cm, diámetro horizontal de ` +
+    `${seguimiento.diametroHorizontalCm} cm y profundidad de ${seguimiento.profundidadCm} cm. ` +
+    `Al examen físico presenta fondo ${seguimiento.fondo}, lecho ${seguimiento.lecho}, ` +
+    `con tejido predominante de ${seguimiento.tejido}, ${fraseCavitacion}. ` +
+    `Piel perilesional ${piel}. Exudado en cantidad ${seguimiento.exudadoCantidad}, ` +
+    `de características ${seguimiento.exudadoCaracteristicas}.`;
+
+  const encabezado = `DESCRIPCIÓN DE LA HERIDA — SEGUIMIENTO N.° ${seguimiento.numero} — ${formatearFecha(
+    seguimiento.createdAt,
+  )}`;
+
+  return `${encabezado}
+
+${cuerpo}`;
 }
 
 export default function ClinicaHeridasWorkspace() {
@@ -218,14 +260,18 @@ export default function ClinicaHeridasWorkspace() {
    */
   function nuevoSeguimiento() {
     if (ultimo) {
-      const heredar = (clave: ClaveTexto) =>
-        esOpcionValida(clave, ultimo[clave]) ? ultimo[clave] : "";
+      const heredar = (clave: ClaveTexto) => {
+        const valor = ultimo[clave];
+        return typeof valor === "string" && esOpcionValida(clave, valor) ? valor : "";
+      };
       setForm({
         origen: heredar("origen"),
         ubicacion: heredar("ubicacion"),
         fondo: heredar("fondo"),
         lecho: heredar("lecho"),
         tejido: heredar("tejido"),
+        cavitacionTunelizacion: heredar("cavitacionTunelizacion"),
+        pielPerilesional: heredar("pielPerilesional"),
         exudadoCantidad: heredar("exudadoCantidad"),
         exudadoCaracteristicas: heredar("exudadoCaracteristicas"),
         // Las medidas siempre se toman de nuevo: son el objeto del seguimiento.
@@ -312,6 +358,8 @@ export default function ClinicaHeridasWorkspace() {
         fondo: form.fondo.toUpperCase(),
         lecho: form.lecho.toUpperCase(),
         tejido: form.tejido.toUpperCase(),
+        cavitacionTunelizacion: form.cavitacionTunelizacion,
+        pielPerilesional: form.pielPerilesional,
         exudadoCantidad: form.exudadoCantidad.toUpperCase(),
         exudadoCaracteristicas: form.exudadoCaracteristicas.toUpperCase(),
         registradoPor: "",
@@ -498,6 +546,14 @@ export default function ClinicaHeridasWorkspace() {
                   <Dato etiqueta="Lecho" valor={seguimientoActual.lecho} />
                   <Dato etiqueta="Tejido" valor={seguimientoActual.tejido} />
                   <Dato
+                    etiqueta="Cavitación / tunelización"
+                    valor={seguimientoActual.cavitacionTunelizacion ?? "Sin registrar"}
+                  />
+                  <Dato
+                    etiqueta="Piel perilesional"
+                    valor={seguimientoActual.pielPerilesional ?? "Sin registrar"}
+                  />
+                  <Dato
                     etiqueta="Diámetro vertical"
                     valor={`${seguimientoActual.diametroVerticalCm} cm`}
                   />
@@ -540,6 +596,8 @@ export default function ClinicaHeridasWorkspace() {
                     );
                   })}
                 </div>
+
+                <NotaSugerida seguimiento={seguimientoActual} />
               </section>
             )}
 
@@ -725,6 +783,86 @@ function Desplegable({
         </option>
       ))}
     </select>
+  );
+}
+
+/**
+ * Nota clinica sugerida, lista para copiar a la historia clinica.
+ *
+ * El texto se muestra completo para que el profesional lo revise antes de
+ * usarlo: es un borrador, no un documento final.
+ */
+function NotaSugerida({ seguimiento }: { seguimiento: Seguimiento }) {
+  const [copiado, setCopiado] = useState(false);
+  const texto = construirNota(seguimiento);
+
+  /** Respaldo para contextos no seguros o cuando el navegador deniega el permiso. */
+  function copiarConTextarea(): boolean {
+    try {
+      const area = document.createElement("textarea");
+      area.value = texto;
+      area.style.position = "fixed";
+      area.style.opacity = "0";
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand("copy");
+      area.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  async function copiar() {
+    // navigator.clipboard solo existe en contexto seguro (HTTPS o localhost) y
+    // ademas puede rechazar si el documento no tiene el foco. En cualquiera de
+    // los dos casos se intenta el respaldo antes de dar el copiado por fallido.
+    let ok = false;
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(texto);
+        ok = true;
+      } catch {
+        ok = false;
+      }
+    }
+    if (!ok) ok = copiarConTextarea();
+
+    if (!ok) {
+      toast.error("No fue posible copiar. Selecciona el texto manualmente.");
+      return;
+    }
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2500);
+  }
+
+  return (
+    <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50/70 p-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="font-extrabold text-slate-800">Nota sugerida</h3>
+          <p className="mt-1 text-sm text-slate-500">
+            Borrador para la historia clínica. Revísalo antes de usarlo.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={copiar}
+          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition-colors ${
+            copiado
+              ? "bg-emerald-600 text-white"
+              : "bg-red-700 text-white hover:bg-red-800"
+          }`}
+        >
+          {copiado ? <FaCheckCircle /> : <FaRegCopy />}
+          {copiado ? "Copiado" : "Copiar nota"}
+        </button>
+      </div>
+
+      <p className="mt-4 whitespace-pre-line rounded-xl border border-slate-200 bg-white p-4 text-sm leading-6 text-slate-700">
+        {texto}
+      </p>
+    </div>
   );
 }
 
