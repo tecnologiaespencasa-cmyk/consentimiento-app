@@ -779,8 +779,15 @@ export async function POST(req: Request) {
     const requiereFotoRutaEvidencia =
       categoriaEnum === "RUTA" && (tipoRutaEnum === "ACCIDENTE" || tipoRutaEnum === "CIERRE_VIAL");
     const esErca = categoriaEnum === "PACIENTE" && tipoPacienteEnum === "ERCA";
+    const esInicioTratamientoPrioritario =
+      categoriaEnum === "PACIENTE" && tipoPacienteEnum === "INICIO_TRATAMIENTO_PRIORITARIO";
     const prioridadPorDefecto =
-      categoriaEnum === CATEGORIA_FARMACIA || esLlamadaUrgente || esErca ? "ALTA" : "MEDIA";
+      categoriaEnum === CATEGORIA_FARMACIA ||
+      esLlamadaUrgente ||
+      esErca ||
+      esInicioTratamientoPrioritario
+        ? "ALTA"
+        : "MEDIA";
 
     let fotoSubida: Awaited<ReturnType<typeof uploadToSharePointWithInfo>> | null = null;
     if (requiereFotoIngresoDomicilio && fotoIngresoDomicilio) {

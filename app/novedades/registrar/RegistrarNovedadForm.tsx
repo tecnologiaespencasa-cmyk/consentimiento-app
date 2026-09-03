@@ -247,7 +247,7 @@ export default function RegistrarNovedadForm() {
   const [pacienteNombre, setPacienteNombre] = useState("");
   const [pacienteTipoDoc, setPacienteTipoDoc] = useState("CC");
   const [pacienteDocumento, setPacienteDocumento] = useState("");
-  const [tipoPaciente, setTipoPaciente] = useState("ERCA");
+  const [tipoPaciente, setTipoPaciente] = useState("");
 
   function handlePacienteNombreChange(value: string) {
     setPacienteNombre(sanitizarNombrePaciente(value));
@@ -395,6 +395,7 @@ export default function RegistrarNovedadForm() {
       return (
         esNombrePacienteValido(pacienteNombre) &&
         esDocumentoPacienteValido(pacienteDocumento, pacienteTipoDoc) &&
+        !!tipoPaciente &&
         (!esProrrogaCambioAdicionTratamiento || !!medicamentoNombre1.trim()) &&
         (!requiereFotoDomicilio || !!fotoIngresoDomicilio)
       );
@@ -514,7 +515,7 @@ export default function RegistrarNovedadForm() {
       setPacienteNombre("");
       setPacienteTipoDoc("CC");
       setPacienteDocumento("");
-      setTipoPaciente("ERCA");
+      setTipoPaciente("");
       setMedicamentoNombre1("");
       setMedicamentoNombre2(MEDICAMENTO_NO_APLICA);
       setMedicamentoNombre3(MEDICAMENTO_NO_APLICA);
@@ -821,7 +822,12 @@ export default function RegistrarNovedadForm() {
                       />
                     </div>
                     <div className="md:col-span-4">
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Tipo de novedad</label>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Tipo de novedad <span className="text-red-600">*</span>
+                      </label>
+                      {!tipoPaciente ? (
+                        <p className="text-xs text-red-600 mb-2">Selecciona una opción para continuar.</p>
+                      ) : null}
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                         {TIPOS_PACIENTE.map((t) => (
                           <button
