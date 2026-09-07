@@ -46,7 +46,7 @@ export const createUserSchema = z.object({
     .regex(/^[\p{L}\p{N}._-]+$/u, "El usuario solo admite letras, numeros y . _ -"),
   password: z
     .string()
-    .min(8, "La contraseña debe tener minimo 8 caracteres")
+    .min(7, "La contraseña debe tener minimo 7 caracteres")
     .max(200, "La contraseña es demasiado larga"),
   nombres: z.string().trim().min(1, "Los nombres son obligatorios").max(100),
   primerApellido: z.string().trim().min(1, "El primer apellido es obligatorio").max(100),
