@@ -64,6 +64,12 @@ model ClinicaHeridas {
   pacienteRef            String
   paciente               ClinicaHeridasPaciente @relation(fields: [pacienteRef], references: [pacienteRef])
 
+  /// Ingreso al programa sobre el que se registro el seguimiento. Lo entrega el
+  /// censo a traves de la Edge Function estado-paciente-heridas; el portal no
+  /// lo calcula. Un paciente dado de alta que reingresa arranca un ingreso 2 y
+  /// sus seguimientos no se mezclan con los del 1.
+  ingreso                Int      @default(1) @db.SmallInt
+
   // Caracteristicas de la herida
   origen                 String
   ubicacion              String
@@ -95,6 +101,7 @@ model ClinicaHeridas {
   @@index([usuarioId, createdAt])
   @@index([createdAt])
   @@index([pacienteRef, createdAt])
+  @@index([pacienteRef, ingreso, numero])
 }
 
 /// Referencia a una foto de la herida.

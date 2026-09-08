@@ -113,6 +113,32 @@ function omitir(nombre, motivo) {
 
 console.log(`\nPruebas de autorizacion contra ${BASE}\n`);
 
+/**
+ * Con la validacion de ingreso encendida el puente exige que el paciente tenga
+ * un ingreso abierto en el censo. Los pacientes de estas pruebas son
+ * sinteticos, asi que en ese modo el guardado se bloquea -- correctamente -- y
+ * las comprobaciones que crean seguimientos dejan de ser aplicables: las cubre
+ * `portal-ingreso-tests.mjs`. Se detecta preguntandole al propio servidor.
+ */
+async function validacionIngresoActivaEnServidor() {
+  try {
+    const res = await fetch(`${BASE}/api/clinica-heridas/estado-paciente`, {
+      method: "POST",
+      headers: { "content-type": "application/json", cookie: await cookieDeSesion("CLINICA_HERIDAS") },
+      body: JSON.stringify({ documento: "00000000000000009999" }),
+    });
+    const datos = await res.json().catch(() => null);
+    return datos?.validacionActiva === true;
+  } catch {
+    return false;
+  }
+}
+
+const VALIDACION_INGRESO = await validacionIngresoActivaEnServidor();
+if (VALIDACION_INGRESO) {
+  console.log("  (validacion de ingreso ACTIVA: se omiten las pruebas que crean seguimientos)\n");
+}
+
 const conRol = await cookieDeSesion("CLINICA_HERIDAS");
 const sinRol = await cookieDeSesion("ESPECIALISTA");
 const administrativo = await cookieDeSesion("ADMINISTRATIVO");
@@ -387,6 +413,13 @@ const registroValido = {
     !/1234567890/.test(r.texto),
     `status ${r.status} ${r.texto.slice(0, 120)}`,
   );
+  if (VALIDACION_INGRESO) {
+    comprobar(
+      "con validacion activa, un documento fuera del censo se bloquea",
+      r.status === 409,
+      `status ${r.status}`,
+    );
+  }
 }
 {
   const r = await pedir("/api/clinica-heridas/fotos", { cookie: sinRol, body: {} });
@@ -412,7 +445,13 @@ const registroValido = {
 // borran exactamente las filas que crearon.
 console.log("\nHistorico por pacienteRef");
 
-if (!USUARIO_REAL) {
+if (VALIDACION_INGRESO) {
+  omitir(
+    "varios registros clinicos se agrupan por pacienteRef",
+    "la validacion de ingreso bloquea pacientes sinteticos; lo cubre portal-ingreso-tests.mjs",
+  );
+  omitir("el limite de busquedas devuelve 429", "requiere crear seguimientos de prueba");
+} else if (!USUARIO_REAL) {
   omitir(
     "varios registros clinicos se agrupan por pacienteRef",
     "escribe en Neon; ejecuta con --usuario-id <uuid de un usuario real>",

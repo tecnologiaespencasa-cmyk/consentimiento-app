@@ -162,6 +162,143 @@ export async function registrarConsulta(params: {
   }
 }
 
+/**
+ * Estado del ingreso del paciente al programa de clinica de heridas.
+ *
+ * Un paciente puede recibir el alta y reingresar. Solo se admiten seguimientos
+ * mientras haya un ingreso abierto, y cada seguimiento queda atado al numero de
+ * ingreso vigente para que las atenciones no se mezclen.
+ */
+export type EstadoIngreso =
+  | { estado: "activo"; ingresoActual: number }
+  | { estado: "sin_ingreso_activo" }
+  | { estado: "no_esta_en_censo" }
+  | { estado: "error" };
+
+/**
+ * La validacion de ingreso depende de piezas que viven en el puente (la tabla
+ * `bridge.ingresos_heridas` y la Edge Function `estado-paciente-heridas`) y de
+ * que la intranet ya este publicando los ingresos.
+ *
+ * Mientras eso no este desplegado, la bandera queda apagada y el modulo se
+ * comporta como hasta ahora. Encenderla antes de tiempo bloquearia TODOS los
+ * seguimientos, porque la regla ante un fallo del puente es cerrar la puerta.
+ */
+export function validacionIngresoActiva(): boolean {
+  return process.env.BRIDGE_VALIDACION_INGRESO === "true";
+}
+
+/**
+ * Secreto con el que se firma la consulta de estado.
+ *
+ * Por defecto se usa el secreto de LECTURA. La funcion de estado solo lee, y
+ * darle al portal el secreto de escritura le permitiria tambien sincronizar
+ * pacientes, que es justo la separacion que el puente busca mantener. Si el
+ * equipo del puente decidiera exigir otro secreto, basta configurarlo sin tocar
+ * codigo.
+ */
+function secretoEstado(): string {
+  return process.env.BRIDGE_ESTADO_API_SECRET || process.env.BRIDGE_QUERY_API_SECRET || "";
+}
+
+/**
+ * Pregunta al puente si el paciente tiene un ingreso abierto y cual es.
+ *
+ * Falla CERRADO: cualquier error de red, de firma o de formato devuelve
+ * "error", y quien llama debe bloquear. Un puente caido no puede abrir la
+ * puerta a registrar sobre un paciente que ya recibio el alta.
+ *
+ * @param documento documento tal cual lo escribio el usuario. Solo se usa para
+ *                  construir el cuerpo; la funcion normaliza y calcula el HMAC
+ *                  dentro de Supabase.
+ */
+export async function consultarEstadoIngreso(
+  documento: string,
+  requestId: string,
+): Promise<EstadoIngreso> {
+  const baseUrl = (process.env.SUPABASE_PROJECT_URL ?? "").replace(/\/+$/, "");
+  const secret = secretoEstado();
+
+  if (!baseUrl || !secret) {
+    console.error("clinica-heridas: consulta de ingreso sin configurar", { requestId });
+    return { estado: "error" };
+  }
+
+  const timestamp = Math.floor(Date.now() / 1000);
+  // El cuerpo se serializa UNA sola vez y se firma esa misma cadena: volver a
+  // serializar podria reordenar claves y la firma dejaria de coincidir.
+  const rawBody = JSON.stringify({ requestId, timestamp, document: documento });
+  const firma = createHmac("sha256", secret)
+    .update(`${timestamp}.${requestId}.${rawBody}`)
+    .digest("hex");
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  try {
+    const respuesta = await fetch(`${baseUrl}/functions/v1/estado-paciente-heridas`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${secret}`,
+        "x-bridge-timestamp": String(timestamp),
+        "x-bridge-request-id": requestId,
+        "x-bridge-signature": firma,
+      },
+      body: rawBody,
+      signal: controller.signal,
+      cache: "no-store",
+    });
+
+    if (!respuesta.ok) {
+      console.error("clinica-heridas: respuesta no OK al consultar el ingreso", {
+        requestId,
+        status: respuesta.status,
+      });
+      return { estado: "error" };
+    }
+
+    const datos = (await respuesta.json()) as {
+      found?: boolean;
+      canRegister?: boolean;
+      currentAdmission?: unknown;
+    };
+
+    if (datos.found !== true) return { estado: "no_esta_en_censo" };
+    if (datos.canRegister !== true) return { estado: "sin_ingreso_activo" };
+
+    // Un ingreso activo debe traer su numero. Sin el no se puede etiquetar el
+    // seguimiento, y etiquetarlo mal es peor que no registrarlo.
+    const ingresoActual = datos.currentAdmission;
+    if (typeof ingresoActual !== "number" || !Number.isInteger(ingresoActual) || ingresoActual < 1) {
+      console.error("clinica-heridas: ingreso activo sin numero valido", { requestId });
+      return { estado: "error" };
+    }
+
+    return { estado: "activo", ingresoActual };
+  } catch (error) {
+    console.error("clinica-heridas: fallo consultando el ingreso", {
+      requestId,
+      motivo: error instanceof Error ? error.name : "desconocido",
+    });
+    return { estado: "error" };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+/** Mensaje que ve el usuario para cada motivo de bloqueo. */
+export function mensajeBloqueoIngreso(estado: EstadoIngreso["estado"]): string {
+  switch (estado) {
+    case "sin_ingreso_activo":
+      return "Este paciente no tiene un ingreso activo en clinica de heridas.";
+    case "no_esta_en_censo":
+      return "Este paciente no esta en el censo de clinica de heridas.";
+    default:
+      return "No fue posible verificar el ingreso del paciente. Intente nuevamente.";
+  }
+}
+
 /** Comprueba que las variables de entorno del Bridge estan configuradas. */
 export function bridgeConfigurado(): boolean {
   return Boolean(process.env.SUPABASE_PROJECT_URL && process.env.BRIDGE_QUERY_API_SECRET);

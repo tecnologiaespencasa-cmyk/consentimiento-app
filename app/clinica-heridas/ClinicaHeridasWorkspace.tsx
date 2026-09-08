@@ -11,6 +11,7 @@ import {
   FaNotesMedical,
   FaPlusCircle,
   FaSearch,
+  FaLock,
   FaUserCheck,
   FaUserSlash,
 } from "react-icons/fa";
@@ -33,9 +34,18 @@ type TipoFoto = "PLANO_GENERAL" | "MEDIDA_VERTICAL" | "MEDIDA_HORIZONTAL" | "LAT
 
 type Foto = { id: string; tipo: TipoFoto; nombre: string };
 
+/** Estado del ingreso al programa que devuelve el puente. */
+type EstadoIngreso = {
+  validacionActiva: boolean;
+  puedeRegistrar: boolean;
+  ingresoActual: number | null;
+  motivo: string | null;
+};
+
 type Seguimiento = {
   id: string;
   numero: number;
+  ingreso: number;
   createdAt: string;
   origen: string;
   ubicacion: string;
@@ -164,6 +174,8 @@ export default function ClinicaHeridasWorkspace() {
   const [noEncontrado, setNoEncontrado] = useState(false);
   const [seguimientos, setSeguimientos] = useState<Seguimiento[]>([]);
   const [seleccionado, setSeleccionado] = useState<string | null>(null);
+  const [ingreso, setIngreso] = useState<EstadoIngreso | null>(null);
+  const [verificandoIngreso, setVerificandoIngreso] = useState(false);
   const [creando, setCreando] = useState(false);
   const [form, setForm] = useState(FORM_INICIAL);
   const [archivos, setArchivos] = useState<Partial<Record<TipoFoto, File>>>({});
@@ -175,13 +187,19 @@ export default function ClinicaHeridasWorkspace() {
     total: number;
   } | null>(null);
 
+  // Solo bloquea cuando la validacion esta activa y el puente dijo que no.
+  const bloqueadoPorIngreso = Boolean(ingreso?.validacionActiva && !ingreso.puedeRegistrar);
+
   const seguimientoActual = seguimientos.find((s) => s.id === seleccionado) ?? null;
   const ultimo = seguimientos.length ? seguimientos[seguimientos.length - 1] : null;
+  // Solo se distingue el ingreso en pantalla cuando el paciente tiene mas de uno.
+  const hayVariosIngresos = new Set(seguimientos.map((s) => s.ingreso)).size > 1;
   const proximoNumero = (ultimo?.numero ?? 0) + 1;
 
   function cerrarPaciente() {
     setPaciente(null);
     setNoEncontrado(false);
+    setIngreso(null);
     setSeguimientos([]);
     setSeleccionado(null);
     setCreando(false);
@@ -204,6 +222,7 @@ export default function ClinicaHeridasWorkspace() {
     setBuscando(true);
     setPaciente(null);
     setNoEncontrado(false);
+    setIngreso(null);
     setSeguimientos([]);
     setSeleccionado(null);
     setCreando(false);
@@ -226,6 +245,7 @@ export default function ClinicaHeridasWorkspace() {
         // Se conserva en memoria mientras el paciente este abierto: es lo que
         // da nombre a su carpeta de SharePoint la primera vez.
         setDocumentoSesion(valor);
+        setIngreso(datos.ingreso ?? null);
         const historico: Seguimiento[] = datos.seguimientos ?? [];
         setSeguimientos(historico);
         setSeleccionado(historico.length ? historico[historico.length - 1].id : null);
@@ -250,6 +270,56 @@ export default function ClinicaHeridasWorkspace() {
   }
 
   /**
+   * Comprueba el ingreso antes de abrir el formulario.
+   *
+   * Falla CERRADO: si el puente no responde no se abre el formulario, porque un
+   * fallo de infraestructura no puede habilitar el registro sobre un paciente
+   * que quiza ya recibio el alta.
+   */
+  async function verificarIngresoAntesDeAbrir(): Promise<boolean> {
+    if (!documentoSesion) return true;
+    setVerificandoIngreso(true);
+    try {
+      const respuesta = await fetch("/api/clinica-heridas/estado-paciente", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+        body: JSON.stringify({ documento: documentoSesion }),
+      });
+      const datos = await respuesta.json();
+
+      if (!respuesta.ok && respuesta.status !== 409) {
+        const motivo =
+          datos?.motivo ?? datos?.error ?? "No fue posible verificar el ingreso del paciente.";
+        setIngreso({ validacionActiva: true, puedeRegistrar: false, ingresoActual: null, motivo });
+        toast.error(motivo);
+        return false;
+      }
+
+      const estado: EstadoIngreso = {
+        validacionActiva: datos.validacionActiva ?? false,
+        puedeRegistrar: datos.puedeRegistrar === true,
+        ingresoActual: datos.ingresoActual ?? null,
+        motivo: datos.motivo ?? null,
+      };
+      setIngreso(estado);
+
+      if (!estado.puedeRegistrar) {
+        toast.error(estado.motivo ?? "Este paciente no admite nuevos seguimientos.");
+        return false;
+      }
+      return true;
+    } catch {
+      const motivo = "No fue posible verificar el ingreso del paciente. Intente nuevamente.";
+      setIngreso({ validacionActiva: true, puedeRegistrar: false, ingresoActual: null, motivo });
+      toast.error(motivo);
+      return false;
+    } finally {
+      setVerificandoIngreso(false);
+    }
+  }
+
+  /**
    * Abre el formulario del siguiente seguimiento precargando el anterior.
    *
    * Solo se arrastran los valores que siguen perteneciendo al catalogo: un
@@ -258,7 +328,11 @@ export default function ClinicaHeridasWorkspace() {
    * valor invalido en el estado. En ese caso se deja en blanco para que el
    * profesional elija una opcion valida.
    */
-  function nuevoSeguimiento() {
+  async function nuevoSeguimiento() {
+    // Se vuelve a preguntar por el ingreso al abrir el formulario: entre la
+    // busqueda y este clic el paciente pudo recibir el alta.
+    if (!(await verificarIngresoAntesDeAbrir())) return;
+
     if (ultimo) {
       const heredar = (clave: ClaveTexto) => {
         const valor = ultimo[clave];
@@ -316,6 +390,7 @@ export default function ClinicaHeridasWorkspace() {
 
       const seguimientoId: string = datos.seguimiento.id;
       const numero: number = datos.seguimiento.numero;
+      const ingresoDelSeguimiento: number = datos.seguimiento.ingreso ?? 1;
 
       // Las fotos se suben una a una: cada archivo va directo a SharePoint y en
       // Neon solo queda su referencia.
@@ -349,6 +424,7 @@ export default function ClinicaHeridasWorkspace() {
       const nuevo: Seguimiento = {
         id: seguimientoId,
         numero,
+        ingreso: ingresoDelSeguimiento,
         createdAt: new Date().toISOString(),
         origen: form.origen.toUpperCase(),
         ubicacion: form.ubicacion.toUpperCase(),
@@ -493,12 +569,30 @@ export default function ClinicaHeridasWorkspace() {
                 <button
                   type="button"
                   onClick={nuevoSeguimiento}
-                  disabled={creando}
+                  disabled={creando || verificandoIngreso || bloqueadoPorIngreso}
+                  title={bloqueadoPorIngreso ? (ingreso?.motivo ?? undefined) : undefined}
                   className="inline-flex items-center gap-2 rounded-xl bg-red-700 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  <FaPlusCircle /> Nuevo seguimiento {proximoNumero}
+                  {bloqueadoPorIngreso ? <FaLock /> : <FaPlusCircle />}
+                  {verificandoIngreso
+                    ? "Verificando ingreso..."
+                    : `Nuevo seguimiento ${proximoNumero}`}
                 </button>
               </div>
+
+              {bloqueadoPorIngreso && (
+                <p className="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm font-semibold text-amber-800">
+                  <FaLock className="mt-0.5 shrink-0" />
+                  {ingreso?.motivo}
+                </p>
+              )}
+
+              {ingreso?.validacionActiva && ingreso.puedeRegistrar && ingreso.ingresoActual && (
+                <p className="mt-4 text-sm text-slate-500">
+                  Ingreso activo N.° {ingreso.ingresoActual}. Los seguimientos nuevos quedarán
+                  registrados en ese ingreso.
+                </p>
+              )}
 
               {seguimientos.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -517,6 +611,11 @@ export default function ClinicaHeridasWorkspace() {
                       }`}
                     >
                       Seguimiento {seguimiento.numero}
+                      {hayVariosIngresos && (
+                        <span className="ml-2 rounded-md bg-slate-100 px-1.5 py-0.5 text-xs font-bold text-slate-600">
+                          Ingreso {seguimiento.ingreso}
+                        </span>
+                      )}
                       <span className="ml-2 font-normal text-slate-400">
                         {formatearFecha(seguimiento.createdAt)}
                       </span>

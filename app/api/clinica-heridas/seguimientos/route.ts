@@ -4,7 +4,13 @@ import { Prisma } from "@prisma/client";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 import { tieneAccesoClinicaHeridas } from "@/lib/roles";
-import { esPacienteRefValido } from "@/lib/clinicaHeridas";
+import {
+  consultarEstadoIngreso,
+  esPacienteRefValido,
+  mensajeBloqueoIngreso,
+  nuevoRequestId,
+  validacionIngresoActiva,
+} from "@/lib/clinicaHeridas";
 import { CAMPOS_CATALOGO, esOpcionValida } from "@/lib/clinicaHeridasCatalogos";
 import {
   asegurarCarpetaPaciente,
@@ -117,6 +123,29 @@ export async function POST(req: Request) {
   const documento =
     typeof body?.documento === "string" ? body.documento.trim().slice(0, 30) : "";
 
+  // Validacion del ingreso. Se repite aqui aunque el formulario ya la hiciera al
+  // abrirse: el alta del paciente pudo ocurrir mientras se llenaba. Esta es la
+  // comprobacion que decide, y falla CERRADO.
+  let ingreso = 1;
+  if (validacionIngresoActiva()) {
+    if (!documento) {
+      return NextResponse.json(
+        { error: "Vuelve a buscar el paciente para verificar su ingreso." },
+        { status: 409 },
+      );
+    }
+    const estado = await consultarEstadoIngreso(documento, nuevoRequestId());
+    if (estado.estado !== "activo") {
+      return NextResponse.json(
+        { error: mensajeBloqueoIngreso(estado.estado) },
+        // 502 cuando el puente falla: el cliente debe reintentar, no dar el
+        // paciente por dado de alta.
+        { status: estado.estado === "error" ? 502 : 409 },
+      );
+    }
+    ingreso = estado.ingresoActual;
+  }
+
   try {
     const paciente = await prisma.clinicaHeridasPaciente.upsert({
       where: { pacienteRef },
@@ -164,6 +193,8 @@ export async function POST(req: Request) {
     const seguimiento = await prisma.clinicaHeridas.create({
       data: {
         numero,
+        // Lo entrega el censo; el portal nunca lo calcula.
+        ingreso,
         pacienteRef,
         origen: valoresTexto.origen,
         ubicacion: valoresTexto.ubicacion,
@@ -180,7 +211,7 @@ export async function POST(req: Request) {
         carpetaDriveItemId: carpetaSeguimientoId,
         usuarioId: session.user.id,
       },
-      select: { id: true, numero: true, carpetaDriveItemId: true },
+      select: { id: true, numero: true, ingreso: true, carpetaDriveItemId: true },
     });
 
     return NextResponse.json(
@@ -189,6 +220,7 @@ export async function POST(req: Request) {
         seguimiento: {
           id: seguimiento.id,
           numero: seguimiento.numero,
+          ingreso: seguimiento.ingreso,
           almacenamientoListo: Boolean(seguimiento.carpetaDriveItemId),
         },
       },

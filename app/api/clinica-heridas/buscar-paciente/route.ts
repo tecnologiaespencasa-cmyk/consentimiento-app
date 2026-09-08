@@ -5,6 +5,9 @@ import { prisma } from "@/lib/prisma";
 import { tieneAccesoClinicaHeridas } from "@/lib/roles";
 import {
   buscarPacienteEnBridge,
+  consultarEstadoIngreso,
+  mensajeBloqueoIngreso,
+  validacionIngresoActiva,
   documentoTieneFormatoValido,
   enmascararDocumento,
   evaluarRateLimit,
@@ -124,6 +127,13 @@ export async function POST(req: Request) {
     return sinCache(NextResponse.json({ encontrado: false }, { status: 200 }));
   }
 
+  // Estado del ingreso al programa. Se consulta ya en la busqueda para que la
+  // pantalla avise de inmediato si el paciente recibio el alta, en vez de dejar
+  // que abran el formulario y falle al final.
+  const estadoIngreso = validacionIngresoActiva()
+    ? await consultarEstadoIngreso(documento, nuevoRequestId())
+    : null;
+
   // Historico clinico del paciente, agrupado por su referencia opaca.
   const seguimientos = await prisma.clinicaHeridas.findMany({
     where: { pacienteRef: resultado.pacienteRef },
@@ -131,6 +141,7 @@ export async function POST(req: Request) {
     select: {
       id: true,
       numero: true,
+      ingreso: true,
       createdAt: true,
       origen: true,
       ubicacion: true,
@@ -161,6 +172,17 @@ export async function POST(req: Request) {
           pacienteRef: resultado.pacienteRef,
           documentoMascarado: enmascararDocumento(documento),
         },
+        ingreso: estadoIngreso
+          ? {
+              validacionActiva: true,
+              puedeRegistrar: estadoIngreso.estado === "activo",
+              ingresoActual: estadoIngreso.estado === "activo" ? estadoIngreso.ingresoActual : null,
+              motivo:
+                estadoIngreso.estado === "activo"
+                  ? null
+                  : mensajeBloqueoIngreso(estadoIngreso.estado),
+            }
+          : { validacionActiva: false, puedeRegistrar: true, ingresoActual: null, motivo: null },
         seguimientos: seguimientos.map((seguimiento) => ({
           ...seguimiento,
           registradoPor: `${seguimiento.usuario.nombres} ${seguimiento.usuario.primerApellido}`.trim(),

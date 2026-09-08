@@ -302,9 +302,13 @@ console.log("\nAislamiento del sistema productor");
 {
   const cliente = readFileSync(join(RAIZ, "lib", "clinicaHeridas.ts"), "utf8");
   const urls = [...cliente.matchAll(/fetch\(\s*`?([^`,)]*)/g)].map((m) => m[1]);
+  const FUNCIONES_PERMITIDAS = [
+    "functions/v1/get-paciente-clinica-heridas",
+    "functions/v1/estado-paciente-heridas",
+  ];
   comprobar(
-    "la unica llamada saliente del modulo apunta a la Edge Function del puente",
-    urls.length === 1 && urls[0].includes("functions/v1/get-paciente-clinica-heridas"),
+    "todas las llamadas salientes del modulo apuntan a Edge Functions del puente",
+    urls.length > 0 && urls.every((u) => FUNCIONES_PERMITIDAS.some((f) => u.includes(f))),
     urls.join(" | "),
   );
   comprobar(
@@ -435,6 +439,61 @@ if (!existsSync(dirEstatico)) {
     `ningun secreto aparece en los ${archivos.length} bundles servidos al navegador`,
     infractores.length === 0,
     infractores.join("\n          -> "),
+  );
+}
+
+// --- 6. Validacion del ingreso al programa ----------------------------------
+//
+// Un paciente puede recibir el alta y reingresar. Solo se admiten seguimientos
+// sobre un ingreso abierto, y el numero de ingreso lo dicta el censo.
+console.log("\nValidacion del ingreso");
+
+{
+  const codigo = soloCodigo(readFileSync(join(RAIZ, "lib", "clinicaHeridas.ts"), "utf8"));
+
+  comprobar(
+    "solo se autoriza cuando el puente responde canRegister exactamente true",
+    codigo.includes("datos.canRegister !== true"),
+  );
+  comprobar(
+    "un ingreso activo sin numero valido se trata como error, no como permiso",
+    codigo.includes("Number.isInteger(ingresoActual)"),
+  );
+  comprobar(
+    "la consulta de ingreso no usa el secreto de escritura del puente",
+    !codigo.includes("BRIDGE_API_SECRET"),
+  );
+
+  const alta = soloCodigo(
+    readFileSync(join(RAIZ, "app", "api", "clinica-heridas", "seguimientos", "route.ts"), "utf8"),
+  );
+  comprobar(
+    "el alta revalida el ingreso antes de escribir en Neon",
+    alta.includes("consultarEstadoIngreso") &&
+      alta.indexOf("consultarEstadoIngreso") < alta.indexOf("prisma.clinicaHeridas.create"),
+  );
+  comprobar(
+    "el numero de ingreso lo entrega el puente, no lo calcula el portal",
+    alta.includes("ingreso = estado.ingresoActual"),
+  );
+
+  const pantalla = readFileSync(
+    join(RAIZ, "app", "clinica-heridas", "ClinicaHeridasWorkspace.tsx"),
+    "utf8",
+  );
+  comprobar(
+    "la interfaz revalida el ingreso al abrir el formulario",
+    pantalla.includes("verificarIngresoAntesDeAbrir"),
+  );
+
+  const schema = readFileSync(join(RAIZ, "prisma", "schema.prisma"), "utf8");
+  const modeloSeguimiento = schema.slice(
+    schema.indexOf("model ClinicaHeridas {"),
+    schema.indexOf("model ClinicaHeridasFoto"),
+  );
+  comprobar(
+    "el seguimiento persiste el ingreso al que pertenece",
+    modeloSeguimiento.includes("ingreso") && modeloSeguimiento.includes("@default(1)"),
   );
 }
 

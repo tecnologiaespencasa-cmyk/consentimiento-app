@@ -9,7 +9,9 @@
     "lint": "eslint",
     "test:clinica-heridas": "node scripts/clinica-heridas/security-checks.mjs",
     "test:clinica-heridas:bridge": "node scripts/clinica-heridas/bridge-selftest.mjs",
-    "test:clinica-heridas:portal": "node scripts/clinica-heridas/portal-role-tests.mjs"
+    "test:clinica-heridas:portal": "node scripts/clinica-heridas/portal-role-tests.mjs",
+    "test:clinica-heridas:ingreso": "node scripts/clinica-heridas/bridge-ingreso-selftest.mjs",
+    "test:clinica-heridas:ingreso:portal": "node scripts/clinica-heridas/portal-ingreso-tests.mjs"
   },
   "dependencies": {
     "@azure/msal-node": "^3.8.4",
