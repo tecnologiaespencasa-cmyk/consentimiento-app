@@ -153,6 +153,7 @@ model RondaIntramural {
   pacienteTipoDoc        TipoDocumentoRonda
   pacienteDocumento      String
   ips                    String
+  fechaIngreso           DateTime           @db.Date
   cie10Codigo            String
   diagnosticoDescriptivo String
   ingresoEfectivo        Boolean?

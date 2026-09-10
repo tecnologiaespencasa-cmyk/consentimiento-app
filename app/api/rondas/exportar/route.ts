@@ -23,6 +23,13 @@ const formatoFecha = new Intl.DateTimeFormat("es-CO", {
   hour12: false,
 });
 
+// dd/MM/yyyy para la fecha de ingreso, que se guarda como fecha pura (@db.Date ->
+// medianoche UTC): se lee en UTC para no correr el dia.
+function fechaSolo(value: Date) {
+  const [year, month, day] = value.toISOString().slice(0, 10).split("-");
+  return `${day}/${month}/${year}`;
+}
+
 // dd/MM/yyyy HH:mm:ss sin coma, para que Excel lo reconozca como fecha y permita filtrar y ordenar.
 function fecha(value: Date) {
   const partes = formatoFecha.formatToParts(value).reduce<Record<string, string>>((acc, parte) => {
@@ -47,7 +54,7 @@ export async function GET() {
   });
 
   const columns = [
-    "ID reporte", "Fecha de registro", "Fecha de última actualización", "Nombre del paciente", "Tipo de identificación", "Número de identificación", "IPS", "Código CIE-10", "Diagnóstico descriptivo", "Ingreso efectivo", "Causa de no ingreso", "Observación de no ingreso", "Otros",
+    "ID reporte", "Fecha de registro", "Fecha de última actualización", "Nombre del paciente", "Tipo de identificación", "Número de identificación", "IPS", "Fecha de ingreso", "Código CIE-10", "Diagnóstico descriptivo", "Ingreso efectivo", "Causa de no ingreso", "Observación de no ingreso", "Otros",
     "Medicamento 1", "Medicamento 2", "Medicamento 3", "Medicamento 4", "Medicamento 5", "Medicamento 6",
     "ID usuario reporta", "Usuario reporta", "Nombres usuario reporta", "Primer apellido usuario reporta", "Segundo apellido usuario reporta", "Rol usuario reporta", "Correo usuario reporta", "Teléfono usuario reporta", "Cédula usuario reporta", "Profesión usuario reporta",
   ];
@@ -55,7 +62,7 @@ export async function GET() {
   const rows = rondas.map((ronda) => {
     const medicamentos = Array.from({ length: 6 }, (_, index) => ronda.medicamentos[index]?.nombre ?? "");
     return [
-      ronda.id, fecha(ronda.createdAt), fecha(ronda.updatedAt), ronda.pacienteNombre, ronda.pacienteTipoDoc, ronda.pacienteDocumento, ronda.ips, ronda.cie10Codigo, ronda.diagnosticoDescriptivo,
+      ronda.id, fecha(ronda.createdAt), fecha(ronda.updatedAt), ronda.pacienteNombre, ronda.pacienteTipoDoc, ronda.pacienteDocumento, ronda.ips, fechaSolo(ronda.fechaIngreso), ronda.cie10Codigo, ronda.diagnosticoDescriptivo,
       ronda.ingresoEfectivo === null ? "SIN GESTIÓN" : ronda.ingresoEfectivo ? "SÍ" : "NO", ronda.causaNoIngreso ?? "", ronda.observacionNoIngreso ?? "", ronda.otros ?? "", ...medicamentos,
       ronda.usuario.id, ronda.usuario.username, ronda.usuario.nombres, ronda.usuario.primerApellido, ronda.usuario.segundoApellido ?? "", ronda.usuario.rol, ronda.usuario.email ?? "", ronda.usuario.telefono ?? "", ronda.usuario.cedula, ronda.usuario.profesion,
     ];

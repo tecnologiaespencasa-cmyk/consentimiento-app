@@ -1,17 +1,29 @@
 "use client"
 
 import { useRouter, useSearchParams } from "next/navigation"
-import { useMemo, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { FaSearch, FaFilter, FaTimes } from "react-icons/fa"
+
+const PROFESIONES: { value: string; label: string }[] = [
+  { value: "AUXILIAR_ENFERMERIA", label: "Auxiliar de enfermería" },
+  { value: "ENFERMERIA", label: "Enfermería" },
+  { value: "MEDICO", label: "Médico" },
+  { value: "FISIOTERAPIA", label: "Fisioterapia" },
+  { value: "FONOAUDIOLOGIA", label: "Fonoaudiología" },
+  { value: "NUTRICION", label: "Nutrición" },
+  { value: "OTRO", label: "Otro" },
+]
 
 export default function UsuariosFiltros({
   initialQ,
   initialRol,
   initialEstado,
+  initialProfesion,
 }: {
   initialQ: string
   initialRol: string
   initialEstado: string
+  initialProfesion: string
 }) {
   const router = useRouter()
   const sp = useSearchParams()
@@ -19,18 +31,15 @@ export default function UsuariosFiltros({
   const [q, setQ] = useState(initialQ ?? "")
   const [rol, setRol] = useState(initialRol ?? "")
   const [estado, setEstado] = useState(initialEstado ?? "")
+  const [profesion, setProfesion] = useState(initialProfesion ?? "")
 
-  const baseParams = useMemo(() => {
+  // URL destino segun el estado actual de los filtros (sin 'page')
+  function targetUrl() {
     const p = new URLSearchParams(sp?.toString() ?? "")
-    // limpiamos paginación al cambiar filtro
     p.delete("page")
-    return p
-  }, [sp])
 
-  function apply() {
-    const p = new URLSearchParams(baseParams.toString())
-
-    if (q.trim()) p.set("q", q.trim())
+    const nq = q.trim()
+    if (nq) p.set("q", nq)
     else p.delete("q")
 
     if (rol) p.set("rol", rol)
@@ -39,14 +48,52 @@ export default function UsuariosFiltros({
     if (estado) p.set("estado", estado)
     else p.delete("estado")
 
-    router.push(`/usuarios?${p.toString()}`)
+    if (profesion) p.set("profesion", profesion)
+    else p.delete("profesion")
+
+    const s = p.toString()
+    return s ? `/usuarios?${s}` : "/usuarios"
+  }
+
+  // Comparacion de la parte de filtros (ignora 'page') para no navegar de mas
+  function currentFilterString() {
+    const p = new URLSearchParams(sp?.toString() ?? "")
+    p.delete("page")
+    return p.toString()
+  }
+
+  function desiredFilterString() {
+    const url = targetUrl()
+    const qs = url.split("?")[1] ?? ""
+    return new URLSearchParams(qs).toString()
+  }
+
+  // Busqueda/filtrado en vivo con debounce: navega cuando cambian los filtros.
+  const firstRun = useRef(true)
+  useEffect(() => {
+    if (firstRun.current) {
+      firstRun.current = false
+      return
+    }
+    if (desiredFilterString() === currentFilterString()) return
+
+    const t = setTimeout(() => {
+      router.replace(targetUrl(), { scroll: false })
+    }, 300)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, rol, estado, profesion, sp])
+
+  function applyNow() {
+    router.replace(targetUrl(), { scroll: false })
   }
 
   function clear() {
     setQ("")
     setRol("")
     setEstado("")
-    router.push("/usuarios")
+    setProfesion("")
+    router.replace("/usuarios", { scroll: false })
   }
 
   return (
@@ -63,7 +110,10 @@ export default function UsuariosFiltros({
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Usuario, nombre o email..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter") applyNow()
+              }}
+              placeholder="Usuario, nombre completo, cédula o email..."
               className="w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
             />
             <FaSearch className="absolute left-3 top-3.5 text-gray-400" />
@@ -99,6 +149,22 @@ export default function UsuariosFiltros({
             <option value="inactivo">Inactivo</option>
           </select>
         </div>
+
+        <div className="md:col-span-2">
+          <label className="text-xs font-semibold text-gray-600">Profesión</label>
+          <select
+            value={profesion}
+            onChange={(e) => setProfesion(e.target.value)}
+            className="w-full px-3 py-3 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-red-500"
+          >
+            <option value="">Todas</option>
+            {PROFESIONES.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="mt-3 flex flex-col md:flex-row gap-2 justify-end">
@@ -113,7 +179,7 @@ export default function UsuariosFiltros({
 
         <button
           type="button"
-          onClick={apply}
+          onClick={applyNow}
           className="inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700"
         >
           Aplicar

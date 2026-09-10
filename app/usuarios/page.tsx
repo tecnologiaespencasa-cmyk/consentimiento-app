@@ -17,6 +17,26 @@ import {
 
 const PAGE_SIZE = 20
 
+const PROFESIONES = [
+  "AUXILIAR_ENFERMERIA",
+  "ENFERMERIA",
+  "MEDICO",
+  "FISIOTERAPIA",
+  "FONOAUDIOLOGIA",
+  "NUTRICION",
+  "OTRO",
+] as const
+
+const PROFESION_LABEL: Record<string, string> = {
+  AUXILIAR_ENFERMERIA: "Aux. Enfermería",
+  ENFERMERIA: "Enfermería",
+  MEDICO: "Médico",
+  FISIOTERAPIA: "Fisioterapia",
+  FONOAUDIOLOGIA: "Fonoaudiología",
+  NUTRICION: "Nutrición",
+  OTRO: "Otro",
+}
+
 function nombreCompleto(u: {
   nombres: string
   primerApellido: string
@@ -53,6 +73,7 @@ export default async function UsuariosPage({
   const q = (Array.isArray(sp.q) ? sp.q[0] : sp.q) ?? ""
   const rol = (Array.isArray(sp.rol) ? sp.rol[0] : sp.rol) ?? ""
   const estado = (Array.isArray(sp.estado) ? sp.estado[0] : sp.estado) ?? "" // "activo" | "inactivo" | ""
+  const profesion = (Array.isArray(sp.profesion) ? sp.profesion[0] : sp.profesion) ?? ""
 
   // paginacion
   const page = toInt(Array.isArray(sp.page) ? sp.page[0] : sp.page, 1)
@@ -67,15 +88,24 @@ export default async function UsuariosPage({
   if (estado === "activo") where.activo = true
   if (estado === "inactivo") where.activo = false
 
+  if (profesion && (PROFESIONES as readonly string[]).includes(profesion)) {
+    where.profesion = profesion
+  }
+
   if (q.trim()) {
-    const query = q.trim()
-    where.OR = [
-      { username: { contains: query, mode: "insensitive" } },
-      { email: { contains: query, mode: "insensitive" } },
-      { nombres: { contains: query, mode: "insensitive" } },
-      { primerApellido: { contains: query, mode: "insensitive" } },
-      { segundoApellido: { contains: query, mode: "insensitive" } },
-    ]
+    // Cada palabra debe aparecer en algun campo (nombre pegado completo, con
+    // espacios sobrantes o en cualquier orden, encuentra al usuario).
+    const tokens = q.trim().split(/\s+/).filter(Boolean)
+    where.AND = tokens.map((token) => ({
+      OR: [
+        { username: { contains: token, mode: "insensitive" } },
+        { email: { contains: token, mode: "insensitive" } },
+        { cedula: { contains: token, mode: "insensitive" } },
+        { nombres: { contains: token, mode: "insensitive" } },
+        { primerApellido: { contains: token, mode: "insensitive" } },
+        { segundoApellido: { contains: token, mode: "insensitive" } },
+      ],
+    }))
   }
 
   // Conteo para paginacion (FILTRADO)
@@ -100,6 +130,7 @@ export default async function UsuariosPage({
       nombres: true,
       primerApellido: true,
       segundoApellido: true,
+      profesion: true,
     },
   })
 
@@ -245,7 +276,12 @@ export default async function UsuariosPage({
 
           {/* Lista */}
           <div className="lg:col-span-2">
-            <UsuariosFiltros initialQ={q} initialRol={rol} initialEstado={estado} />
+            <UsuariosFiltros
+              initialQ={q}
+              initialRol={rol}
+              initialEstado={estado}
+              initialProfesion={profesion}
+            />
 
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden mt-4">
               <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
@@ -271,6 +307,7 @@ export default async function UsuariosPage({
                       <tr className="bg-gray-50 border-b border-gray-200">
                         <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Usuario</th>
                         <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Nombre</th>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Profesión</th>
                         <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Rol</th>
                         <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Estado</th>
                         <th className="text-left py-4 px-6 text-sm font-semibold text-gray-700">Acciones</th>
@@ -308,6 +345,12 @@ export default async function UsuariosPage({
 
                           <td className="py-4 px-6">
                             <span className="text-gray-700">{nombreCompleto(u)}</span>
+                          </td>
+
+                          <td className="py-4 px-6">
+                            <span className="text-gray-700">
+                              {PROFESION_LABEL[u.profesion] ?? u.profesion}
+                            </span>
                           </td>
 
                           <td className="py-4 px-6">
@@ -371,6 +414,7 @@ export default async function UsuariosPage({
                     q={q}
                     rol={rol}
                     estado={estado}
+                    profesion={profesion}
                   />
                 </div>
 

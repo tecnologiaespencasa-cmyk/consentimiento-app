@@ -3,11 +3,13 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 import { TipoDocumentoRonda } from "@prisma/client";
+import { IPS_OPCIONES } from "@/app/rondas/opciones";
 
 const ROLES_RONDA = ["MEDICO_RONDA", "TECNICO", "ADMINISTRATIVO"];
 const TIPOS_DOCUMENTO = ["CC", "RC", "PA", "CE", "TI", "PE", "PPT"] as const;
 const NOMBRE_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ ]+$/;
 const CIE10_REGEX = /^[A-Z][0-9]{3}$/;
+const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 function texto(value: unknown, max: number) {
   return typeof value === "string" ? value.trim().slice(0, max).toUpperCase() : "";
@@ -28,6 +30,7 @@ export async function POST(req: Request) {
     const pacienteTipoDoc = texto(body?.pacienteTipoDoc, 3);
     const pacienteDocumento = texto(body?.pacienteDocumento, 30);
     const ips = texto(body?.ips, 150);
+    const fechaIngresoRaw = typeof body?.fechaIngreso === "string" ? body.fechaIngreso.trim() : "";
     const cie10Codigo = texto(body?.cie10Codigo, 4).toUpperCase();
     const otros = texto(body?.otros, 2000) || null;
     const medicamentos = Array.isArray(body?.medicamentos) ? body.medicamentos : [];
@@ -42,7 +45,12 @@ export async function POST(req: Request) {
       ? /^[A-Za-z0-9]+$/.test(pacienteDocumento)
       : /^[0-9]+$/.test(pacienteDocumento);
     if (!documentoValido) return NextResponse.json({ error: "El número de identificación no tiene un formato válido." }, { status: 400 });
-    if (!ips) return NextResponse.json({ error: "La IPS es obligatoria." }, { status: 400 });
+    if (!(IPS_OPCIONES as readonly string[]).includes(ips)) return NextResponse.json({ error: "Selecciona una IPS de la lista." }, { status: 400 });
+    if (!FECHA_REGEX.test(fechaIngresoRaw)) return NextResponse.json({ error: "La fecha de ingreso no es válida." }, { status: 400 });
+    const fechaIngreso = new Date(`${fechaIngresoRaw}T00:00:00.000Z`);
+    if (Number.isNaN(fechaIngreso.getTime())) return NextResponse.json({ error: "La fecha de ingreso no es válida." }, { status: 400 });
+    const hoyBogota = new Date(`${new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" })}T00:00:00.000Z`);
+    if (fechaIngreso.getTime() > hoyBogota.getTime()) return NextResponse.json({ error: "La fecha de ingreso no puede ser futura." }, { status: 400 });
     if (!CIE10_REGEX.test(cie10Codigo)) return NextResponse.json({ error: "El CIE-10 debe tener una letra seguida de tres números." }, { status: 400 });
     if (!Array.isArray(medicamentos) || medicamentos.length > 6) {
       return NextResponse.json({ error: "Puedes registrar hasta seis medicamentos." }, { status: 400 });
@@ -67,6 +75,7 @@ export async function POST(req: Request) {
         pacienteTipoDoc: pacienteTipoDoc as TipoDocumentoRonda,
         pacienteDocumento,
         ips,
+        fechaIngreso,
         cie10Codigo,
         diagnosticoDescriptivo: cie10.descripcion,
         otros,

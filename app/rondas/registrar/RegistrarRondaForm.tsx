@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { FaCheckCircle, FaMinusCircle, FaPlusCircle, FaPills, FaUserPlus } from "react-icons/fa";
+import { IPS_OPCIONES } from "../opciones";
 
 type Medicamento = { nombre: string };
 type MedicamentoForm = { nombre: string };
@@ -12,9 +13,10 @@ const nuevoMedicamento = (): MedicamentoForm => ({ nombre: "" });
 export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamentosCatalogo: Medicamento[] }) {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ pacienteNombre: "", pacienteTipoDoc: "CC", pacienteDocumento: "", ips: "", cie10Codigo: "", diagnosticoDescriptivo: "", otros: "" });
+  const [form, setForm] = useState({ pacienteNombre: "", pacienteTipoDoc: "CC", pacienteDocumento: "", ips: "", fechaIngreso: "", cie10Codigo: "", diagnosticoDescriptivo: "", otros: "" });
   const [medicamentos, setMedicamentos] = useState<MedicamentoForm[]>([]);
   const cie10Valido = /^[A-Z][0-9]{3}$/.test(form.cie10Codigo);
+  const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
   const catalogoSet = useMemo(() => new Set(medicamentosCatalogo.map((m) => m.nombre.toUpperCase())), [medicamentosCatalogo]);
 
   useEffect(() => {
@@ -65,7 +67,8 @@ export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamen
           <Campo label="Nombre del paciente"><input required value={form.pacienteNombre} onChange={(e) => setForm((p) => ({ ...p, pacienteNombre: e.target.value.replace(/[^A-Za-zÀ-ÖØ-öø-ÿÑñ ]/g, "").toUpperCase() }))} placeholder="Nombres y apellidos" className="input" /></Campo>
           <Campo label="Tipo de identificación"><select value={form.pacienteTipoDoc} onChange={(e) => setForm((p) => ({ ...p, pacienteTipoDoc: e.target.value, pacienteDocumento: "" }))} className="input"><option>CC</option><option>RC</option><option>PA</option><option>CE</option><option>TI</option><option>PE</option><option>PPT</option></select></Campo>
           <Campo label="Número de identificación"><input required value={form.pacienteDocumento} onChange={(e) => actualizarDocumento(e.target.value)} placeholder={["PA", "CE"].includes(form.pacienteTipoDoc) ? "Letras y números" : "Solo números"} className="input" /></Campo>
-          <Campo label="IPS"><input required value={form.ips} onChange={(e) => setForm((p) => ({ ...p, ips: e.target.value.toUpperCase() }))} placeholder="Nombre de la IPS" className="input" /></Campo>
+          <Campo label="IPS"><select required value={form.ips} onChange={(e) => setForm((p) => ({ ...p, ips: e.target.value }))} className="input"><option value="" disabled>Selecciona la IPS</option>{IPS_OPCIONES.map((ips) => <option key={ips} value={ips}>{ips}</option>)}</select></Campo>
+          <Campo label="Fecha de ingreso"><input required type="date" value={form.fechaIngreso} max={hoy} onChange={(e) => setForm((p) => ({ ...p, fechaIngreso: e.target.value }))} className="input" /></Campo>
           <Campo label="Código CIE-10"><input required maxLength={4} value={form.cie10Codigo} onChange={(e) => setForm((p) => ({ ...p, cie10Codigo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") }))} placeholder="Ejemplo: N390" className="input uppercase" /><p className="mt-1 text-xs text-slate-500">Una letra y tres números.</p></Campo>
           <Campo label="Diagnóstico descriptivo"><div className={`input flex items-center min-h-11 ${form.diagnosticoDescriptivo ? "bg-slate-50 text-slate-700" : "bg-slate-50 text-slate-400"}`} aria-live="polite">{form.diagnosticoDescriptivo || "Se completa automáticamente con el CIE-10"}</div></Campo>
         </div>

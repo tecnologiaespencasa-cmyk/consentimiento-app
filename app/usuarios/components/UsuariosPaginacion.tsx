@@ -5,16 +5,19 @@ function buildUrl({
   q,
   rol,
   estado,
+  profesion,
 }: {
   page: number
   q: string
   rol: string
   estado: string
+  profesion: string
 }) {
   const p = new URLSearchParams()
   if (q?.trim()) p.set("q", q.trim())
   if (rol) p.set("rol", rol)
   if (estado) p.set("estado", estado)
+  if (profesion) p.set("profesion", profesion)
   p.set("page", String(page))
   return `/usuarios?${p.toString()}`
 }
@@ -25,12 +28,14 @@ export default function UsuariosPaginacion({
   q,
   rol,
   estado,
+  profesion,
 }: {
   page: number
   totalPages: number
   q: string
   rol: string
   estado: string
+  profesion: string
 }) {
   const prev = Math.max(1, page - 1)
   const next = Math.min(totalPages, page + 1)
@@ -38,7 +43,7 @@ export default function UsuariosPaginacion({
   return (
     <div className="flex items-center gap-2">
       <Link
-        href={buildUrl({ page: prev, q, rol, estado })}
+        href={buildUrl({ page: prev, q, rol, estado, profesion })}
         className={`px-3 py-2 rounded-lg border font-semibold ${
           page === 1 ? "pointer-events-none opacity-50" : "hover:bg-white"
         }`}
@@ -51,7 +56,7 @@ export default function UsuariosPaginacion({
       </span>
 
       <Link
-        href={buildUrl({ page: next, q, rol, estado })}
+        href={buildUrl({ page: next, q, rol, estado, profesion })}
         className={`px-3 py-2 rounded-lg border font-semibold ${
           page === totalPages ? "pointer-events-none opacity-50" : "hover:bg-white"
         }`}
