@@ -3,6 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./Consentimiento.module.css";
+import { Campo } from "./Campo";
+import CuidadorForm, { DatosProfesionalCuidador } from "./CuidadorForm";
+import { getBogotaDateKey } from "@/lib/bogotaDate";
+import {
+  CARGO_POR_PROFESION,
+  DECLARACIONES_DATOS_CUIDADOR,
+  ETIQUETAS_CUIDADOR,
+  FIRMAS_CUIDADOR,
+  FORMATO_CUIDADOR,
+} from "@/lib/consentimientoCuidador";
+import type { DecisionCuidador, OtorganteCuidador } from "@/lib/consentimientoCuidador";
+import { REGLAS, rangoFechaAdjunto, validarCampo, validarFechaHoraAdjunto } from "@/lib/validacionCampos";
 
 type Modo = "adjuntar" | "firmar" | null;
 
@@ -46,7 +58,16 @@ type Me = {
   username: string;
   nombre: string;
   rol: "ADMINISTRATIVO" | "TECNICO" | "ESPECIALISTA" | "MEDICO_RONDA" | "FARMACIA" | "CLINICA_HERIDAS";
+  nombreCompleto?: string;
+  cedula?: string;
+  profesion?: string;
 };
+
+/** Motivo con el que la API rechazó la solicitud (JSON { error }), o "" si no vino. */
+async function leerErrorApi(response: Response): Promise<string> {
+  const data = await response.json().catch(() => null);
+  return typeof data?.error === "string" ? data.error : "";
+}
 
 function formatLocalDatetime(now: Date) {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -196,6 +217,7 @@ export default function ConsentimientoPage() {
   const esFO18 = formatoSeleccionado?.id === "FO-HCR-18";
   const esFO11 = formatoSeleccionado?.id === "FO-HCR-11";
   const esDerechosDeberes = formatoSeleccionado?.id === FORMATO_DERECHOS_DEBERES;
+  const esCuidador = formatoSeleccionado?.id === FORMATO_CUIDADOR;
 
 
   type TerapiaKey = "fisica" | "fonoaudiologia" | "respiratoria" | "ocupacional";
@@ -272,6 +294,16 @@ export default function ConsentimientoPage() {
   const [riesgosAlta11, setRiesgosAlta11] = useState("");
   const [observaciones11, setObservaciones11] = useState("");
 
+  // ==================
+  // Cuidador (Auxiliar de Enfermería por Turnos) - estados
+  // ==================
+  const [otorganteCuidador, setOtorganteCuidador] = useState<OtorganteCuidador | "">("");
+  const [firmaRepresentante, setFirmaRepresentante] = useState<string | null>(null);
+  // Decisión que pide un texto antes de guardar (observaciones o motivo de la negativa)
+  const [decisionConTexto, setDecisionConTexto] = useState<Exclude<DecisionCuidador, "ACEPTO"> | null>(null);
+  const [textoDecision, setTextoDecision] = useState("");
+  const otorgaTerceroCuidador = otorganteCuidador !== "" && otorganteCuidador !== "PACIENTE";
+
 
   const formatos: Formato[] = useMemo(
     () => [
@@ -285,6 +317,11 @@ export default function ConsentimientoPage() {
         nombre: "Procedimientos de Enfermería",
         descripcionCorta: "Consentimiento Informado Procedimientos de Enfermería",
         pdfPath: "/consentimientos/FO-HCR-01.pdf",
+      },
+      {
+        id: FORMATO_CUIDADOR,
+        nombre: "Cuidador - Auxiliar de Enfermería por Turnos",
+        descripcionCorta: "Consentimiento informado servicio de Auxiliar de Enfermería por Turnos en el domicilio",
       },
       {
         id: "FO-HCR-18",
@@ -380,6 +417,12 @@ export default function ConsentimientoPage() {
     return () => clearInterval(t);
   }, []);
 
+  // Campos que no pasan por <Campo> (se manejan con estado): misma regla que valida el servidor
+  const errorOtroProc18 = (k: TerapiaKey) =>
+    otroProc18[k].activo ? validarCampo(REGLAS.aclaracion, otroProc18[k].descripcion) : "";
+  const errorRiesgos11 = validarCampo(REGLAS.textoRecuadro, riesgosAlta11);
+  const errorObservaciones11 = validarCampo(REGLAS.textoRecuadro, observaciones11);
+
   const handleAdjuntarSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMensaje(null);
@@ -387,6 +430,13 @@ export default function ConsentimientoPage() {
 
     const form = e.currentTarget;
     const formData = new FormData(form);
+
+    const errorFecha = validarFechaHoraAdjunto(String(formData.get("fechaHora") ?? ""), getBogotaDateKey(new Date()));
+    if (errorFecha) {
+      setMensaje(`❌ Fecha y hora: ${errorFecha}`);
+      setCargando(false);
+      return;
+    }
 
     try {
       const response = await fetch("/api/consentimientos", {
@@ -399,7 +449,12 @@ export default function ConsentimientoPage() {
         form.reset();
         setArchivoNombre(null);
       } else {
-        setMensaje("❌ Error al guardar el consentimiento. Comprueba tu conexión a internet o intenta mas tarde");
+        const motivo = await leerErrorApi(response);
+        setMensaje(
+          response.status === 400 && motivo
+            ? `❌ ${motivo}`
+            : "❌ Error al guardar el consentimiento. Comprueba tu conexión a internet o intenta mas tarde"
+        );
       }
     } catch (error) {
       console.error(error);
@@ -420,7 +475,29 @@ export default function ConsentimientoPage() {
       return;
     }
 
-    if (!firmaPaciente) {
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+
+    if (formatoSeleccionado.id === FORMATO_CUIDADOR) {
+      // Cuidador: firma el paciente, su representante o ambos, según quién otorga
+      if (!otorgaTerceroCuidador && !firmaPaciente) {
+        setMensaje("❌ Falta la firma del paciente");
+        setCargando(false);
+        return;
+      }
+
+      if (otorgaTerceroCuidador && !firmaRepresentante) {
+        setMensaje("❌ Falta la firma del representante, apoyo o responsable autorizado");
+        setCargando(false);
+        return;
+      }
+
+      if (otorgaTerceroCuidador && !firmaPaciente && formData.getAll("razonesNoFirma").length === 0) {
+        setMensaje("❌ Indica en el numeral 2 la razón por la cual el paciente no firma directamente");
+        setCargando(false);
+        return;
+      }
+    } else if (!firmaPaciente) {
       setMensaje("❌ Falta la firma del paciente");
       setCargando(false);
       return;
@@ -431,9 +508,6 @@ export default function ConsentimientoPage() {
       setCargando(false);
       return;
     }
-
-    const form = e.currentTarget;
-    const formData = new FormData(form);
 
     // Campos especiales: FO-HCR-01 (Procedimientos de Enfermería)
     if (formatoSeleccionado.id === "FO-HCR-01") {
@@ -467,10 +541,20 @@ export default function ConsentimientoPage() {
         return;
       }
 
-      // Si “otro procedimiento” está activo, exigir texto
+      // Si “otro procedimiento” está activo, exigir texto válido.
+      // Lo marcado en una terapia que luego se desmarcó ya no aplica.
       for (const k of Object.keys(otroProc18) as TerapiaKey[]) {
-        if (otroProc18[k].activo && !otroProc18[k].descripcion.trim()) {
+        if (!terapias18[k] || !otroProc18[k].activo) continue;
+
+        if (!otroProc18[k].descripcion.trim()) {
           setMensaje(`❌ Falta describir el "Otro procedimiento" para ${k}`);
+          setCargando(false);
+          return;
+        }
+
+        const errorOtro = errorOtroProc18(k);
+        if (errorOtro) {
+          setMensaje(`❌ "Otro procedimiento" para ${k}: ${errorOtro}`);
           setCargando(false);
           return;
         }
@@ -507,6 +591,16 @@ export default function ConsentimientoPage() {
         return;
       }
 
+      if (errorRiesgos11 || errorObservaciones11) {
+        setMensaje(
+          errorRiesgos11
+            ? `❌ Riesgos del alta voluntaria: ${errorRiesgos11}`
+            : `❌ Observaciones: ${errorObservaciones11}`
+        );
+        setCargando(false);
+        return;
+      }
+
       formData.append("calidadPaciente11", calidadPaciente11);
       formData.append("calidadResponsable11", calidadResponsable11);
       formData.append("riesgosAlta11", riesgosAlta11.trim());
@@ -517,17 +611,22 @@ export default function ConsentimientoPage() {
 
     formData.set("fechaHora", fechaAuto);
     formData.append("formatoId", formatoSeleccionado.id);
-    formData.append("firmaPacientePngBase64", firmaPaciente);
+    if (firmaPaciente) formData.append("firmaPacientePngBase64", firmaPaciente);
     formData.append("firmaEspecialistaPngBase64", firmaEspecialista);
+    if (formatoSeleccionado.id === FORMATO_CUIDADOR && otorgaTerceroCuidador && firmaRepresentante) {
+      formData.append("firmaRepresentantePngBase64", firmaRepresentante);
+    }
 
     // NUEVO: Guardar datos temporalmente y mostrar modal de aceptación
     setDatosTemporales(formData);
+    setDecisionConTexto(null);
+    setTextoDecision("");
     setMostrarModalAceptacion(true);
     setCargando(false);
   };
 
   // NUEVA FUNCIÓN: Enviar consentimiento con estado de aceptación
-  const enviarConsentimientoFinal = async (aceptado: boolean) => {
+  const enviarConsentimientoFinal = async (aceptado: boolean, camposExtra: Record<string, string> = {}) => {
     if (!datosTemporales) return;
 
     setCargando(true);
@@ -539,6 +638,7 @@ export default function ConsentimientoPage() {
 
     // Agregar el estado de aceptación al FormData
     datosTemporales.set("aceptado", aceptado ? "true" : "false");
+    for (const [campo, valor] of Object.entries(camposExtra)) datosTemporales.set(campo, valor);
 
     try {
       const response = await fetch("/api/consentimientos/firmados", {
@@ -556,13 +656,20 @@ export default function ConsentimientoPage() {
         setFormatoSeleccionado(null);
         setFirmaPaciente(null);
         setFirmaEspecialista(null);
+        setFirmaRepresentante(null);
+        setOtorganteCuidador("");
         setDatosTemporales(null);
         setEstadoGuardado("exito");
         setTimeout(() => router.push("/"), 1400);
       } else {
-        const txt = await response.text().catch(() => "");
+        const motivo = await leerErrorApi(response);
         setMostrarModalGuardado(false);
-        setMensaje(`❌ Error al guardar el consentimiento. ${txt ? `(${txt})` : ""}`.trim());
+        // Un 400 es un dato que el servidor no aceptó: se muestra cuál para poder corregirlo.
+        setMensaje(
+          response.status === 400 && motivo
+            ? `❌ ${motivo}`
+            : `❌ Error al guardar el consentimiento. ${motivo ? `(${motivo})` : ""}`.trim()
+        );
       }
     } catch (error) {
       console.error(error);
@@ -573,10 +680,31 @@ export default function ConsentimientoPage() {
     }
   };
 
+  // Cuidador: la decisión viaja con su texto (observaciones o motivo de la negativa)
+  const enviarDecisionCuidador = (decision: DecisionCuidador, texto = "") => {
+    enviarConsentimientoFinal(decision !== "NO_ACEPTO", {
+      decisionCuidador: decision,
+      observacionesAceptacion: decision === "ACEPTO_CON_OBSERVACIONES" ? texto : "",
+      motivoNegativa: decision === "NO_ACEPTO" ? texto : "",
+    });
+  };
+
+  const errorTextoDecision = validarCampo(REGLAS.textoLargo, textoDecision);
+  const textoDecisionValido = textoDecision.trim() !== "" && errorTextoDecision === "";
+
+  const faltanDeclaracionesDatos =
+    esCuidador &&
+    datosTemporales !== null &&
+    datosTemporales.getAll("declaracionesDatos").length < DECLARACIONES_DATOS_CUIDADOR.length;
+
+  const rangoAdjunto = rangoFechaAdjunto(getBogotaDateKey(new Date()));
+
   const resetFlujoFirmar = () => {
     setFormatoSeleccionado(null);
     setFirmaPaciente(null);
     setFirmaEspecialista(null);
+    setFirmaRepresentante(null);
+    setOtorganteCuidador("");
     setPdfModalOpen(false);
     setDatosTemporales(null);
   };
@@ -584,7 +712,7 @@ export default function ConsentimientoPage() {
   return (
     <main className={styles.page}>
       {/* NUEVO: MODAL DE ACEPTACIÓN DEL CONSENTIMIENTO */}
-      {mostrarModalAceptacion && (
+      {mostrarModalAceptacion && !esCuidador && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalCard}>
             <h2 className={styles.modalTitle}>Confirmación del Consentimiento</h2>
@@ -636,6 +764,142 @@ export default function ConsentimientoPage() {
             <p className={styles.miniHint} style={{ marginTop: '1rem', textAlign: 'center' }}>
               <strong>Nota:</strong> Las firmas se colocarán en la sección correspondiente del PDF.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE ACEPTACIÓN - CUIDADOR: acepta, acepta con observaciones o no acepta */}
+      {mostrarModalAceptacion && esCuidador && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalCard}>
+            <h2 className={styles.modalTitle}>Confirmación del Consentimiento</h2>
+
+            {decisionConTexto === null ? (
+              <>
+                <p className={styles.modalText}>
+                  Por favor, confirme si el paciente o su responsable <strong>ACEPTA</strong> o{" "}
+                  <strong>NO ACEPTA</strong> la prestación del servicio de Auxiliar de Enfermería por Turnos.
+                </p>
+
+                {faltanDeclaracionesDatos && (
+                  <div className={styles.warningBox} style={{ marginBottom: "1rem" }}>
+                    ⚠️ En el numeral 15 (tratamiento de datos) quedaron declaraciones sin marcar. Si fue un olvido,
+                    vuelva y márquelas antes de guardar.
+                  </div>
+                )}
+
+                <div className={styles.modalButtons}>
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    onClick={() => enviarDecisionCuidador("ACEPTO")}
+                    disabled={cargando}
+                    style={{ background: "#059669" }}
+                  >
+                    ✅ SÍ, ACEPTO EL SERVICIO
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    onClick={() => {
+                      setTextoDecision("");
+                      setDecisionConTexto("ACEPTO_CON_OBSERVACIONES");
+                    }}
+                    disabled={cargando}
+                    style={{ background: "#b45309" }}
+                  >
+                    📝 ACEPTO CON OBSERVACIONES O LIMITACIONES
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    onClick={() => {
+                      setTextoDecision("");
+                      setDecisionConTexto("NO_ACEPTO");
+                    }}
+                    disabled={cargando}
+                    style={{ background: "#dc2626" }}
+                  >
+                    ❌ NO ACEPTO EL SERVICIO
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => {
+                      setMostrarModalAceptacion(false);
+                      setDatosTemporales(null);
+                    }}
+                    disabled={cargando}
+                  >
+                    Cancelar y volver
+                  </button>
+                </div>
+
+                <p className={styles.miniHint} style={{ marginTop: '1rem', textAlign: 'center' }}>
+                  <strong>Nota:</strong> La decisión queda marcada en el numeral 20 del PDF y las firmas en el numeral 25.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className={styles.modalText}>
+                  {decisionConTexto === "NO_ACEPTO" ? (
+                    <>
+                      El paciente o su responsable <strong>NO ACEPTA</strong> el servicio.{" "}
+                      {ETIQUETAS_CUIDADOR.motivoNegativa}
+                    </>
+                  ) : (
+                    <>
+                      El paciente o su responsable <strong>ACEPTA</strong> el servicio con las siguientes observaciones
+                      o limitaciones:
+                    </>
+                  )}
+                </p>
+
+                <textarea
+                  className={styles.fo18Textarea}
+                  value={textoDecision}
+                  onChange={(e) => setTextoDecision(e.target.value)}
+                  maxLength={REGLAS.textoLargo.max}
+                  rows={5}
+                  placeholder={
+                    decisionConTexto === "NO_ACEPTO"
+                      ? "Escriba el motivo. Si no lo quiere indicar, escriba «No refiere»."
+                      : "Escriba las observaciones o limitaciones..."
+                  }
+                />
+                {errorTextoDecision && <p className={styles.fieldError}>{errorTextoDecision}</p>}
+
+                <div className={styles.modalButtons} style={{ marginTop: "1rem" }}>
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    onClick={() => enviarDecisionCuidador(decisionConTexto, textoDecision.trim())}
+                    disabled={cargando || !textoDecisionValido}
+                    style={
+                      !textoDecisionValido
+                        ? { background: "#999", cursor: "not-allowed" }
+                        : decisionConTexto === "NO_ACEPTO"
+                          ? { background: "#dc2626" }
+                          : { background: "#b45309" }
+                    }
+                  >
+                    Confirmar y guardar
+                  </button>
+
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => setDecisionConTexto(null)}
+                    disabled={cargando}
+                  >
+                    Atrás
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -761,15 +1025,20 @@ export default function ConsentimientoPage() {
         {/* MODO ADJUNTAR */}
         {modo === "adjuntar" && (
           <form onSubmit={handleAdjuntarSubmit}>
-            <div className={styles.field}>
-              <label>Cédula del paciente</label>
-              <input type="text" name="cedula" required className={styles.input} />
-            </div>
+            <Campo etiqueta="Cédula del paciente" name="cedula" regla={REGLAS.documento} />
 
             <div className={styles.field}>
               <label>Fecha y hora</label>
               <div className={styles.dateWrapper}>
-                <input type="datetime-local" name="fechaHora" required className={styles.input} defaultValue={fechaAuto} />
+                <input
+                  type="datetime-local"
+                  name="fechaHora"
+                  required
+                  className={styles.input}
+                  defaultValue={fechaAuto}
+                  min={`${rangoAdjunto.min}T00:00`}
+                  max={`${rangoAdjunto.max}T23:59`}
+                />
                 <span className={styles.dateIcon}>📅</span>
               </div>
             </div>
@@ -876,6 +1145,15 @@ export default function ConsentimientoPage() {
                         placeholder="Cargando..."
                       />
                     </div>
+
+                    {/* Cuidador: datos de la firma del profesional, precargados desde el usuario */}
+                    {esCuidador && (
+                      <DatosProfesionalCuidador
+                        key={me?.id ?? "sin-usuario"}
+                        cargo={CARGO_POR_PROFESION[me?.profesion ?? ""] ?? ""}
+                        registro={me?.cedula ?? ""}
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -892,46 +1170,32 @@ export default function ConsentimientoPage() {
                   </div>
                 </div>
 
-                {/* Datos del paciente manuales */}
-                <div className={styles.section}>
-                  <h3 className={styles.sectionTitle}>Datos del paciente o acudiente</h3>
+                {/* Datos del paciente manuales (el formato del cuidador trae los suyos) */}
+                {!esCuidador && (
+                  <div className={styles.section}>
+                    <h3 className={styles.sectionTitle}>Datos del paciente o acudiente</h3>
 
-                  <div className={styles.grid2}>
-                    <div className={styles.field}>
-                      <label>Primer apellido</label>
-                      <input type="text" name="pacientePrimerApellido" required className={styles.input} />
+                    <div className={styles.grid2}>
+                      <Campo etiqueta="Primer apellido" name="pacientePrimerApellido" regla={REGLAS.apellido} />
+                      <Campo etiqueta="Segundo apellido" name="pacienteSegundoApellido" regla={REGLAS.apellido} />
+                      <Campo etiqueta="Nombres" name="pacienteNombres" regla={REGLAS.nombres} />
+                      <Campo etiqueta="N° documento" name="cedula" regla={REGLAS.documento} />
+
+                      {!esDerechosDeberes && <Campo etiqueta="Edad" name="pacienteEdad" regla={REGLAS.edad} />}
+
+                      {!esDerechosDeberes && (
+                        <Campo
+                          etiqueta="Teléfono"
+                          name="pacienteTelefono"
+                          regla={REGLAS.telefono}
+                          type="tel"
+                          placeholder="Ej.: 3001234567"
+                        />
+                      )}
                     </div>
-
-                    <div className={styles.field}>
-                      <label>Segundo apellido</label>
-                      <input type="text" name="pacienteSegundoApellido" required className={styles.input} />
-                    </div>
-
-                    <div className={styles.field}>
-                      <label>Nombres</label>
-                      <input type="text" name="pacienteNombres" required className={styles.input} />
-                    </div>
-
-                    <div className={styles.field}>
-                      <label>N° documento</label>
-                      <input type="text" name="cedula" required className={styles.input} />
-                    </div>
-
-                    {!esDerechosDeberes && (
-                      <div className={styles.field}>
-                        <label>Edad</label>
-                        <input type="number" name="pacienteEdad" required className={styles.input} min={0} max={150} />
-                      </div>
-                    )}
-
-                    {!esDerechosDeberes && (
-                      <div className={styles.field}>
-                        <label>Teléfono</label>
-                        <input type="tel" name="pacienteTelefono" required className={styles.input} />
-                      </div>
-                    )}
                   </div>
-                </div>
+                )}
+
                 {esFO18 && (
                   <section className={styles.fo18Card}>
                     <div className={styles.fo18Header}>
@@ -1022,9 +1286,11 @@ export default function ConsentimientoPage() {
                                 }))
                               }
                               placeholder="Describe el procedimiento…"
+                              maxLength={REGLAS.aclaracion.max}
                               disabled={!otroProc18.fisica.activo}
                             />
                           </div>
+                          {errorOtroProc18("fisica") && <p className={styles.fieldError}>{errorOtroProc18("fisica")}</p>}
                         </div>
                       )}
 
@@ -1147,9 +1413,11 @@ export default function ConsentimientoPage() {
                                 }))
                               }
                               placeholder="Describe el procedimiento…"
+                              maxLength={REGLAS.aclaracion.max}
                               disabled={!otroProc18.respiratoria.activo}
                             />
                           </div>
+                          {errorOtroProc18("respiratoria") && <p className={styles.fieldError}>{errorOtroProc18("respiratoria")}</p>}
                         </div>
                       )}
 
@@ -1205,9 +1473,11 @@ export default function ConsentimientoPage() {
                                 }))
                               }
                               placeholder="Describe el procedimiento…"
+                              maxLength={REGLAS.aclaracion.max}
                               disabled={!otroProc18.ocupacional.activo}
                             />
                           </div>
+                          {errorOtroProc18("ocupacional") && <p className={styles.fieldError}>{errorOtroProc18("ocupacional")}</p>}
                         </div>
                       )}
                     </div>
@@ -1312,8 +1582,10 @@ export default function ConsentimientoPage() {
                         onChange={(e) => setRiesgosAlta11(e.target.value)}
                         placeholder="Escriba aquí los riesgos..."
                         required
+                        maxLength={REGLAS.textoRecuadro.max}
                         rows={6}
                       />
+                      {errorRiesgos11 && <p className={styles.fieldError}>{errorRiesgos11}</p>}
                     </div>
 
                     <div className={styles.fo18Section}>
@@ -1324,8 +1596,10 @@ export default function ConsentimientoPage() {
                         onChange={(e) => setObservaciones11(e.target.value)}
                         placeholder="Escriba aquí las observaciones..."
                         required
+                        maxLength={REGLAS.textoRecuadro.max}
                         rows={6}
                       />
+                      {errorObservaciones11 && <p className={styles.fieldError}>{errorObservaciones11}</p>}
                     </div>
                   </section>
                 )}
@@ -1377,21 +1651,21 @@ export default function ConsentimientoPage() {
 
 
 
+                {esCuidador && (
+                  <CuidadorForm otorgante={otorganteCuidador} onOtorganteChange={setOtorganteCuidador} />
+                )}
+
                 {/* Campos especiales FO-HCR-01 */}
                 {formatoSeleccionado.id === "FO-HCR-01" && (
                   <div className={styles.section}>
                     <h3 className={styles.sectionTitle}>Procedimiento de Enfermería</h3>
 
-                    <div className={styles.field}>
-                      <label>Diagnóstico</label>
-                      <input
-                        type="text"
-                        name="diagnostico"
-                        required
-                        className={styles.input}
-                        placeholder="Escribe el diagnóstico indicado en la historia clínica"
-                      />
-                    </div>
+                    <Campo
+                      etiqueta="Diagnóstico"
+                      name="diagnostico"
+                      regla={REGLAS.diagnosticoRenglon}
+                      placeholder="Escribe el diagnóstico indicado en la historia clínica"
+                    />
 
                     <div className={styles.field}>
                       <label>Procedimiento a realizar</label>
@@ -1414,17 +1688,52 @@ export default function ConsentimientoPage() {
 
                 {/* Firmas */}
                 <div className={styles.section}>
-                  <h3 className={styles.sectionTitle}>Firmas</h3>
+                  <h3 className={styles.sectionTitle}>{esCuidador ? FIRMAS_CUIDADOR.titulo : "Firmas"}</h3>
 
-                  <SignaturePad label="Firma del paciente o acudiente" value={firmaPaciente} onChange={setFirmaPaciente} />
-                  <SignaturePad label="Firma del personal de la salud" value={firmaEspecialista} onChange={setFirmaEspecialista} />
+                  {esCuidador ? (
+                    <>
+                      {/* Tres firmas: paciente, representante (si otorga un tercero) y profesional */}
+                      <p className={styles.cuidadorNota}>
+                        {otorganteCuidador === ""
+                          ? "Selecciona en el numeral 2 quién otorga el consentimiento para saber qué firmas se requieren."
+                          : otorgaTerceroCuidador
+                            ? "Firma obligatoria del representante. La del paciente es opcional («cuando aplique»): si no puede firmar, deja su recuadro en blanco."
+                            : "Firma el paciente. No se requiere firma de representante."}
+                      </p>
+
+                      <SignaturePad label="Firma del paciente" value={firmaPaciente} onChange={setFirmaPaciente} />
+                      {otorgaTerceroCuidador && (
+                        <SignaturePad
+                          label="Firma del representante, apoyo o responsable autorizado"
+                          value={firmaRepresentante}
+                          onChange={setFirmaRepresentante}
+                        />
+                      )}
+
+                      <p className={styles.cuidadorTexto}>{FIRMAS_CUIDADOR.declaracionProfesional}</p>
+                      <SignaturePad
+                        label="Firma del profesional que brinda la información"
+                        value={firmaEspecialista}
+                        onChange={setFirmaEspecialista}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <SignaturePad label="Firma del paciente o acudiente" value={firmaPaciente} onChange={setFirmaPaciente} />
+                      <SignaturePad label="Firma del personal de la salud" value={firmaEspecialista} onChange={setFirmaEspecialista} />
+                    </>
+                  )}
                 </div>
 
                 <div className={styles.actionsRow}>
                   <button
                     type="button"
                     className={styles.secondaryButton}
-                    onClick={() => setFormatoSeleccionado(null)}
+                    onClick={() => {
+                      setFormatoSeleccionado(null);
+                      setOtorganteCuidador("");
+                      setFirmaRepresentante(null);
+                    }}
                     disabled={cargando}
                   >
                     Cambiar formato

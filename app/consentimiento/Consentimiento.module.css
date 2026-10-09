@@ -867,6 +867,81 @@
   font-weight: 700;
 }
 
+/* ===== Consentimiento cuidador (Auxiliar de Enfermería por Turnos) ===== */
+.cuidadorTitulo {
+  margin: 0 0 12px 0;
+  font-family: "Montserrat", "Open Sans", Arial, Helvetica, sans-serif;
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.4;
+  color: #0f172a;
+  text-align: center;
+}
+
+.cuidadorTexto {
+  margin: 0 0 10px 0;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.cuidadorSubtitulo {
+  margin: 14px 0 8px 0;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.cuidadorLista {
+  margin: 0 0 10px 0;
+  padding-left: 22px;
+  list-style: disc;
+  color: #334155;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.cuidadorOpciones {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+  margin-bottom: 12px;
+}
+
+.cuidadorOpcionesCompactas {
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.cuidadorNota {
+  margin: 0 0 10px 0;
+  padding: 10px 12px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Campo que ocupa las dos columnas de .grid2 */
+.fieldFull {
+  grid-column: 1 / -1;
+}
+
+/* Campo que no cumple su regla de validación */
+.inputInvalido,
+.inputInvalido:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.15);
+}
+
+.fieldError {
+  margin: 6px 0 0 0;
+  color: #b91c1c;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
 
 
 

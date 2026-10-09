@@ -3,14 +3,21 @@ export const runtime = "nodejs";
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import type { Session } from "next-auth";
 import { authOptions } from "@/lib/authOptions";
 import { prisma } from "@/lib/prisma";
 import { uploadToSharePoint, uploadToSharePointWithInfo } from "@/lib/uploadToSharePoint";
+import { getBogotaDateKey } from "@/lib/bogotaDate";
+import { FORMATO_CUIDADOR } from "@/lib/consentimientoCuidador";
+import { buildConsentimientoCuidadorPdf, parseDatosCuidador } from "@/lib/consentimientoCuidadorPdf";
+import { REGLAS, esFirmaPng, normalizarCampo, validarCampo } from "@/lib/validacionCampos";
+import type { ReglaCampo } from "@/lib/validacionCampos";
 
 import path from "path";
 import fs from "fs/promises";
 
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import type { PDFFont, PDFPage } from "pdf-lib";
 import { Buffer } from "buffer";
 
 const FORMATO_DERECHOS_DEBERES = "DERECHOS-DEBERES-USUARIO";
@@ -47,7 +54,7 @@ function dataUrlToUint8Array(dataUrl: string) {
  * (Opcional) Modo debug: dibuja una rejilla de coordenadas por página
  * Activa desde frontend con: formData.append("debugGrid","true")
  */
-function drawDebugGrid(page: any, font: any) {
+function drawDebugGrid(page: PDFPage, font: PDFFont) {
   const { width, height } = page.getSize();
   const step = 50;
 
@@ -59,7 +66,7 @@ function drawDebugGrid(page: any, font: any) {
   }
 }
 
-function wrapText(font: any, text: string, fontSize: number, maxWidth: number) {
+function wrapText(font: PDFFont, text: string, fontSize: number, maxWidth: number) {
   const words = text.replace(/\s+/g, " ").trim().split(" ");
   const lines: string[] = [];
   let line = "";
@@ -78,7 +85,7 @@ function wrapText(font: any, text: string, fontSize: number, maxWidth: number) {
   return lines;
 }
 
-function drawWrappedLines(page: any, font: any, text: string, cfg: { x: number; y: number; maxWidth: number; maxLines: number; lineHeight: number; size?: number }) {
+function drawWrappedLines(page: PDFPage, font: PDFFont, text: string, cfg: { x: number; y: number; maxWidth: number; maxLines: number; lineHeight: number; size?: number }) {
   const size = cfg.size ?? 10;
   const lines = wrapText(font, text, size, cfg.maxWidth).slice(0, cfg.maxLines);
 
@@ -550,7 +557,7 @@ const TEMPLATE_MAP: Record<string, TemplateCfg> = {
       Curaciones: { pageIndex: 0, x: 564, y: 136 },
       "Administración y aplicación de medicamentos": { pageIndex: 1, x: 564, y: 496 },
       "Retiro de puntos": { pageIndex: 1, x: 564, y: 338 },
-      "Toma de un electrocardiograma (EKG": { pageIndex: 1, x: 564, y: 190 },
+      "Toma de un electrocardiograma (EKG)": { pageIndex: 1, x: 564, y: 190 },
       "Retiro de Catéter PICC en Domicilio": { pageIndex: 1, x: 564, y: 92 },
     },
     page2: {
@@ -658,7 +665,7 @@ const TEMPLATE_MAP: Record<string, TemplateCfg> = {
       // Ocupacional (pág 4)
       "ocupacional.Evaluacion": { pageIndex: 3, x: 703, y: 486 },
       "ocupacional.Motricidad_fina": { pageIndex: 3, x: 703, y: 454 },
-      "ocupacional.motricidad_gruesa": { pageIndex: 3, x: 703, y: 422 },
+      "ocupacional.Motricidad_gruesa": { pageIndex: 3, x: 703, y: 422 },
       "ocupacional.AVD": { pageIndex: 3, x: 703, y: 386 },
       "ocupacional.Sensoriales": { pageIndex: 3, x: 703, y: 353 },
       "ocupacional.Rehabilitacion_funcional": { pageIndex: 3, x: 703, y: 329 },
@@ -939,6 +946,167 @@ const TEMPLATE_MAP: Record<string, TemplateCfg> = {
 
 };
 
+type DatosFormato = {
+  formatoId: string;
+  cedula: string;
+  pacientePrimerApellido: string;
+  pacienteSegundoApellido: string;
+  pacienteNombres: string;
+  pacienteEdad: string;
+  pacienteTelefono: string;
+  firmaPacientePngBase64: string;
+  firmaEspecialistaPngBase64: string;
+  diagnostico: string;
+  procedimiento: string;
+  terapiasJson: string;
+  procedimientosJson: string;
+  otrosJson: string;
+  entendimientoRaw: string;
+  calidadPaciente11: string;
+  calidadResponsable11: string;
+  riesgosAlta11: string;
+  observaciones11: string;
+};
+
+function esObjeto(valor: unknown): valor is Record<string, unknown> {
+  return typeof valor === "object" && valor !== null && !Array.isArray(valor);
+}
+
+/**
+ * Revisa los campos de los formatos con plantilla (y de derechos y deberes) con
+ * las mismas reglas del formulario (lib/validacionCampos): el servidor no confía
+ * en que el navegador haya validado. Devuelve el motivo del rechazo, o "" si todo sirve.
+ * Los campos vacíos pasan aquí: que no falten se revisa antes, según el formato.
+ */
+function validarDatosFormato(d: DatosFormato): string {
+  const campos: [string, ReglaCampo, string][] = [
+    ["N° documento", REGLAS.documento, d.cedula],
+    ["Primer apellido", REGLAS.apellido, d.pacientePrimerApellido],
+    ["Segundo apellido", REGLAS.apellido, d.pacienteSegundoApellido],
+    ["Nombres", REGLAS.nombres, d.pacienteNombres],
+    ["Edad", REGLAS.edad, d.pacienteEdad],
+    ["Teléfono", REGLAS.telefono, d.pacienteTelefono],
+  ];
+  if (d.formatoId === "FO-HCR-01") {
+    campos.push(["Diagnóstico", REGLAS.diagnosticoRenglon, d.diagnostico]);
+  }
+  if (d.formatoId === "FO-HCR-11") {
+    campos.push(["Riesgos del alta voluntaria", REGLAS.textoRecuadro, d.riesgosAlta11]);
+    campos.push(["Observaciones", REGLAS.textoRecuadro, d.observaciones11]);
+  }
+
+  for (const [etiqueta, regla, valor] of campos) {
+    const error = validarCampo(regla, valor);
+    if (error) return `${etiqueta}: ${error}`;
+  }
+
+  if (!esFirmaPng(d.firmaPacientePngBase64) || !esFirmaPng(d.firmaEspecialistaPngBase64)) {
+    return "Firma inválida";
+  }
+
+  if (d.formatoId === "FO-HCR-01") {
+    const procedimientos = Object.keys(TEMPLATE_MAP["FO-HCR-01"].procedimientos ?? {});
+    if (!procedimientos.includes(d.procedimiento)) return "Selecciona el procedimiento a realizar";
+  }
+
+  if (d.formatoId === "FO-HCR-11") {
+    const siNo = ["SI", "NO"];
+    if (!siNo.includes(d.calidadPaciente11) || !siNo.includes(d.calidadResponsable11)) {
+      return "Selecciona SI o NO en la calidad en la que se otorga el alta voluntaria";
+    }
+  }
+
+  if (d.formatoId === "FO-HCR-18") {
+    let terapias: unknown;
+    let procedimientos: unknown;
+    let otros: unknown;
+    try {
+      terapias = JSON.parse(d.terapiasJson);
+      procedimientos = JSON.parse(d.procedimientosJson);
+      otros = JSON.parse(d.otrosJson);
+    } catch {
+      return "JSON inválido en campos FO-HCR-18";
+    }
+    if (!esObjeto(terapias) || !esObjeto(procedimientos) || !esObjeto(otros)) {
+      return "JSON inválido en campos FO-HCR-18";
+    }
+
+    const terapiasValidas = Object.keys(TEMPLATE_MAP["FO-HCR-18"].terapiasMarks ?? {});
+    const seleccionadas = terapiasValidas.filter((k) => terapias[k] === true);
+    if (seleccionadas.length === 0) return "Selecciona al menos un tipo de terapia";
+
+    if (!["1", "3", "5"].includes(d.entendimientoRaw)) {
+      return "Selecciona el nivel de entendimiento (1, 3 o 5)";
+    }
+
+    for (const k of seleccionadas) {
+      const otro = otros[k];
+      if (!esObjeto(otro) || otro.activo !== true) continue;
+
+      const descripcion = typeof otro.descripcion === "string" ? normalizarCampo(otro.descripcion) : "";
+      if (!descripcion) return `Falta describir el "Otro procedimiento" de ${k}`;
+      const error = validarCampo(REGLAS.aclaracion, descripcion);
+      if (error) return `"Otro procedimiento" de ${k}: ${error}`;
+    }
+  }
+
+  return "";
+}
+
+/**
+ * ✅ Consentimiento del cuidador (Auxiliar de Enfermería por Turnos)
+ * - No usa plantilla PDF: el documento se arma completo en lib/consentimientoCuidadorPdf.
+ * - Mismo flujo de guardado que los demás formatos (SharePoint + Neon); el archivo
+ *   se distingue por la palabra "cuidador": documento-cuidador-fecha-estado.
+ */
+async function guardarConsentimientoCuidador(formData: FormData, user: Session["user"]) {
+  const now = new Date();
+
+  const parsed = parseDatosCuidador(formData, getBogotaDateKey(now));
+  if (!parsed.ok) {
+    return NextResponse.json({ error: parsed.error }, { status: 400 });
+  }
+  const { datos, firmas } = parsed;
+
+  // Profesional desde sesión
+  const profesionalNombre = `${user.nombres ?? ""} ${user.primerApellido ?? ""} ${user.segundoApellido ?? ""}`
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const finalPdfBytes = await buildConsentimientoCuidadorPdf({ datos, firmas, profesionalNombre, now });
+
+  // "Acepto con observaciones" cuenta como aceptado; las observaciones quedan en el PDF.
+  const aceptado = datos.decision !== "NO_ACEPTO";
+  const estadoTexto = aceptado ? "aceptado" : "rechazado";
+  const fileName = `${datos.cedula}-cuidador-${getBogotaDateKey(now)}-${estadoTexto}.pdf`;
+
+  const archivoUrl = await uploadToSharePoint(
+    {
+      bytes: finalPdfBytes,
+      fileName,
+      contentType: "application/pdf",
+    },
+    datos.cedula
+  );
+
+  await prisma.consentimiento.create({
+    data: {
+      cedula: datos.cedula,
+      fechaHora: now,
+      archivoUrl,
+      usuarioId: user.id,
+      aceptado,
+    },
+  });
+
+  return NextResponse.json({
+    ok: true,
+    archivoUrl,
+    aceptado,
+    mensaje: aceptado ? "Consentimiento aceptado" : "Consentimiento rechazado",
+  });
+}
+
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
@@ -954,13 +1122,19 @@ export async function POST(req: Request) {
     const formData = await req.formData();
 
     const formatoId = String(formData.get("formatoId") || "");
-    const cedula = String(formData.get("cedula") || "");
 
-    const pacientePrimerApellido = String(formData.get("pacientePrimerApellido") || "");
-    const pacienteSegundoApellido = String(formData.get("pacienteSegundoApellido") || "");
-    const pacienteNombres = String(formData.get("pacienteNombres") || "");
-    const pacienteEdad = String(formData.get("pacienteEdad") || "");
-    const pacienteTelefono = String(formData.get("pacienteTelefono") || "");
+    // El consentimiento del cuidador tiene sus propios campos y firmas
+    if (formatoId === FORMATO_CUIDADOR) {
+      return await guardarConsentimientoCuidador(formData, session.user);
+    }
+
+    const cedula = normalizarCampo(String(formData.get("cedula") || ""));
+
+    const pacientePrimerApellido = normalizarCampo(String(formData.get("pacientePrimerApellido") || ""));
+    const pacienteSegundoApellido = normalizarCampo(String(formData.get("pacienteSegundoApellido") || ""));
+    const pacienteNombres = normalizarCampo(String(formData.get("pacienteNombres") || ""));
+    const pacienteEdad = normalizarCampo(String(formData.get("pacienteEdad") || ""));
+    const pacienteTelefono = normalizarCampo(String(formData.get("pacienteTelefono") || ""));
 
     // Solo aplica para FT/FO-HCR-21 (si lo mandas desde el frontend)
     const pacienteDomicilio = String(formData.get("pacienteDomicilio") || "");
@@ -975,7 +1149,7 @@ export async function POST(req: Request) {
     const aceptado = aceptadoRaw === "true";
 
     // Campos especiales (FO-HCR-01)
-    const diagnostico = String(formData.get("diagnostico") || "").trim();
+    const diagnostico = normalizarCampo(String(formData.get("diagnostico") || ""));
     const procedimiento = String(formData.get("procedimiento") || "").trim();
 
     // Campos especiales (FO-HCR-18)
@@ -987,8 +1161,8 @@ export async function POST(req: Request) {
     // Campos especiales (FO-HCR-11)
     const calidadPaciente11 = String(formData.get("calidadPaciente11") || "");
     const calidadResponsable11 = String(formData.get("calidadResponsable11") || "");
-    const riesgosAlta11 = String(formData.get("riesgosAlta11") || "").trim();
-    const observaciones11 = String(formData.get("observaciones11") || "").trim();
+    const riesgosAlta11 = normalizarCampo(String(formData.get("riesgosAlta11") || ""));
+    const observaciones11 = normalizarCampo(String(formData.get("observaciones11") || ""));
 
 
     // Debug
@@ -1024,6 +1198,31 @@ export async function POST(req: Request) {
       if (!calidadPaciente11 || !calidadResponsable11 || !riesgosAlta11 || !observaciones11) {
         return NextResponse.json({ error: "Faltan campos FO-HCR-11 (calidad / riesgos / observaciones)" }, { status: 400 });
       }
+    }
+
+    const errorDatos = validarDatosFormato({
+      formatoId,
+      cedula,
+      pacientePrimerApellido,
+      pacienteSegundoApellido,
+      pacienteNombres,
+      pacienteEdad,
+      pacienteTelefono,
+      firmaPacientePngBase64,
+      firmaEspecialistaPngBase64,
+      diagnostico,
+      procedimiento,
+      terapiasJson,
+      procedimientosJson,
+      otrosJson,
+      entendimientoRaw,
+      calidadPaciente11,
+      calidadResponsable11,
+      riesgosAlta11,
+      observaciones11,
+    });
+    if (errorDatos) {
+      return NextResponse.json({ error: errorDatos }, { status: 400 });
     }
 
 
@@ -1181,6 +1380,15 @@ export async function POST(req: Request) {
 
     // Diagnóstico (si aplica)
     if (templateCfg.page1.diagnostico && diagnostico) {
+      // Va en un solo renglón: si no cabe se avisa, en vez de imprimirlo cortado.
+      const anchoRenglon = p1.getWidth() - templateCfg.page1.diagnostico.x - 30;
+      if (font.widthOfTextAtSize(diagnostico, fontSize) > anchoRenglon) {
+        return NextResponse.json(
+          { error: "Diagnóstico: no cabe en el renglón del formato. Abrévialo." },
+          { status: 400 }
+        );
+      }
+
       p1.drawText(diagnostico, {
         x: templateCfg.page1.diagnostico.x,
         y: templateCfg.page1.diagnostico.y,
@@ -1234,6 +1442,7 @@ export async function POST(req: Request) {
       // 2) Marcar procedimientos múltiples con X
       if (templateCfg.procedimientosMulti) {
         for (const [terapiaKey, procs] of Object.entries(procedimientosMulti)) {
+          if (!terapias[terapiaKey]) continue; // terapia no seleccionada: sus procedimientos no aplican
           for (const [procKey, checked] of Object.entries(procs || {})) {
             if (!checked) continue;
             const mapKey = `${terapiaKey}.${procKey}`;
@@ -1248,14 +1457,14 @@ export async function POST(req: Request) {
       // 3) Otro procedimiento (X + texto)
       if (templateCfg.otrosProcedimientos) {
         for (const [terapiaKey, info] of Object.entries(otros)) {
-          if (!info?.activo) continue;
+          if (!info?.activo || !terapias[terapiaKey]) continue;
           const m = templateCfg.otrosProcedimientos[terapiaKey];
           if (!m) continue;
 
           const page = pages[m.pageIndex] ?? pages[0];
           page.drawText("X", { x: m.check.x, y: m.check.y, size: 12, font, color: rgb(0, 0, 0) });
 
-          const text = String(info.descripcion || "").trim();
+          const text = normalizarCampo(String(info.descripcion || ""));
           if (text) {
             page.drawText(text, {
               x: m.text.x,
@@ -1286,6 +1495,20 @@ export async function POST(req: Request) {
     // FO-HCR-11: calidad + riesgos + observaciones
 
     if (formatoId === "FO-HCR-11") {
+      // Los recuadros tienen renglones contados: lo que no cabe no se imprimiría, así que no se acepta.
+      const recuadros = [
+        { etiqueta: "Riesgos del alta voluntaria", texto: riesgosAlta11, caja: templateCfg.riesgosAltaBox },
+        { etiqueta: "Observaciones", texto: observaciones11, caja: templateCfg.observacionesBox },
+      ];
+      for (const { etiqueta, texto, caja } of recuadros) {
+        if (caja && wrapText(font, texto, caja.size ?? 10, caja.maxWidth).length > caja.maxLines) {
+          return NextResponse.json(
+            { error: `${etiqueta}: el texto no cabe en el formato (máximo ${caja.maxLines} renglones). Resúmelo.` },
+            { status: 400 }
+          );
+        }
+      }
+
       // 1) Marcar calidad con X
       if (templateCfg.calidadAltaVoluntariaMarks) {
         const m = templateCfg.calidadAltaVoluntariaMarks;
