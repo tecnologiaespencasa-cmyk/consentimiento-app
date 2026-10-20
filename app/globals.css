@@ -100,3 +100,99 @@ a, button {
     padding: 0 2rem;
   }
 }
+
+
+/* Indicador de carga al navegar (lib/navegacionPendiente.ts).
+   Al iniciar una navegacion se marca <html data-navegando> y los enlaces al
+   destino con data-destino-pendiente; IndicadorNavegacion quita las marcas
+   cuando el router ya pinto la URL nueva (a menudo su loading.tsx). Todo el
+   movimiento es CSS y queda en pausa mientras no hay navegacion. */
+.barra-navegacion {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: 3px;
+  overflow: hidden;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.3);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+/* Azul de marca con la punta clara: el tramo oscuro se ve sobre el Navbar
+   blanco (al hacer scroll) y la punta clara sobre el Navbar rojo. */
+.barra-navegacion::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 45%;
+  background: linear-gradient(90deg, rgba(10, 75, 122, 0), #0a4b7a 35%, #4a9ad8 70%, #eaf6ff);
+  animation: barra-navegacion 1.1s ease-in-out infinite paused;
+}
+
+/* La espera dura desde el clic (data-navegando) hasta que la pagina real
+   reemplaza al aviso de loading.tsx (data-cargando-pagina). :is() tolera
+   selectores invalidos, asi un navegador sin :has() conserva el primer caso. */
+:is(html[data-navegando], html:has([data-cargando-pagina])) .barra-navegacion {
+  opacity: 1;
+  transition: none;
+}
+
+:is(html[data-navegando], html:has([data-cargando-pagina])) .barra-navegacion::before {
+  animation-play-state: running;
+}
+
+/* El cursor de espera y el enlace pulsado "respirando" desaniman el doble clic
+   (que de todas formas se ignora, ver ignorarClicRepetido). */
+:is(html[data-navegando], html:has([data-cargando-pagina])),
+:is(html[data-navegando], html:has([data-cargando-pagina])) * {
+  cursor: progress;
+}
+
+a[data-destino-pendiente] {
+  animation: enlace-pendiente 0.8s ease-in-out infinite alternate;
+}
+
+/* El aviso de loading.tsx (CargandoPagina) espera un instante antes de
+   mostrarse: si la pagina llega antes, no alcanza a parpadear. */
+.cargando-pagina {
+  animation: cargando-pagina-aparece 0.2s ease-out 0.15s both;
+}
+
+@keyframes barra-navegacion {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(225%);
+  }
+}
+
+@keyframes enlace-pendiente {
+  to {
+    opacity: 0.55;
+  }
+}
+
+@keyframes cargando-pagina-aparece {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barra-navegacion::before {
+    width: 100%;
+    background: linear-gradient(90deg, #0a4b7a, #4a9ad8, #eaf6ff);
+    animation: none;
+  }
+
+  a[data-destino-pendiente] {
+    opacity: 0.6;
+    animation: none;
+  }
+}

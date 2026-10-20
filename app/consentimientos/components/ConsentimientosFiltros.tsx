@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useRef } from "react"
 import { addUtcDays, addUtcMonths, formatBogotaDate, formatBogotaTime, getBogotaDateKey, getStartOfBogotaDayUtc } from "@/lib/bogotaDate"
 import { 
   FaSearch, 
@@ -13,8 +13,87 @@ import {
   FaFilePdf,
   FaCheckCircle,
   FaTimesCircle,
-  FaClock
+  FaClock,
+  FaChevronLeft,
+  FaChevronRight
 } from "react-icons/fa"
+
+// Se pagina en el navegador sobre la lista ya filtrada: los filtros siguen
+// trabajando en memoria con todos los consentimientos, pero solo se dibujan
+// POR_PAGINA filas a la vez.
+const POR_PAGINA = 20
+
+// Numeros de pagina a mostrar: la primera, la ultima y las vecinas de la
+// actual. null marca un salto ("…").
+function paginasVisibles(actual: number, total: number): (number | null)[] {
+  const paginas: (number | null)[] = []
+  for (let p = 1; p <= total; p++) {
+    if (p === 1 || p === total || Math.abs(p - actual) <= 1) paginas.push(p)
+    else if (paginas[paginas.length - 1] !== null) paginas.push(null)
+  }
+  return paginas
+}
+
+function Paginacion({
+  pagina,
+  totalPaginas,
+  onCambiar
+}: {
+  pagina: number
+  totalPaginas: number
+  onCambiar: (pagina: number) => void
+}) {
+  if (totalPaginas <= 1) return null
+
+  const boton = "min-w-9 h-9 px-2 flex items-center justify-center rounded-lg border text-sm font-medium transition-colors"
+  const inactivo = "border-gray-300 bg-white text-gray-700 hover:bg-red-50 hover:text-red-700 disabled:opacity-40 disabled:pointer-events-none"
+
+  return (
+    <nav aria-label="Paginación de consentimientos" className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => onCambiar(pagina - 1)}
+        disabled={pagina <= 1}
+        aria-label="Página anterior"
+        className={`${boton} ${inactivo}`}
+      >
+        <FaChevronLeft />
+      </button>
+
+      {/* En pantallas pequeñas solo "3 / 236"; los numeros no caben. */}
+      <span className="px-2 text-sm text-gray-600 sm:hidden">
+        {pagina} / {totalPaginas}
+      </span>
+      <div className="hidden sm:flex items-center gap-1">
+        {paginasVisibles(pagina, totalPaginas).map((p, i) =>
+          p === null ? (
+            <span key={`salto-${i}`} className="px-1 text-gray-400">…</span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onCambiar(p)}
+              aria-current={p === pagina ? "page" : undefined}
+              className={`${boton} ${p === pagina ? "border-red-600 bg-red-600 text-white" : inactivo}`}
+            >
+              {p}
+            </button>
+          )
+        )}
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onCambiar(pagina + 1)}
+        disabled={pagina >= totalPaginas}
+        aria-label="Página siguiente"
+        className={`${boton} ${inactivo}`}
+      >
+        <FaChevronRight />
+      </button>
+    </nav>
+  )
+}
 
 interface Usuario {
   nombre: string
@@ -139,6 +218,41 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
 
     return resultado
   }, [consentimientos, busqueda, filtroUsuario, filtroRol, filtroFecha, filtroEstado, orden])
+
+  // Cualquier cambio de filtros u orden vuelve a la pagina 1. Se ajusta durante
+  // el render (patron de React para estado que depende de otro) y no en un
+  // efecto, para no pintar antes una pagina que ya no corresponde.
+  const claveFiltros = [busqueda, filtroUsuario, filtroRol, filtroFecha, filtroEstado, orden].join("|")
+  const [paginaElegida, setPaginaElegida] = useState(1)
+  const [claveFiltrosPagina, setClaveFiltrosPagina] = useState(claveFiltros)
+  if (claveFiltrosPagina !== claveFiltros) {
+    setClaveFiltrosPagina(claveFiltros)
+    setPaginaElegida(1)
+  }
+  const totalPaginas = Math.max(1, Math.ceil(consentimientosFiltrados.length / POR_PAGINA))
+  const pagina = Math.min(paginaElegida, totalPaginas)
+  const inicio = (pagina - 1) * POR_PAGINA
+  const consentimientosPagina = consentimientosFiltrados.slice(inicio, inicio + POR_PAGINA)
+
+  const listaRef = useRef<HTMLDivElement>(null)
+  const cambiarPagina = (nueva: number) => {
+    setPaginaElegida(Math.min(Math.max(1, nueva), totalPaginas))
+    // Desde el paginador de abajo se vuelve al inicio de la lista; desde el de
+    // arriba la lista ya esta a la vista y no se mueve.
+    const lista = listaRef.current
+    if (lista && lista.getBoundingClientRect().top < 0) lista.scrollIntoView({ block: "start" })
+  }
+
+  const rangoMostrado = (
+    <>
+      Mostrando{" "}
+      <span className="font-semibold">
+        {consentimientosFiltrados.length === 0 ? 0 : inicio + 1}–{inicio + consentimientosPagina.length}
+      </span>{" "}
+      de <span className="font-semibold">{consentimientosFiltrados.length}</span> consentimientos
+      {consentimientosFiltrados.length !== consentimientos.length && <> (filtrados de {consentimientos.length})</>}
+    </>
+  )
 
   const limpiarFiltros = () => {
     setBusqueda("")
@@ -288,8 +402,9 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
         </div>
       </div>
 
-      {/* Lista de consentimientos */}
-      <div className="bg-white rounded-2xl shadow-lg overflow-hidden">
+      {/* Lista de consentimientos. scroll-mt deja libre el Navbar fijo al
+          volver al inicio de la lista desde el paginador de abajo. */}
+      <div ref={listaRef} className="bg-white rounded-2xl shadow-lg overflow-hidden scroll-mt-20">
         {consentimientosFiltrados.length === 0 ? (
           <div className="text-center py-16">
             <div className="inline-block p-6 bg-red-50 rounded-full mb-6">
@@ -316,6 +431,13 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
           </div>
         ) : (
           <>
+            {totalPaginas > 1 && (
+              <div className="px-6 py-3 border-b border-gray-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-sm text-gray-600">{rangoMostrado}</p>
+                <Paginacion pagina={pagina} totalPaginas={totalPaginas} onCambiar={cambiarPagina} />
+              </div>
+            )}
+
             {/* Encabezado de la tabla */}
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
               <div className="grid grid-cols-12 gap-4 text-sm font-semibold text-gray-700">
@@ -346,7 +468,7 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
 
             {/* Lista de items */}
             <div className="divide-y divide-gray-100">
-              {consentimientosFiltrados.map((c) => (
+              {consentimientosPagina.map((c) => (
                 <div 
                   key={c.id} 
                   className="px-6 py-4 hover:bg-red-50 transition-colors"
@@ -444,12 +566,13 @@ export default function ConsentimientosFiltros({ consentimientos, rol }: Consent
 
             {/* Información de resultados */}
             <div className="px-6 py-4 border-t border-gray-200 bg-gray-50">
-              <div className="flex flex-col md:flex-row justify-between items-center">
-                <div className="text-sm text-gray-600 mb-4 md:mb-0">
-                  Mostrando <span className="font-semibold">{consentimientosFiltrados.length}</span> de{" "}
-                  <span className="font-semibold">{consentimientos.length}</span> consentimientos
+              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div className="text-sm text-gray-600">
+                  {rangoMostrado}
                 </div>
-                
+
+                <Paginacion pagina={pagina} totalPaginas={totalPaginas} onCambiar={cambiarPagina} />
+
                 <div className="text-sm text-gray-600">
                   Rol actual: <span className="font-semibold text-red-600">{rol}</span>
                 </div>

@@ -3,6 +3,8 @@ import { Inter, Poppins } from "next/font/google"
 import "./globals.css"
 import Providers from "./providers"
 import Navbar from "./components/Navbar"
+import IndicadorNavegacion from "./components/IndicadorNavegacion"
+import { Suspense } from "react"
 import { Toaster } from "react-hot-toast"
 
 // Fuentes optimizadas para el sector salud
@@ -56,6 +58,12 @@ export default function RootLayout({
       <body
         className={`${inter.className} antialiased bg-gradient-to-b from-red-50 to-white min-h-screen`}
       >
+        {/* Barra de carga al navegar entre paginas. Suspense porque usa
+            useSearchParams y hay paginas estaticas (p. ej. /login). */}
+        <Suspense fallback={null}>
+          <IndicadorNavegacion />
+        </Suspense>
+
         <Providers>
           {/* Navbar mejorado */}
           <Navbar />

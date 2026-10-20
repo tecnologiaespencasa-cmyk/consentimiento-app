@@ -299,9 +299,8 @@ function resolverCanalNotificacion(
   if (categoria === CATEGORIA_TERAPIAS_AMBULATORIAS) {
     const esDireccionAsistencial = tipoTerapiaAmbulatoria === TIPO_TERAPIA_VALIDACION_PERTINENCIA;
     return {
-      destinosCorreo: [
-        esDireccionAsistencial ? DESTINO_NOTIFICACION_DIRECCION_ASISTENCIAL : DESTINO_NOTIFICACION_OTRAS_PROFESIONES,
-      ],
+      // Direccion asistencial no recibe correo por novedades de terapias ambulatorias.
+      destinosCorreo: esDireccionAsistencial ? [] : [DESTINO_NOTIFICACION_OTRAS_PROFESIONES],
       teamsCanales: esRolFarmacia
         ? teamsCanalFarmacia
         : [
@@ -779,12 +778,14 @@ export async function POST(req: Request) {
     const requiereFotoRutaEvidencia =
       categoriaEnum === "RUTA" && (tipoRutaEnum === "ACCIDENTE" || tipoRutaEnum === "CIERRE_VIAL");
     const esErca = categoriaEnum === "PACIENTE" && tipoPacienteEnum === "ERCA";
+    const esCateterPicc = categoriaEnum === "PACIENTE" && tipoPacienteEnum === "CATETER_PICC";
     const esInicioTratamientoPrioritario =
       categoriaEnum === "PACIENTE" && tipoPacienteEnum === "INICIO_TRATAMIENTO_PRIORITARIO";
     const prioridadPorDefecto =
       categoriaEnum === CATEGORIA_FARMACIA ||
       esLlamadaUrgente ||
       esErca ||
+      esCateterPicc ||
       esInicioTratamientoPrioritario
         ? "ALTA"
         : "MEDIA";
