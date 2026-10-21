@@ -15,7 +15,7 @@ export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamen
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ pacienteNombre: "", pacienteTipoDoc: "CC", pacienteDocumento: "", ips: "", fechaIngreso: "", cie10Codigo: "", diagnosticoDescriptivo: "", otros: "" });
   const [medicamentos, setMedicamentos] = useState<MedicamentoForm[]>([]);
-  const cie10Valido = /^[A-Z][0-9]{3}$/.test(form.cie10Codigo);
+  const cie10Valido = /^[A-Z][0-9]{2}[0-9X]$/.test(form.cie10Codigo);
   const hoy = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
   const catalogoSet = useMemo(() => new Set(medicamentosCatalogo.map((m) => m.nombre.toUpperCase())), [medicamentosCatalogo]);
 
@@ -69,7 +69,7 @@ export default function RegistrarRondaForm({ medicamentosCatalogo }: { medicamen
           <Campo label="Número de identificación"><input required value={form.pacienteDocumento} onChange={(e) => actualizarDocumento(e.target.value)} placeholder={["PA", "CE"].includes(form.pacienteTipoDoc) ? "Letras y números" : "Solo números"} className="input" /></Campo>
           <Campo label="IPS"><select required value={form.ips} onChange={(e) => setForm((p) => ({ ...p, ips: e.target.value }))} className="input"><option value="" disabled>Selecciona la IPS</option>{IPS_OPCIONES.map((ips) => <option key={ips} value={ips}>{ips}</option>)}</select></Campo>
           <Campo label="Fecha de ingreso"><input required type="date" value={form.fechaIngreso} max={hoy} onChange={(e) => setForm((p) => ({ ...p, fechaIngreso: e.target.value }))} className="input" /></Campo>
-          <Campo label="Código CIE-10"><input required maxLength={4} value={form.cie10Codigo} onChange={(e) => setForm((p) => ({ ...p, cie10Codigo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") }))} placeholder="Ejemplo: N390" className="input uppercase" /><p className="mt-1 text-xs text-slate-500">Una letra y tres números.</p></Campo>
+          <Campo label="Código CIE-10"><input required maxLength={4} value={form.cie10Codigo} onChange={(e) => setForm((p) => ({ ...p, cie10Codigo: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "") }))} placeholder="Ejemplo: N390" className="input uppercase" /><p className="mt-1 text-xs text-slate-500">Una letra y tres números, o dos números y X (ejemplo: I10X).</p></Campo>
           <Campo label="Diagnóstico descriptivo"><div className={`input flex items-center min-h-11 ${form.diagnosticoDescriptivo ? "bg-slate-50 text-slate-700" : "bg-slate-50 text-slate-400"}`} aria-live="polite">{form.diagnosticoDescriptivo || "Se completa automáticamente con el CIE-10"}</div></Campo>
         </div>
       </section>

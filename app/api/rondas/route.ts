@@ -8,7 +8,7 @@ import { IPS_OPCIONES } from "@/app/rondas/opciones";
 const ROLES_RONDA = ["MEDICO_RONDA", "TECNICO", "ADMINISTRATIVO"];
 const TIPOS_DOCUMENTO = ["CC", "RC", "PA", "CE", "TI", "PE", "PPT"] as const;
 const NOMBRE_REGEX = /^[A-Za-zÀ-ÖØ-öø-ÿÑñ ]+$/;
-const CIE10_REGEX = /^[A-Z][0-9]{3}$/;
+const CIE10_REGEX = /^[A-Z][0-9]{2}[0-9X]$/;
 const FECHA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 function texto(value: unknown, max: number) {
@@ -51,12 +51,13 @@ export async function POST(req: Request) {
     if (Number.isNaN(fechaIngreso.getTime())) return NextResponse.json({ error: "La fecha de ingreso no es válida." }, { status: 400 });
     const hoyBogota = new Date(`${new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" })}T00:00:00.000Z`);
     if (fechaIngreso.getTime() > hoyBogota.getTime()) return NextResponse.json({ error: "La fecha de ingreso no puede ser futura." }, { status: 400 });
-    if (!CIE10_REGEX.test(cie10Codigo)) return NextResponse.json({ error: "El CIE-10 debe tener una letra seguida de tres números." }, { status: 400 });
+    if (!CIE10_REGEX.test(cie10Codigo)) return NextResponse.json({ error: "El CIE-10 debe tener una letra seguida de tres números, o de dos números y X." }, { status: 400 });
     if (!Array.isArray(medicamentos) || medicamentos.length > 6) {
       return NextResponse.json({ error: "Puedes registrar hasta seis medicamentos." }, { status: 400 });
     }
 
-    const cie10 = await prisma.cie10Catalogo.findUnique({ where: { codigo: cie10Codigo } });
+    // En RIPS los códigos sin subcategoría llevan X (I10X); el catálogo los guarda con tres caracteres (I10).
+    const cie10 = await prisma.cie10Catalogo.findFirst({ where: { codigo: { in: [cie10Codigo, cie10Codigo.replace(/X$/, "")] } }, orderBy: { codigo: "desc" } });
     if (!cie10) return NextResponse.json({ error: "El código CIE-10 no existe en el catálogo." }, { status: 400 });
 
     const nombresMedicamentos = medicamentos.map((m: unknown) => texto((m as Record<string, unknown>)?.nombre, 250));

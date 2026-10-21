@@ -11,7 +11,8 @@ export async function GET(req: Request) {
   if (!ROLES_RONDA.includes(String(session.user.rol))) return NextResponse.json({ error: "No autorizado" }, { status: 403 });
 
   const codigo = new URL(req.url).searchParams.get("cie10")?.trim().toUpperCase();
-  if (!codigo || !/^[A-Z][0-9]{3}$/.test(codigo)) return NextResponse.json({ descripcion: null });
-  const cie10 = await prisma.cie10Catalogo.findUnique({ where: { codigo }, select: { descripcion: true } });
+  if (!codigo || !/^[A-Z][0-9]{2}[0-9X]$/.test(codigo)) return NextResponse.json({ descripcion: null });
+  // En RIPS los códigos sin subcategoría llevan X (I10X); el catálogo los guarda con tres caracteres (I10).
+  const cie10 = await prisma.cie10Catalogo.findFirst({ where: { codigo: { in: [codigo, codigo.replace(/X$/, "")] } }, orderBy: { codigo: "desc" }, select: { descripcion: true } });
   return NextResponse.json({ descripcion: cie10?.descripcion ?? null });
 }
