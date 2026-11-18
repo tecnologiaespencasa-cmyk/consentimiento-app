@@ -20,7 +20,7 @@ import {
 const DESTINO_NOTIFICACION_AUXILIAR = "admisiones@especialistasencasa.com";
 const DESTINO_NOTIFICACION_OTRAS_PROFESIONES = "analistaasistencial@especialistasencasa.com";
 const DESTINO_NOTIFICACION_LLAMADA_URGENTE_ANALISTA = "analistaasistencia@especialistasencasa.com";
-const DESTINO_NOTIFICACION_DIRECCION_ASISTENCIAL = "direccionasistencial@especialistasencasa.com";
+const DESTINO_NOTIFICACION_DIRECCION_ASISTENCIAL = "lideroperativo@especialistasencasa.com";
 const DESTINO_NOTIFICACION_CLINICA_HERIDAS = "clinicadeheridas@especialistasencasa.com";
 const DESCRIPCION_LLAMADA_URGENTE = "Necesito una llamada urgente de apoyo.";
 
